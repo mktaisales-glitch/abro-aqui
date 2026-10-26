@@ -1,0 +1,30 @@
+{
+  "name": "abro-aqui",
+  "version": "0.1.0",
+  "description": "Should I open here? Location-intelligence agent for small businesses, grounded in Qloo taste data and NVIDIA Nemotron on Nebius Token Factory.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --env-file=.env --test tests/*.test.js",
+    "dev": "node --env-file=.env src/server.js",
+    "start": "node --env-file=.env src/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mktaisales-glitch/abro-aqui.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mktaisales-glitch/abro-aqui/issues"
+  },
+  "homepage": "https://github.com/mktaisales-glitch/abro-aqui#readme",
+  "type": "module",
+  "dependencies": {
+    "@tavily/core": "^0.7.14",
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.3.0",
+    "openai": "^7.45.0",
+    "zod": "^4.6.7"
+  }
+}
