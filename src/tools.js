@@ -127,7 +127,7 @@ function placeOut(e, lat, lon) {
   const g = e.location ?? {};
   return {
     name: e.name,
-    rating: e.properties?.business_rating ?? null,
+    rating: e.properties?.business_rating != null ? Math.round(e.properties.business_rating * 10) / 10 : null,
     price_level: e.properties?.price_level ?? null,
     address: e.properties?.address ?? null,
     is_closed: !!e.properties?.is_closed,
