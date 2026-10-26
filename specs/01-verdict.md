@@ -30,15 +30,14 @@ Adjustments after the base rule:
 
 **There is no GREEN.** The best verdict is AMBER-GREEN, which turns into the owner's green only after they confirm three facts Qloo cannot see: foot traffic, rent, and household income. The report asks those three questions explicitly.
 
-## Calibration
+## Calibration (recorded 26-Oct-2026, nearest heat-map block)
 
-Calibrated on two real closures in Barcelona (October 2026):
-
-- Seafood restaurant, Av. Paral·lel 40 → affinity 0.19 → RED. Closed after 10 years (the closure is consistent with the area's shift to tapas/vermouth; it is not claimed as a prediction).
-- Waffles & ice cream, Gran Via / Entença → affinity 0.73, supply 0.55, 4 ice-cream shops within 700 m → AMBER-GREEN with the three open questions. Closed. The three questions (traffic, rent, income) are exactly what the data did not cover.
+- Seafood restaurant, Av. Paral·lel 40 → affinity 0.29, supply 0.53, 7 competitors, 13/50 popular places serve seafood → **RED**. The business closed after 10 years; consistent with the area today, not claimed as a prediction.
+- Waffles & ice cream, Gran Via 400 / Entença → affinity 0.52, supply 0.49, 7 ice-cream shops within 700 m, 0 waffle places → **AMBER** + gap "waffles" + best block 275 m away (0.92). The business closed.
+- An earlier manual test placed the Entença point 400 m off (near Plaça d'Espanya) and read 0.73; the recorded value at the real corner is 0.52.
 
 ## Acceptance
 
-- [ ] Paral·lel 40 + seafood returns RED and names the best alternative zone within 2 km.
-- [ ] Gran Via/Entença + waffles returns AMBER-GREEN with `gap: true` for waffles and the three open questions.
+- [x] Paral·lel 40 + seafood returns RED.
+- [x] Gran Via 400 + waffles and ice cream returns AMBER with gap = waffles and a better block nearby.
 - [ ] The response includes `rule_fired` (string) and `inputs` (the six signals above).

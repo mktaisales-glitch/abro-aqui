@@ -1,0 +1,27 @@
+# One-click deploy on Render (free web service). Keys are set in the Render dashboard, never in git.
+services:
+  - type: web
+    name: abro-aqui
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22.12.0"
+      - key: QLOO_API_KEY
+        sync: false
+      - key: NEBIUS_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: QLOO_API_URL
+        value: https://hackathon.api.qloo.com
+      - key: NEBIUS_BASE_URL
+        value: https://api.tokenfactory.nebius.com/v1/
+      - key: DAILY_LIMIT
+        value: "30"
+      - key: LLM_DAILY_CAP
+        value: "600"
