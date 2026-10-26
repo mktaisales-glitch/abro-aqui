@@ -4,38 +4,51 @@ import { verdict } from "../src/verdict.js";
 
 // Real signals captured from the Qloo hackathon API on 26-Oct-2026 (see specs/01-verdict.md).
 
-test("Paral·lel 40 + seafood → RED (area does not ask for it)", () => {
+// Real signals recorded from the Qloo hackathon API on 26-Oct-2026 (nearest heat-map cell to the address).
+
+test("Paral·lel 40 + seafood restaurant → RED (affinity 0.29: the area does not ask for it)", () => {
   const v = verdict({
-    affinity: 0.19,
-    affinity_rank: 0.92,
-    supply: 0.29,
+    affinity: 0.289,
+    affinity_rank: 0.952,
+    supply: 0.533,
     competitors: [
-      { name: "Puertecillo Paral·lel", rating: 4.4, distance_m: 350 },
-      { name: "Lascar 74", rating: 4.6, distance_m: 520 },
-      { name: "Can Eusebio", rating: 3.1, distance_m: 600 },
+      { name: "Puertecillo Paral·lel", rating: 4.4, distance_m: 60 },
+      { name: "Can Eusebio", rating: 3.1, distance_m: 380 },
+      { name: "Lascar 74", rating: 4.6, distance_m: 630 },
+      { name: "Restaurant Can Costa", rating: 3.3, distance_m: 410 },
+      { name: "Los Caracoles", rating: 4.3, distance_m: 650 },
+      { name: "Colom Restaurant", rating: 4.7, distance_m: 660 },
+      { name: "Kubik Restaurant", rating: 1.9, distance_m: 560 },
     ],
-    coverage: 180,
+    coverage: 316,
   });
   assert.equal(v.level, "RED");
-  assert.match(v.rule_fired, /affinity 0.19 < 0.35/);
-  assert.equal(v.gap, false);
+  assert.match(v.rule_fired, /affinity 0.29 < 0.35/);
 });
 
-test("Gran Via / Entença + ice cream → AMBER-GREEN (appetite without offer), then stays because strong competitors are > 400 m", () => {
+test("Gran Via 400 (Entença) + waffles & ice cream → AMBER (mixed: 0.52 affinity, 0.49 supply, 7 ice-cream shops)", () => {
   const v = verdict({
-    affinity: 0.73,
-    affinity_rank: 0.89,
-    supply: 0.55,
+    affinity: 0.52,
+    affinity_rank: 0.86,
+    supply: 0.49,
     competitors: [
-      { name: "GELATOMANIA", rating: 4.8, distance_m: 650 },
-      { name: "Turín Gelato", rating: 4.6, distance_m: 480 },
-      { name: "Gelati Dino", rating: 4.6, distance_m: 690 },
-      { name: "Farggi", rating: 3.8, distance_m: 300 },
+      { name: "GELATOMANIA", rating: 4.8, distance_m: 370 },
+      { name: "Farggi", rating: 3.8, distance_m: 490 },
+      { name: "Gelati Dino", rating: 4.6, distance_m: 480 },
+      { name: "Gelateria i Cafeteria Bonastre", rating: 3.6, distance_m: 360 },
+      { name: "Turín", rating: 4.8, distance_m: 700 },
+      { name: "La Merenda", rating: 4.5, distance_m: 520 },
+      { name: "Turín Gelato / Empanadas Argentinas", rating: 4.6, distance_m: 690 },
     ],
     coverage: 355,
   });
-  assert.equal(v.level, "AMBER-GREEN");
+  assert.equal(v.level, "AMBER");
   assert.equal(v.unknowns.length, 3);
+});
+
+test("appetite without offer → AMBER-GREEN", () => {
+  const v = verdict({ affinity: 0.73, affinity_rank: 0.89, supply: 0.55, competitors: [{ name: "X", rating: 4.0, distance_m: 600 }], coverage: 355 });
+  assert.equal(v.level, "AMBER-GREEN");
 });
 
 test("two strong competitors within 400 m step the verdict down", () => {

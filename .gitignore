@@ -1,3 +1,5 @@
 .env
-node_modules/
+data/
 data/cache.sqlite
+fixtures/rec-*.json
+node_modules/
