@@ -5,3 +5,4 @@ fixtures/rec-*.json
 node_modules/
 fixtures/raw/
 fixtures/demo.sqlite
+PROGRESS.md

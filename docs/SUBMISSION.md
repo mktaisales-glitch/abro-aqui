@@ -43,7 +43,7 @@ On the two real cases: the seafood restaurant at Paral·lel 40 gets **Hard**. Th
 The agent decides about places, never people. E-mails and phone numbers typed by users are removed before any model or search call. Customer-identity labels that touch protected attributes are filtered out of the audience panel. It is not for housing, employment or credit decisions. It says what it cannot see.
 
 ### What's next
-We run a sales and AI consultancy for small businesses (MarketingAiSales). This is the first diagnostic we'll put in front of clients: 49 € per report for an owner, 199 €/month for commercial real-estate agencies that want a verdict on every listing.
+Pricing we'd test: 49 € per report for an owner, 199 €/month for commercial real-estate agencies that want a verdict on every listing.
 
 ---
 

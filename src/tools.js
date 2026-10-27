@@ -19,7 +19,7 @@ export async function geocode(address, trace) {
   const m = address.trim().match(/^(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)$/);
   if (m) return { lat: +m[1], lon: +m[2], display_name: `${(+m[1]).toFixed(5)}, ${(+m[2]).toFixed(5)}` };
   const url = `${NOMINATIM}?format=json&limit=1&q=${encodeURIComponent(address.trim())}`;
-  const [hit] = await getJSON(url, { headers: { "User-Agent": "abro-aqui/0.1 (hackathon demo; victorsegura@marketingaisales.com)" }, source: "osm", trace });
+  const [hit] = await getJSON(url, { headers: { "User-Agent": "abro-aqui/0.1 (+https://github.com/mktaisales-glitch/abro-aqui)" }, source: "osm", trace });
   if (!hit) throw new Error(`Address not found: ${address}`);
   return { lat: +hit.lat, lon: +hit.lon, display_name: hit.display_name };
 }

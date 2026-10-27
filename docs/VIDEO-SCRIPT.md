@@ -1,6 +1,6 @@
 # Demo video script (Nebius, ≤ 3:00, public YouTube)
 
-Rules from the judges: the "aha" in the first 30 seconds; say "Nebius Token Factory" and the model names out loud; show the product working, not slides. Voice: Víctor, in English. Screen: the live demo.
+Rules from the judges: the "aha" in the first 30 seconds; say "Nebius Token Factory" and the model names out loud; show the product working, not slides. Voice: the team, in English. Screen: the live demo.
 
 | Time | Screen | Voice |
 | --- | --- | --- |
