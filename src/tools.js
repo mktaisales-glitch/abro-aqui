@@ -4,7 +4,7 @@ import { getJSON } from "./http.js";
 import { tavily } from "@tavily/core";
 
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
-const TAVILY_KEY = process.env.TAVILY_API_KEY;
+const TAVILY_KEY = process.env.TAVILY_API_KEY?.trim();
 
 export function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371000;

@@ -2,7 +2,7 @@
 import { getJSON } from "./http.js";
 
 const BASE = process.env.QLOO_API_URL || "https://hackathon.api.qloo.com";
-const KEY = process.env.QLOO_API_KEY || "";
+const KEY = (process.env.QLOO_API_KEY || "").trim();
 
 export function qlooUrl(path, params = {}) {
   const url = new URL(path, BASE);

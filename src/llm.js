@@ -8,7 +8,7 @@ export const MODELS = {
   writer: process.env.MODEL_WRITER || "nvidia/nemotron-3-super-120b-a12b",
 };
 
-const key = process.env.NEBIUS_API_KEY;
+const key = process.env.NEBIUS_API_KEY?.trim();
 export const llmEnabled = !!key;
 const client = llmEnabled ? new OpenAI({ baseURL: process.env.NEBIUS_BASE_URL || "https://api.tokenfactory.nebius.com/v1/", apiKey: key, timeout: Number(process.env.LLM_TIMEOUT_MS) || 25000, maxRetries: 1 }) : null;
 
