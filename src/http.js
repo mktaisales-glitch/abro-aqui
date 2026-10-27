@@ -1,22 +1,31 @@
 // One cached JSON fetcher for every external call (Qloo, OpenStreetMap).
 // SQLite cache, 24 h TTL. OFFLINE=1 turns a cache miss into an error that names the URL
 // (used to replay recorded demo data and to run the tests without network).
-import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 
 const TTL_MS = 24 * 3600 * 1000;
-const DB_PATH = process.env.CACHE_PATH || "data/cache.sqlite";
-fs.mkdirSync(DB_PATH.split("/").slice(0, -1).join("/") || ".", { recursive: true });
-const db = new Database(DB_PATH);
-// Recorded responses for the demo examples, shipped with the repo: used only if a live call fails.
-const FALLBACK = process.env.FALLBACK_PATH ?? "fixtures/demo.sqlite";
-const fb = fs.existsSync(FALLBACK) && path.resolve(FALLBACK) !== path.resolve(DB_PATH) ? new Database(FALLBACK, { readonly: true }) : null;
-db.exec("CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT, t INTEGER)");
-const getStmt = db.prepare("SELECT v, t FROM cache WHERE k = ?");
-const putStmt = db.prepare("INSERT OR REPLACE INTO cache (k, v, t) VALUES (?, ?, ?)");
-
 const PINNED = Number.MAX_SAFE_INTEGER; // recorded fixtures never expire
+
+// Store: SQLite locally (persistent, used for recorded fixtures and tests); in memory on hosts where the
+// native SQLite module is not available or the disk is ephemeral anyway (CACHE_MEMORY=1, e.g. Render free).
+let getStmt, putStmt, fb = null;
+if (process.env.CACHE_MEMORY === "1") {
+  const mem = new Map();
+  getStmt = { get: (k) => mem.get(k) };
+  putStmt = { run: (k, v, t) => { mem.set(k, { v, t }); if (mem.size > 5000) mem.delete(mem.keys().next().value); } };
+} else {
+  const { default: Database } = await import("better-sqlite3");
+  const DB_PATH = process.env.CACHE_PATH || "data/cache.sqlite";
+  fs.mkdirSync(DB_PATH.split("/").slice(0, -1).join("/") || ".", { recursive: true });
+  const db = new Database(DB_PATH);
+  // Recorded responses for the demo examples (local only, never in the public repo): used if a live call fails.
+  const FALLBACK = process.env.FALLBACK_PATH ?? "fixtures/demo.sqlite";
+  fb = fs.existsSync(FALLBACK) && path.resolve(FALLBACK) !== path.resolve(DB_PATH) ? new Database(FALLBACK, { readonly: true }) : null;
+  db.exec("CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT, t INTEGER)");
+  getStmt = db.prepare("SELECT v, t FROM cache WHERE k = ?");
+  putStmt = db.prepare("INSERT OR REPLACE INTO cache (k, v, t) VALUES (?, ?, ?)");
+}
 
 export function putCache(url, json, pinned = false) {
   putStmt.run(url, JSON.stringify(json), pinned ? PINNED : Date.now());
