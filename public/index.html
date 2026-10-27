@@ -324,7 +324,7 @@ function render(d){
   const p=d.profile;$("#profh").textContent=T(`The ${p.places} most popular places within ${p.radius_m} m`,`Los ${p.places} locales más populares a ${p.radius_m} m`);
   bars($("#who"),p.who.slice(0,5));bars($("#when"),p.when.slice(0,4));bars($("#serves"),p.serves.slice(0,6));
   $("#why").innerHTML=rep.why.map(x=>`<li>${esc(x)}</li>`).join("");
-  $("#actions").innerHTML=rep.actions.map(x=>`<li>${esc(x)}</li>`).join("");
+  $("#actions").innerHTML=rep.actions.map(x=>`<li>${esc(x)}</li>`).join("")+`<li class="note" style="list-style:none;margin-top:6px">${T("Information to help you decide, not financial, legal or real-estate advice. Check foot traffic, rent and licences before you sign.","Información para ayudarte a decidir, no asesoramiento financiero, legal ni inmobiliario. Comprueba tráfico, alquiler y licencias antes de firmar.")}</li>`;
   $("#partnersbox").hidden=!rep.partners.length;$("#partners").innerHTML=rep.partners.map(x=>`<li><b>${esc(x.name)}</b>${x.verified?` <span class="ok" title="${esc(x.source||"")}">✓ ${T("found on the web","encontrado en la web")}</span>`:""}: ${esc(x.reason)}</li>`).join("");
   $("#unknowns").innerHTML=rep.unknowns.map((u,k)=>`<label>${esc(u)}<input data-u="${k}" placeholder="${T("your answer","tu respuesta")}"></label>`).join("");
   $("#unkres").textContent="";$("#scoutsteps").innerHTML="";$("#scouttext").textContent="";document.querySelectorAll("#scoutbox p.note:not([data-i])").forEach(x=>x.remove());

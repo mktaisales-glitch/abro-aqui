@@ -6,7 +6,7 @@ The verdict is computed by deterministic code (`src/verdict.js`), never by the L
 
 ## What changed from v1, and why
 
-v1 used the heat map's `affinity` as "how much the area likes it" and `popularity` as "how much is already on offer". A review of the recorded data showed both are **ranks inside the 1.5 km circle**, spread evenly from 0 to 1 (quartiles exactly 0 / 0.25 / 0.5 / 0.75 / 1 for seafood and for ice cream). Used as thresholds, ~35 % of any area would be red by construction, and the verdict depended on where the circle was centred. Paral·lel 40 came out "Not here" for seafood while its `affinity_rank` was 0.95 and a seafood restaurant with 4.4★ stands 26 m away.
+v1 used the heat map's `affinity` as "how much the area likes it" and `popularity` as "how much is already on offer". A review of the recorded data showed both are **ranks inside the 1.5 km circle**, spread evenly from 0 to 1 (quartiles exactly 0 / 0.25 / 0.5 / 0.75 / 1 for seafood and for ice cream). Used as thresholds, ~35 % of any area would be red by construction, and the verdict depended on where the circle was centred. Paral·lel 40 came out "Not here" for seafood while its `affinity_rank` at the nearest block was 0.95 (0.93 averaged over the blocks within 250 m, the figure v2 uses) and a seafood restaurant with 4.4★ stands 26 m away.
 
 v2 reads the signals as follows:
 
@@ -59,3 +59,6 @@ Both businesses closed. The seafood restaurant lasted ten years; we do not claim
 - [x] Gran Via 400 + waffles and ice cream → AMBER; waffles reported as not measured, not as a gap.
 - [x] Low local rank with high demand is never RED; 20 rivals at 50 m is never Promising; two excellent rivals never make RED.
 - [x] Missing inputs give UNKNOWN, never an exception. Every verdict has `rule_fired` and `rule_es`.
+
+## Note on dense city centres (28-Oct-2026)
+In central Barcelona the generic tag "restaurant" ranks ~0.997 on every block (it saturates: it reflects how much data an area has), while a specific concept still discriminates between neighbourhoods: seafood Barceloneta 0.996 · Poble-sec 0.993 · Gràcia 0.968 · Entença 0.956 · Paral·lel 0.952; ice cream Barceloneta 0.964 · Poble-sec 0.922 · Gràcia 0.913 · Paral·lel 0.890 · Entença 0.856. So in dense centres the RED threshold (0.75) rarely fires and the decision is carried by offer and by the better-spot comparison; the report also shows where the address stands inside its 1.5 km circle ("beats N % of blocks").
