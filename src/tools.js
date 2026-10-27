@@ -193,21 +193,30 @@ export async function zoneProfile({ lat, lon, radius = 500 }, trace) {
     kind: top(counts.kind, 8),
     who: top(counts.who, 6),
     when: top(counts.when, 5),
+    places_named: ents.slice(0, 25).map((e) => ({ name: e.name, kind: (e.tags ?? []).find((t) => t.type === "urn:tag:category:place" && !GENERIC.test(t.name))?.name ?? null })),
     tag_ids: ents.map((e) => (e.tags ?? []).map((t) => t.id)),
     tag_names: ents.map((e) => (e.tags ?? []).filter((t) => SHARE_TYPES.test(t.type)).map((t) => t.name.toLowerCase())),
   };
 }
 
-/** How many of the area's popular places already serve each part of the concept. */
+/** How many of the area's popular places already serve each part of the concept (whole-word match on tag names). */
 export function conceptShare(profile, resolved) {
   return resolved.map((p) => {
     const words = p.part.split(" ").map(singular).filter((w) => w.length > 2 && !STOP.has(w));
-    const n = profile.tag_names.filter((names) => names.some((nm) => words.some((w) => nm.includes(w)))).length;
+    const ids = new Set([p.heatmap_tag, p.competitor_tag, ...(p.heat_candidates ?? []), ...(p.comp_candidates ?? [])].filter(Boolean));
+    const n = profile.tag_names.filter((names, i) =>
+      (profile.tag_ids?.[i] ?? []).some((id) => ids.has(id)) ||
+      (words.length && names.some((nm) => { const toks = nm.split(/[^a-z0-9]+/).map(singular); return words.every((w) => toks.includes(w)); }))
+    ).length;
     return { part: p.part, places: n, of: profile.places };
   });
 }
 
-/** Taste heat map of a concept around a point. One call returns ~300–400 cells; duplicates removed by geohash. */
+/**
+ * Taste heat map of a concept around a point. One call returns ~300–400 cells; duplicates removed by geohash.
+ * Per cell: `affinity` and `popularity` are ranks inside this circle (0–1, evenly spread);
+ * `affinity_rank` compares the cell with a wider reference and is what we call demand.
+ */
 export async function heatmap({ lat, lon, radius = 1500, tag }, trace) {
   const d = await qloo(
     "/v2/insights",
@@ -224,11 +233,33 @@ export async function heatmap({ lat, lon, radius = 1500, tag }, trace) {
   }
   const dist = (c) => haversine(lat, lon, c.lat, c.lon);
   const nearest = cells.length ? cells.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
-  // best alternative: highest affinity with room left (supply < 0.8), within the radius
-  const open = cells.filter((c) => c.popularity < 0.8);
-  const pool = open.length ? open : cells;
-  const best = pool.reduce((a, b) => (b.affinity > a.affinity || (b.affinity === a.affinity && b.popularity < a.popularity) ? b : a), pool[0] ?? null);
-  return { cells, nearest: nearest && { ...nearest, distance_m: dist(nearest) }, best: best && { ...best, distance_m: dist(best) }, coverage: cells.length };
+  return { cells, nearest: nearest && { ...nearest, distance_m: dist(nearest) }, coverage: cells.length, ...demandAround(cells, lat, lon) };
+}
+
+/** Demand around a point: mean affinity_rank (and local affinity) of the cells within `r` metres; the nearest cell if none. */
+export function demandAround(cells, lat, lon, r = 250) {
+  if (!cells.length) return { demand: null, local: null, cells_used: 0 };
+  let used = cells.filter((c) => haversine(lat, lon, c.lat, c.lon) <= r);
+  if (!used.length) used = [cells.reduce((a, b) => (haversine(lat, lon, b.lat, b.lon) < haversine(lat, lon, a.lat, a.lon) ? b : a))];
+  const mean = (f) => Math.round((used.reduce((s, c) => s + c[f], 0) / used.length) * 1000) / 1000;
+  return { demand: mean("affinity_rank"), local: mean("affinity"), cells_used: used.length };
+}
+
+/** How many places Qloo knows within `radius` of a point (is this a shopping street or a park?). */
+export async function placesNear({ lat, lon, radius = 200 }, trace) {
+  const d = await qloo("/v2/insights", { "filter.type": "urn:entity:place", "filter.location": point(lat, lon), "filter.location.radius": radius, take: 30 }, trace);
+  return (d?.results?.entities ?? []).length;
+}
+
+/** Rivals in a wide radius (the 50 most popular with the tag), used to judge alternative blocks. */
+export async function rivalsAround({ lat, lon, radius = 1500, tag }, trace) {
+  if (!tag) return [];
+  const d = await qloo(
+    "/v2/insights",
+    { "filter.type": "urn:entity:place", "filter.location": point(lat, lon), "filter.location.radius": radius, "filter.tags": tag, take: 50 },
+    trace
+  );
+  return (d?.results?.entities ?? []).map((e) => placeOut(e, lat, lon)).filter((p) => !p.is_closed && p.lat != null);
 }
 
 export async function affineBrands({ lat, lon, tag }, trace) {
@@ -240,14 +271,20 @@ export async function affineBrands({ lat, lon, tag }, trace) {
   return (d?.results?.entities ?? []).map((e) => ({ name: e.name, affinity: e.query?.affinity ?? null }));
 }
 
-/** Tavily: does this business exist on the web? The model decides when to call it. */
+/** Tavily: does this business exist on the web? It counts as found only if the name appears in a result title or URL. */
 export async function verifyBusiness({ name, city }, trace) {
   if (!TAVILY_KEY) return { exists: null, note: "Tavily not configured" };
+  if (process.env.OFFLINE) return { exists: null, note: "offline replay: not checked" };
   const t0 = Date.now();
   const client = tavily({ apiKey: TAVILY_KEY });
-  const q = `${name} ${city}`;
-  const r = await client.search(q, { maxResults: 3, searchDepth: "basic" });
+  const q = `"${name}" ${city}`;
+  const r = await Promise.race([
+    client.search(q, { maxResults: 5, searchDepth: "basic" }),
+    new Promise((_, no) => setTimeout(() => no(new Error("Tavily timeout (8 s)")), 8000)),
+  ]).catch((e) => { trace?.add({ source: "tavily", url: `tavily:/search?q=${encodeURIComponent(q)}`, ms: Date.now() - t0, cached: false, error: String(e.message).slice(0, 80) }); throw e; });
   trace?.add({ source: "tavily", url: `tavily:/search?q=${encodeURIComponent(q)}`, ms: Date.now() - t0, cached: false });
-  const hit = r.results?.[0];
-  return { exists: !!hit, url: hit?.url ?? null, snippet: hit?.content?.slice(0, 200) ?? null };
+  const norm = (x) => String(x ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const key = norm(name).split(" ").filter((w) => w.length > 2);
+  const hit = (r.results ?? []).find((x) => { const t = norm(`${x.title} ${x.url}`); return key.length && key.every((w) => t.includes(w)); });
+  return { exists: !!hit, url: hit?.url ?? null, title: hit?.title ?? null, snippet: hit?.content?.slice(0, 200) ?? null, checked: (r.results ?? []).length };
 }

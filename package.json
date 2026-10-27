@@ -4,7 +4,7 @@
   "description": "Should I open here? Location-intelligence agent for small businesses, grounded in Qloo taste data and NVIDIA Nemotron on Nebius Token Factory.",
   "main": "index.js",
   "scripts": {
-    "test": "node --env-file=.env --test tests/*.test.js",
+    "test": "node --env-file-if-exists=.env --test --test-timeout=60000 tests/*.test.js",
     "dev": "node --env-file-if-exists=.env --watch src/server.js",
     "start": "node --env-file-if-exists=.env src/server.js"
   },

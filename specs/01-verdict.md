@@ -1,43 +1,61 @@
-# Spec 01 — The verdict
+# Spec 01 — The verdict (v2, 27-Oct-2026)
 
 **Question the product answers:** "Should I open *this concept* at *this address*?"
 
-The verdict is computed by deterministic code, never by the LLM. The LLM explains it; it does not decide it. The rule that fired is always shown to the user.
+The verdict is computed by deterministic code (`src/verdict.js`), never by the LLM. The LLM explains it; it does not decide it. The rule that fired is always shown, in English and Spanish.
 
-## Inputs (all from Qloo, all aggregated, no personal data)
+## What changed from v1, and why
 
-| Signal | Source | Range |
+v1 used the heat map's `affinity` as "how much the area likes it" and `popularity` as "how much is already on offer". A review of the recorded data showed both are **ranks inside the 1.5 km circle**, spread evenly from 0 to 1 (quartiles exactly 0 / 0.25 / 0.5 / 0.75 / 1 for seafood and for ice cream). Used as thresholds, ~35 % of any area would be red by construction, and the verdict depended on where the circle was centred. Paral·lel 40 came out "Not here" for seafood while its `affinity_rank` was 0.95 and a seafood restaurant with 4.4★ stands 26 m away.
+
+v2 reads the signals as follows:
+
+| Signal | Source | Meaning in v2 |
 | --- | --- | --- |
-| `affinity` — how much the area likes this concept | `/v2/insights` `filter.type=urn:heatmap`, nearest cell to the address | 0–1 |
-| `affinity_rank` — percentile of that cell inside the 1.5 km radius | same call | 0–1 |
-| `supply` — existing popularity/offer of the concept at the cell | same call, `popularity` | 0–1 |
-| `competitors` — same-category places within 700 m | `/v2/insights` `filter.type=urn:entity:place` + category tag + radius | list with rating, price level, distance |
-| `gap` — related categories with high affinity and no supply | derived: zone taste tags minus categories present | list |
-| `coverage` — number of heatmap cells returned | same call | integer |
+| `demand` | heat map `affinity_rank`, **mean of the cells within 250 m** (nearest cell if none) | how much the area likes the concept against a wide reference; decides |
+| `local` | heat map `affinity`, same cells | rank inside the 1.5 km circle; shown as context ("beats 24 % of blocks around"), never decides |
+| block activity | heat map `popularity` | rank of how busy a block is inside the circle; used only to keep the "better spot" on busy blocks |
+| `offer` | direct competitors (`urn:entity:place` + category/dish tag) within 400 m and 700 m, and the share of the 50 most popular places within 500 m that already serve the concept | how much of it is already there; decides |
+| `coverage` | number of heat-map cells | data sufficiency |
 
-## Rules (applied in order; first match wins)
+## Offer level
 
-1. `coverage < 50` → **UNKNOWN** ("not enough data here").
-2. `affinity < 0.35` → **RED** ("the area does not ask for this").
-3. `affinity ≥ 0.35` and `supply ≥ 0.80` → **AMBER** ("saturated: the area likes it and already has it").
-4. `affinity ≥ 0.60` and `supply ≤ 0.60` → **AMBER-GREEN** ("appetite without offer").
-5. otherwise → **AMBER**.
+- **HIGH (well served)** if any: ≥ 3 rivals within 400 m, ≥ 6 rivals within 700 m, or ≥ 20 % of the popular places nearby already serve it.
+- **LOW** if ≤ 1 rival within 700 m and < 8 % share.
+- **MEDIUM** otherwise. A rival without a distance never counts as near.
 
-Adjustments after the base rule:
+## Rules (in order; first match wins)
 
-- Two or more direct competitors with rating ≥ 4.5 within 400 m → one step down (AMBER-GREEN → AMBER, AMBER → RED).
-- Zero direct competitors within 700 m and `affinity ≥ 0.5` → flag `gap: true` (shown as "nobody offers this yet").
+1. `coverage < 50` or no demand value → **UNKNOWN** ("No data").
+2. `demand < 0.75` → **RED** ("Not here": the area's taste leans elsewhere).
+3. offer HIGH → **AMBER** ("Hard": wanted, but already well served).
+4. offer LOW and `demand ≥ 0.85` → **AMBER-GREEN** ("Promising": appetite without offer).
+5. otherwise → **AMBER** ("Hard": neither a clear gap nor saturation).
 
-**There is no GREEN.** The best verdict is AMBER-GREEN, which turns into the owner's green only after they confirm three facts Qloo cannot see: foot traffic, rent, and household income. The report asks those three questions explicitly.
+Adjustment: two rivals rated ≥ 4.5 within 400 m turn AMBER-GREEN into AMBER. They never push a verdict to RED: a street with excellent rivals is hard, not undesirable.
 
-## Calibration (recorded 26-Oct-2026, nearest heat-map block)
+**There is no GREEN.** AMBER-GREEN becomes the owner's green only after they confirm what Qloo cannot see: foot traffic, rent and household income.
 
-- Seafood restaurant, Av. Paral·lel 40 → affinity 0.29, supply 0.53, 7 competitors, 13/50 popular places serve seafood → **RED**. The business closed after 10 years; consistent with the area today, not claimed as a prediction.
-- Waffles & ice cream, Gran Via 400 / Entença → affinity 0.52, supply 0.49, 7 ice-cream shops within 700 m, 0 waffle places → **AMBER** + gap "waffles" + best block 275 m away (0.92). The business closed.
-- An earlier manual test placed the Entença point 400 m off (near Plaça d'Espanya) and read 0.73; the recorded value at the real corner is 0.52.
+## Parts of the concept that cannot be measured
 
-## Acceptance
+A concept can have several parts ("waffles and ice cream"). The heat map only answers to some tags, and a competitor tag only counts if it is used for places within 5 km. When a part has no usable tag, the report says so ("Qloo has no data on waffles here") and the part is **not** called a gap: missing data is not missing offer.
 
-- [x] Paral·lel 40 + seafood returns RED.
-- [x] Gran Via 400 + waffles and ice cream returns AMBER with gap = waffles and a better block nearby.
-- [ ] The response includes `rule_fired` (string) and `inputs` (the six signals above).
+## Better spot nearby
+
+Among heat-map cells 150–800 m away (so their 700 m ring fits inside the 1.5 km of rivals fetched), on busy blocks (activity ≥ 0.5) with ≥ 15 places within 200 m (parks and hillsides fail), the same rules are applied with demand = mean `affinity_rank` within 150 m and offer = rivals counted around that cell. A cell is shown only if its verdict is higher than the address's, or the same verdict with demand ≥ +0.03, at least 2 fewer rivals within 700 m and a lower offer level.
+
+## Calibration (recorded 26–27 Oct 2026)
+
+| Case | Demand | Offer | Verdict | Better spot |
+| --- | --- | --- | --- | --- |
+| Seafood restaurant, Av. Paral·lel 40 | 0.93 (beats 24 % of blocks in the circle) | HIGH: 7 rivals within 700 m, Puertecillo 4.4★ at 26 m, 13 of 50 popular places serve seafood | **Hard** (well served) | 747 m west, Poble-sec: demand 0.99, 4 rivals within 700 m |
+| Waffles and ice cream, Gran Via 400 | 0.85 for ice cream; waffles not measurable (no waffle-tagged places within 5 km) | HIGH: 7 ice-cream shops within 700 m | **Hard** (well served) | 744 m east, Sant Antoni: demand 0.91, 5 rivals within 700 m |
+
+Both businesses closed. The seafood restaurant lasted ten years; we do not claim the tool predicts closures. What the data says today: the area loves seafood and is already full of it.
+
+## Acceptance (tests/verdict.test.js, tests/pipeline.test.js)
+
+- [x] Paral·lel 40 + seafood → AMBER, rule `well-served`, Puertecillo first, a busier and less-served block nearby.
+- [x] Gran Via 400 + waffles and ice cream → AMBER; waffles reported as not measured, not as a gap.
+- [x] Low local rank with high demand is never RED; 20 rivals at 50 m is never Promising; two excellent rivals never make RED.
+- [x] Missing inputs give UNKNOWN, never an exception. Every verdict has `rule_fired` and `rule_es`.

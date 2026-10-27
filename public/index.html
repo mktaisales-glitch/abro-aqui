@@ -95,7 +95,7 @@ h3{font-size:13px;font-weight:600;margin:0 0 6px;color:var(--ink-2)}
 /* unknowns */
 .unk label{display:grid;gap:4px;font-size:13.5px;margin-bottom:10px}
 .unk input{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-.unk .ok{font-weight:600;color:#1e5c36}
+.unk .ok,#partners .ok{font-weight:600;color:#1e5c36}
 /* chat */
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .chips button{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:4px 10px;font-size:12.5px;cursor:pointer}
@@ -119,7 +119,7 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
 .foot{margin-top:auto;padding:16px 24px 22px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--line)}
 /* ---------- map ---------- */
 .mapwrap{position:relative;min-height:420px;background:var(--asphalt)}
-@media(max-width:900px){.mapwrap{height:62vh;order:-1}}
+@media(max-width:900px){.mapwrap{height:45vh}body:not(.has-result) .mapwrap{display:none}}
 #map{position:absolute;inset:0}
 .legend{position:absolute;left:14px;bottom:14px;z-index:500;background:#fff;border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 1px 0 var(--line),0 0 0 1px var(--line)}
 .legend .ramp{height:8px;width:160px;border-radius:4px;background:linear-gradient(90deg,#fde3cf,#f7a35c,#EF751F,#D4421B,#7a1e08);margin:4px 0 2px}
@@ -224,14 +224,14 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
     <div class="legend" id="legend" hidden>
       <div data-i="legend">How much the area likes it</div>
       <div class="ramp"></div><div class="ends"><span data-i="low">low</span><span data-i="high">high</span></div>
-      <div class="keys"><span><i style="background:#000;border-radius:2px"></i><span data-i="kaddr">your address</span></span><span><i style="border:2px dashed #3E9B5F;border-radius:50%"></i><span data-i="kbest">best spot with room left</span></span><span><i style="background:#fff;border:2px solid #000;border-radius:50%"></i><span data-i="kcomp">direct competitor</span></span></div>
+      <div class="keys"><span><i style="background:#000;border-radius:2px"></i><span data-i="kaddr">your address</span></span><span><i style="border:2px dashed #3E9B5F;border-radius:50%"></i><span data-i="kbest">better spot nearby</span></span><span><i style="background:#fff;border:2px solid #000;border-radius:50%"></i><span data-i="kcomp">direct competitor</span></span></div>
     </div>
   </div>
 </div>
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script>
-const ES={lead:"Dile un negocio y una dirección. Lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",concept:"Negocio",address:"Dirección o «lat, lon»",go:"¿Abro aquí?",rule:"Por qué este color",numbers:"Lo que dice la zona",gap:"Nadie cerca ofrece",who:"Quién va",when:"Cuándo",serves:"Qué sirven",whyh:"Por qué",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",chat:"Pregunta «¿y si…?»",ask:"Preguntar",how:"Cómo lo sé",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",legend:"Cuánto le gusta a la zona",low:"poco",high:"mucho",kaddr:"tu dirección",kbest:"mejor punto con hueco",kcomp:"competidor directo"};
+const ES={lead:"Dile un negocio y una dirección. Lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",concept:"Negocio",address:"Dirección o «lat, lon»",go:"¿Abro aquí?",rule:"Por qué este color",numbers:"Lo que dice la zona",gap:"Nadie cerca ofrece",who:"Quién va",when:"Cuándo",serves:"Qué sirven",whyh:"Por qué",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",chat:"Pregunta «¿y si…?»",ask:"Preguntar",how:"Cómo lo sé",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",legend:"Cuánto le gusta a la zona",low:"poco",high:"mucho",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo"};
 const VERD={en:{RED:"Not here","AMBER":"Hard","AMBER-GREEN":"Promising",UNKNOWN:"No data"},es:{RED:"Aquí no","AMBER":"Difícil","AMBER-GREEN":"Prometedor",UNKNOWN:"Sin datos"}};
 const EXAMPLES=[["seafood restaurant","Avinguda del Paral·lel 40, Barcelona","Seafood · Paral·lel 40"],["waffles and ice cream","Gran Via de les Corts Catalanes 400, Barcelona","Waffles · Gran Via 400"],["specialty coffee","200 Bedford Avenue, Brooklyn, New York","Coffee · Bedford Ave"]];
 const STEPS={en:["Finding the address","Matching your idea to Qloo","Reading taste, offer and competitors","Writing the verdict"],es:["Buscando la dirección","Traduciendo tu idea a Qloo","Leyendo gusto, oferta y competencia","Escribiendo el veredicto"]};
@@ -271,16 +271,16 @@ $("#ask").onsubmit=async e=>{
   try{
     const r=await fetch("/api/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({concept,address,lang,without_qloo:true})});
     const d=await r.json();if(!r.ok)throw new Error(d.error||("Error "+r.status));
-    cur=d;render(d);$("#log").innerHTML="";
+    cur=d;document.body.classList.add("has-result");render(d);$("#log").innerHTML="";
     $("#vbox").classList.remove("in");void $("#vbox").offsetWidth;$("#vbox").classList.add("in");
     if(matchMedia("(max-width:900px)").matches)$("#vbox").scrollIntoView({behavior:"smooth",block:"start"});else $(".col").scrollTo({top:0});
   }catch(err){$("#err").textContent=err.message;$("#err").hidden=false}
   finally{clearInterval(tick);$("#steps").hidden=true;$("#go").disabled=false}
 };
 
-function gauge(el,label,val,marks,help){
-  const pct=Math.max(0,Math.min(1,val??0))*100;
-  el.innerHTML=`<div class="lbl"><span>${label}</span><b>${n2(val)}</b></div><div class="track"><div class="fill" style="width:${pct}%"></div>${marks.map(([m,t])=>`<div class="mark" style="left:${m*100}%"><span>${t}</span></div>`).join("")}</div><div class="note" style="margin-top:20px">${help}</div>`;
+function gauge(el,label,val,marks,help,o={}){
+  const min=o.min??0,max=o.max??1,f=x=>Math.max(0,Math.min(1,((x??min)-min)/(max-min)))*100;
+  el.innerHTML=`<div class="lbl"><span>${label}</span><b>${o.fmt?o.fmt(val):n2(val)}</b></div><div class="track"><div class="fill" style="width:${f(val)}%"></div>${marks.map(([m,t])=>`<div class="mark" style="left:${f(m)}%"><span>${t}</span></div>`).join("")}</div><div class="note" style="margin-top:20px">${help}</div>`;
 }
 function bars(el,items){const max=Math.max(1,...items.map(x=>x.count));
   el.innerHTML=items.length?items.map(x=>`<span>${esc(x.name)}</span><div class="b" style="width:${Math.max(4,x.count/max*100)}%"></div><span class="c">${x.count}</span>`).join(""):`<span class="c">–</span>`;
@@ -292,12 +292,13 @@ function render(d){
   $("#vword").className="vword "+v.level;$("#vtext").textContent=VERD[lang][v.level];
   $("#headline").textContent=rep.headline;
   $("#addr").textContent=T(`${d.concept} at ${short(d.address)}`,`${d.concept} en ${short(d.address)}`);
-  $("#rule").textContent=v.rule_fired;
-  $("#adjust").innerHTML=v.adjustments.map(a=>`<p>${esc(a)}</p>`).join("");
-  const nc=d.heatmap.nearest,bc=d.heatmap.best;
-  gauge($("#g-aff"),T("How much the area likes it","Cuánto le gusta a la zona"),nc?.affinity,[[.35,T("red below","rojo por debajo")],[.6,T("promising above","prometedor por encima")]],T(`Qloo taste affinity for “${esc(d.resolved.find(p=>p.heatmap_tag)?.part)}” at the nearest block (${nc?.distance_m??"–"} m from the address).`,`Afinidad de gusto de Qloo con «${esc(d.resolved.find(p=>p.heatmap_tag)?.part)}» en la manzana más cercana (a ${nc?.distance_m??"–"} m).`));
-  gauge($("#g-sup"),T("How much of it is already there","Cuánto hay ya"),nc?.popularity,[[.6,""],[.8,T("saturated above","saturado por encima")]],T("Popularity of existing places of this kind at the same block.","Popularidad de los locales de este tipo que ya hay en esa manzana."));
-  $("#bestnote").textContent=bc&&nc&&bc.affinity>nc.affinity+.1?T(`Better spot with room left: ${bc.distance_m} m away, affinity ${n2(bc.affinity)} and supply ${n2(bc.popularity)} (green ring on the map).`,`Mejor punto con hueco: a ${bc.distance_m} m, afinidad ${n2(bc.affinity)} y oferta ${n2(bc.popularity)} (círculo verde en el mapa).`):"";
+  $("#rule").textContent=lang==="es"&&v.rule_es?v.rule_es:v.rule_fired;
+  $("#adjust").innerHTML=(lang==="es"&&v.adjustments_es?v.adjustments_es:v.adjustments).map(a=>`<p>${esc(a)}</p>`).join("");
+  const hm=d.heatmap,bc=hm.best,of=v.offer||{c400:0,c700:0},part=esc(d.measured?.[0]??d.resolved.find(p=>p.heatmap_tag)?.part);
+  const beats=hm.local!=null?Math.round(hm.local*100):null;
+  gauge($("#g-aff"),T("How much the area likes it","Cuánto le gusta a la zona"),hm.demand,[[.75,T("◂ red","◂ rojo")],[.85,T("promising ▸","prometedor ▸")]],T(`Qloo taste rank for “${part}” around the address (${hm.cells_used} blocks within 250 m), against a wide reference.${beats!=null?` Inside this 1.5 km circle the address beats ${beats} % of blocks.`:""}${d.unmeasured?.length?` Not measured: ${esc(d.unmeasured.join(", "))} (no Qloo taste data).`:""}`,`Puntuación de gusto de Qloo por «${part}» alrededor de la dirección (${hm.cells_used} manzanas a 250 m), frente a una referencia amplia.${beats!=null?` Dentro de este círculo de 1,5 km supera al ${beats} % de las manzanas.`:""}${d.unmeasured?.length?` Sin medir: ${esc(d.unmeasured.join(", "))} (Qloo no tiene datos de gusto).`:""}`),{min:.5,max:1});
+  gauge($("#g-sup"),T("How much of it is already there","Cuánto hay ya"),of.c700,[[6,T("well served from 6","bien servida desde 6")]],T(`Direct rivals: ${of.c400} within 400 m, ${of.c700} within 700 m${of.share!=null?`; ${Math.round(of.share*100)} % of the 50 most popular places within 500 m already serve it`:""}. Well served from 3 within 400 m, 6 within 700 m or 20 %.`,`Rivales directos: ${of.c400} a 400 m, ${of.c700} a 700 m${of.share!=null?`; el ${Math.round(of.share*100)} % de los 50 locales más populares a 500 m ya lo sirve`:""}. Bien servida desde 3 a 400 m, 6 a 700 m o un 20 %.`),{min:0,max:10,fmt:x=>T(`${x} rivals`,`${x} rivales`)});
+  $("#bestnote").textContent=bc?T(`Better spot: ${bc.distance_m} m away (green ring) on a busy block, the area likes it more (${n2(bc.demand)}) and there are ${bc.c700} rivals within 700 m instead of ${of.c700}.`,`Mejor punto: a ${bc.distance_m} m (círculo verde), en una manzana con vida; allí gusta más (${n2(bc.demand)}) y hay ${bc.c700} rivales a 700 m en lugar de ${of.c700}.`):T("No nearby busy block scores better under the same rules.","Ninguna manzana con vida cercana sale mejor con las mismas reglas.");
   const comps=d.competitors.slice(0,8);
   $("#comph").textContent=T(`Direct competitors within 700 m: ${d.competitors.length}`,`Competencia directa a 700 m: ${d.competitors.length}`);
   $("#comp").innerHTML=comps.length?comps.map(c=>`<tr><td>${esc(c.name)}</td><td class="n">${c.rating!=null?(+c.rating).toFixed(1)+" ★":"–"}</td><td class="n">${c.price_level?"€".repeat(c.price_level):""}</td><td class="n">${c.distance_m} m</td></tr>`).join(""):`<tr><td>${T("None. Nobody nearby sells this.","Ninguna. Nadie cerca vende esto.")}</td></tr>`;
@@ -307,7 +308,7 @@ function render(d){
   bars($("#who"),p.who.slice(0,5));bars($("#when"),p.when.slice(0,4));bars($("#serves"),p.serves.slice(0,6));
   $("#why").innerHTML=rep.why.map(x=>`<li>${esc(x)}</li>`).join("");
   $("#actions").innerHTML=rep.actions.map(x=>`<li>${esc(x)}</li>`).join("");
-  $("#partnersbox").hidden=!rep.partners.length;$("#partners").innerHTML=rep.partners.map(x=>`<li><b>${esc(x.name)}</b>: ${esc(x.reason)}</li>`).join("");
+  $("#partnersbox").hidden=!rep.partners.length;$("#partners").innerHTML=rep.partners.map(x=>`<li><b>${esc(x.name)}</b>${x.verified?` <span class="ok" title="${esc(x.source||"")}">✓ ${T("found on the web","encontrado en la web")}</span>`:""}: ${esc(x.reason)}</li>`).join("");
   $("#unknowns").innerHTML=rep.unknowns.map((u,k)=>`<label>${esc(u)}<input data-u="${k}" placeholder="${T("your answer","tu respuesta")}"></label>`).join("");
   $("#unkres").textContent="";
   $("#unknowns").oninput=()=>{const all=[...document.querySelectorAll("[data-u]")].every(i=>i.value.trim());$("#unkres").textContent=all?(v.level==="AMBER-GREEN"?T("With these three checked, this is your green.","Con estas tres comprobadas, este es tu verde."):T("Noted. The data still says "+VERD.en[v.level].toLowerCase()+": your answers do not change the taste of the area.","Anotado. Los datos siguen diciendo «"+VERD.es[v.level].toLowerCase()+"»: tus respuestas no cambian el gusto de la zona.")):""};
@@ -324,9 +325,9 @@ function heatColor(a){const stops=[[0,[253,227,207]],[.35,[247,163,92]],[.6,[239
 function drawMap(d){
   if(layer)layer.remove();layer=L.layerGroup().addTo(map);
   const h=.0007;
-  d.heatmap.cells.forEach(c=>L.rectangle([[c.lat-h,c.lon-h],[c.lat+h,c.lon+h]],{stroke:false,fillColor:heatColor(c.affinity),fillOpacity:.55}).bindTooltip(`${T("likes","gusto")} ${n2(c.affinity)} · ${T("supply","oferta")} ${n2(c.popularity)}`).addTo(layer));
+  d.heatmap.cells.forEach(c=>L.rectangle([[c.lat-h,c.lon-h],[c.lat+h,c.lon+h]],{stroke:false,fillColor:heatColor(c.affinity),fillOpacity:.42}).bindTooltip(`${T("taste rank","gusto")} ${n2(c.affinity_rank)} · ${T("beats","supera al")} ${Math.round(c.affinity*100)} % ${T("of the circle","del círculo")} · ${T("activity","actividad")} ${Math.round(c.popularity*100)} %`).addTo(layer));
   d.competitors.forEach(c=>c.lat&&L.circleMarker([c.lat,c.lon],{radius:5,color:"#000",weight:2,fillColor:"#fff",fillOpacity:1}).bindTooltip(`${esc(c.name)} · ${c.rating??"–"} ★`).addTo(layer));
-  if(d.heatmap.best)L.circle([d.heatmap.best.lat,d.heatmap.best.lon],{radius:110,color:"#3E9B5F",weight:3,dashArray:"6 5",fill:false}).bindTooltip(T("Best spot with room left","Mejor punto con hueco")).addTo(layer);
+  if(d.heatmap.best)L.circle([d.heatmap.best.lat,d.heatmap.best.lon],{radius:110,color:"#3E9B5F",weight:3,dashArray:"6 5",fill:false}).bindTooltip(T("Better spot under the same rules","Mejor punto con las mismas reglas")).addTo(layer);
   L.marker([d.geo.lat,d.geo.lon],{icon:L.divIcon({className:"",html:'<div class="pin"></div>',iconSize:[16,16],iconAnchor:[8,8]}),keyboard:false}).bindTooltip(esc(short(d.address))).addTo(layer);
   map.invalidateSize();map.setView([d.geo.lat,d.geo.lon],15);
 }
@@ -343,8 +344,8 @@ function add(who,text){const m=document.createElement("div");m.className="msg "+
 $("#cf").onsubmit=async e=>{
   e.preventDefault();const a=$("#addr2").value.trim();if(!a||!cur)return;$("#cmpout").innerHTML=`<p class="note">${T("Comparing…","Comparando…")}</p>`;
   try{const r=await fetch("/api/compare",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:cur.id,address:a})});const o=await r.json();if(!r.ok)throw new Error(o.error);
-    const row=(name,lvl,aff,sup,n)=>`<tr><td>${esc(name)}</td><td class="n ${lvl}" style="font-weight:700">${VERD[lang][lvl]}</td><td class="n">${n2(aff)}</td><td class="n">${n2(sup)}</td><td class="n">${n}</td></tr>`;
-    $("#cmpout").innerHTML=`<table class="comp"><tr><td></td><td class="n">${T("verdict","veredicto")}</td><td class="n">${T("likes","gusto")}</td><td class="n">${T("supply","oferta")}</td><td class="n">${T("rivals","rivales")}</td></tr>${row(cur.address.split(",").slice(0,2).join(","),cur.verdict.level,cur.heatmap.nearest?.affinity,cur.heatmap.nearest?.popularity,cur.competitors.length)}${row(o.address.split(",").slice(0,2).join(","),o.verdict.level,o.affinity,o.supply,o.competitors.length)}</table>`}
+    const row=(name,lvl,dem,c4,c7)=>`<tr><td>${esc(name)}</td><td class="n ${lvl}" style="font-weight:700">${VERD[lang][lvl]}</td><td class="n">${n2(dem)}</td><td class="n">${c4??"–"}</td><td class="n">${c7??"–"}</td></tr>`;
+    $("#cmpout").innerHTML=`<table class="comp"><tr><td></td><td class="n">${T("verdict","veredicto")}</td><td class="n">${T("taste","gusto")}</td><td class="n">${T("rivals 400 m","rivales 400 m")}</td><td class="n">${T("rivals 700 m","rivales 700 m")}</td></tr>${row(cur.address.split(",").slice(0,2).join(","),cur.verdict.level,cur.heatmap.demand,cur.verdict.offer?.c400,cur.verdict.offer?.c700)}${row(o.address.split(",").slice(0,2).join(","),o.verdict.level,o.demand,o.offer?.c400,o.offer?.c700)}</table>`}
   catch(err){$("#cmpout").innerHTML=`<p class="err">${esc(err.message)}</p>`}
 };
 

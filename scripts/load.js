@@ -10,6 +10,11 @@ for (const f of process.argv.slice(2)) {
     if (v && typeof v.heat === "string") {
       json = { results: { heatmap: v.heat.split(";").filter(Boolean).map((r) => { const [la, lo, a, k, p] = r.split(",").map(Number); return { location: { latitude: la, longitude: lo, geohash: `${la},${lo}` }, query: { affinity: a, affinity_rank: k, popularity: p } }; }) } };
     }
+    if (v && typeof v.count === "number") json = { results: { entities: Array.from({ length: v.count }, (_, i) => ({ name: `place ${i + 1}` })) } };
+    if (v && typeof v.rivals === "string") {
+      // compact places: "name|lat|lon|rating|price|closed;..."
+      json = { results: { entities: v.rivals.split(";").filter(Boolean).map((r) => { const [name, la, lo, ra, pr, cl] = r.split("|"); return { name, location: { lat: +la, lon: +lo }, properties: { business_rating: ra === "" ? null : +ra, price_level: pr === "" ? null : +pr, is_closed: cl === "1" } }; }) } };
+    }
     putCache(url, json, true); n++;
   }
 }

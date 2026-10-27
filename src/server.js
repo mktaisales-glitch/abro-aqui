@@ -3,9 +3,11 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { analyze, chat, compare } from "./agent.js";
 import { llmEnabled, MODELS, llmUsage } from "./llm.js";
+import { scrubPII } from "./safe.js";
 
 const app = express();
 app.disable("x-powered-by");
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1)); // Render / one reverse proxy: req.ip is the real client
 app.use(express.json({ limit: "200kb" }));
 app.use(express.static("public", { extensions: ["html"] }));
 // self-hosted map library and fonts: no third-party CDN at runtime
@@ -15,13 +17,15 @@ app.use("/vendor/fonts", express.static(path.resolve("node_modules/@fontsource/m
 
 // --- demo protection: N analyses per IP per day (in memory)
 const quota = new Map();
-function allow(ip) {
-  const k = `${ip}|${new Date().toISOString().slice(0, 10)}`;
+const LIMITS = { analyze: Number(process.env.DAILY_LIMIT) || 30, compare: 30, chat: 60 };
+function allow(ip, kind = "analyze") {
+  const k = `${kind}|${ip}|${new Date().toISOString().slice(0, 10)}`;
   const n = (quota.get(k) ?? 0) + 1;
   quota.set(k, n);
-  return n <= (Number(process.env.DAILY_LIMIT) || 30);
+  return n <= LIMITS[kind];
 }
-const ipOf = (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+const ipOf = (req) => req.ip;
+const str = (x, max) => (typeof x === "string" && x.trim() && x.length <= max ? x.trim() : null);
 
 // --- analyses kept for the chat and the comparison (2 h)
 const sessions = new Map();
@@ -35,12 +39,12 @@ app.get("/api/health", (_req, res) =>
 );
 
 app.post("/api/analyze", async (req, res) => {
-  if (!allow(ipOf(req))) return res.status(429).json({ error: "You have used today's 30 free analyses on this demo. Try again tomorrow." });
-  const { concept, address, lang = "en", without_qloo = false } = req.body ?? {};
-  if (!concept?.trim() || !address?.trim()) return res.status(400).json({ error: "Write a business concept and a street address." });
-  if (String(concept).length > 120 || String(address).length > 200) return res.status(400).json({ error: "Keep the concept under 120 characters and the address under 200." });
+  const { lang = "en", without_qloo = false } = req.body ?? {};
+  const concept = str(req.body?.concept, 120), address = str(req.body?.address, 200);
+  if (!concept || !address) return res.status(400).json({ error: "Write a business concept (up to 120 characters) and a street address (up to 200)." });
+  if (!allow(ipOf(req))) return res.status(429).json({ error: `You have used today's ${LIMITS.analyze} free analyses on this demo. Try again tomorrow.` });
   try {
-    const result = await analyze({ concept: String(concept).trim(), address: String(address).trim(), lang, withoutQloo: !!without_qloo });
+    const result = await analyze({ concept: scrubPII(concept), address, lang: lang === "es" ? "es" : "en", withoutQloo: !!without_qloo });
     const id = crypto.randomUUID();
     sessions.set(id, { t: Date.now(), ctx: result, history: [] });
     res.json({ id, ...result });
@@ -53,9 +57,11 @@ app.post("/api/compare", async (req, res) => {
   const { id, address } = req.body ?? {};
   const s = sessions.get(id);
   if (!s) return res.status(404).json({ error: "Run the analysis again: comparisons use the last one and it expired." });
-  if (!address?.trim()) return res.status(400).json({ error: "Write the second address." });
+  const a2 = str(address, 200);
+  if (!a2) return res.status(400).json({ error: "Write the second address (up to 200 characters)." });
+  if (!allow(ipOf(req), "compare")) return res.status(429).json({ error: "Daily comparison limit reached on this demo." });
   try {
-    res.json(await compare({ ctx: s.ctx, address: String(address).trim() }));
+    res.json(await compare({ ctx: s.ctx, address: a2 }));
   } catch (e) {
     res.status(500).json({ error: String(e.message).slice(0, 300) });
   }
@@ -65,15 +71,21 @@ app.post("/api/chat", async (req, res) => {
   const { id, question, lang = "en" } = req.body ?? {};
   const s = sessions.get(id);
   if (!s) return res.status(404).json({ error: "Run the analysis again: the chat uses the last one and it expired." });
-  if (!question?.trim() || String(question).length > 500) return res.status(400).json({ error: "Ask a question of up to 500 characters." });
+  const q = str(question, 500);
+  if (!q) return res.status(400).json({ error: "Ask a question of up to 500 characters." });
+  if (!allow(ipOf(req), "chat")) return res.status(429).json({ error: "Daily chat limit reached on this demo." });
+  const clean = scrubPII(q);
   try {
-    const r = await chat({ ctx: s.ctx, history: s.history.slice(-8), question: String(question), lang });
-    s.history.push({ role: "user", content: String(question) }, { role: "assistant", content: r.text });
+    const r = await chat({ ctx: s.ctx, history: s.history.slice(-8), question: clean, lang: lang === "es" ? "es" : "en" });
+    s.history.push({ role: "user", content: clean }, { role: "assistant", content: r.text });
     res.json(r);
   } catch (e) {
     res.status(500).json({ error: String(e.message).slice(0, 300) });
   }
 });
+
+// malformed JSON or anything unexpected: a short JSON error, never a stack trace
+app.use((err, _req, res, _next) => res.status(err.status === 400 || err.type === "entity.parse.failed" ? 400 : 500).json({ error: err.type === "entity.parse.failed" ? "Malformed JSON." : "Something went wrong." }));
 
 const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => console.log(`Abro Aquí on :${port} — LLM ${llmEnabled ? `on (${MODELS.nano} / ${MODELS.fast} / ${MODELS.writer})` : "OFF (template mode)"}${process.env.OFFLINE === "1" ? " — OFFLINE replay" : ""}`));

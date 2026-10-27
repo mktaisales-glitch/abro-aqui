@@ -10,7 +10,7 @@ export const MODELS = {
 
 const key = process.env.NEBIUS_API_KEY;
 export const llmEnabled = !!key;
-const client = llmEnabled ? new OpenAI({ baseURL: process.env.NEBIUS_BASE_URL || "https://api.tokenfactory.nebius.com/v1/", apiKey: key }) : null;
+const client = llmEnabled ? new OpenAI({ baseURL: process.env.NEBIUS_BASE_URL || "https://api.tokenfactory.nebius.com/v1/", apiKey: key, timeout: Number(process.env.LLM_TIMEOUT_MS) || 25000, maxRetries: 1 }) : null;
 
 export const ReportSchema = z.object({
   headline: z.string().max(200),
@@ -18,7 +18,7 @@ export const ReportSchema = z.object({
   gap: z.array(z.string()).max(4),
   audience: z.array(z.string()).max(5),
   actions: z.array(z.string()).min(2).max(4),
-  partners: z.array(z.object({ name: z.string(), reason: z.string() })).max(3),
+  partners: z.array(z.object({ name: z.string(), reason: z.string(), verified: z.boolean().nullable().optional(), source: z.string().nullable().optional() })).max(3),
   unknowns: z.array(z.string()).length(3),
 });
 
@@ -50,7 +50,8 @@ async function chatJSON({ model, system, user, schema, maxTokens = 1200 }) {
   try {
     parsed = schema.parse(JSON.parse(text));
   } catch (e) {
-    // one repair round
+    // one repair round (counts against the daily cap too)
+    spend();
     const fix = await client.chat.completions.create({
       model,
       messages: [
@@ -76,16 +77,16 @@ export async function normalizeConcept(concept) {
   return { parts: r.data.parts.map((p) => p.toLowerCase().trim()), model: r.model, ms: r.ms };
 }
 
-const WRITER_SYSTEM = `You are "Abro Aquí", a location-intelligence advisor for small-business owners. You receive structured signals from Qloo (aggregated taste and offer of an area, never about individuals) and a verdict that code already computed. Explain it like a trusted advisor talking to the owner: plain words, concrete numbers from the signals, no hype.
-Rules: never change the verdict; never invent a business, rating or number that is not in the signals; never claim to predict success; refer to people only as "the area" or the customer identities listed.
-Signals: verdict (level, rule_fired, adjustments), nearest_cell (affinity = how much the area likes the concept 0-1, popularity = how much of it is already offered 0-1), best_alternative_cell (with distance_m), competitors_within_700m, supply_by_part (competitors per part of the concept), already_served_by (how many of the area's most popular places already serve it), gap (parts nobody offers nearby), area_profile (what the popular places serve, kind, who goes, when).
+const WRITER_SYSTEM = `You are "Abro Aquí", a location-intelligence advisor for small-business owners. You receive structured signals from Qloo (aggregated taste and offer of an area, never about individuals) and a verdict that code already computed. Explain it like a trusted advisor talking to a bar or shop owner: plain words, no jargon, no decimals in the headline, concrete names and metres.
+Rules: never change the verdict; never invent a business, rating or number that is not in the signals; never claim to predict success; refer to people only as "the area" or the customer identities listed. If demand.not_measured_for is not empty, say plainly that taste was only measured for demand.measured_for.
+Signals: verdict (level, rule_fired, adjustments, offer: rivals within 400 m / 700 m and share of popular places that already serve it); demand (rank = Qloo affinity_rank around the address 0-1, how much the area likes the concept compared with a wide reference; vs_surroundings = rank inside the 1.5 km circle); best_alternative (a nearby busy block the same rules rate better, with distance_m and its nearest rivals; null if none); competitors_within_700m; supply_by_part; already_served_by; gap; area_profile (what the popular places serve, kind, who goes, when).
 Respond in {lang}. Return JSON with keys:
-headline: one sentence with the main reason behind the verdict and its key number (the verdict word itself is shown separately, do not repeat it);
-why: 2-5 bullets, each citing a number from the signals;
-gap: 0-4 bullets on what the area likes that nobody offers;
+headline: one plain sentence with the main reason behind the verdict (the verdict word is shown separately, do not repeat it);
+why: 2-5 bullets, each citing a number or a name from the signals;
+gap: 0-4 bullets on parts of the idea nobody offers nearby (only from gap);
 audience: up to 5 bullets on who goes and when, from area_profile.who/when (cite counts like "Foodies: 31 of 50 popular places");
-actions: 2-4 concrete actions (positioning against the named competitors, opening hours from area_profile.when, where to move if best_alternative_cell is better);
-partners: up to 3 objects {name, reason} chosen ONLY from places named in the signals that complement (not compete with) the concept;
+actions: 2-4 concrete actions (positioning against the named competitors, opening hours from area_profile.when, and the best_alternative if present);
+partners: up to 3 objects {name, reason} chosen ONLY from places named in area_profile.places_named that complement (not compete with) the concept;
 unknowns: exactly 3 questions about foot traffic, rent and household income.`;
 
 export async function writeReport(signals, lang = "en") {
@@ -98,31 +99,41 @@ export async function writeReportWithoutQloo({ concept, address }, lang = "en") 
   return chatJSON({ model: MODELS.writer, system, user: `Concept: ${concept}\nAddress: ${address}`, schema: ReportSchema, maxTokens: 1200 });
 }
 
-/** Template report when the LLM is unavailable: the Qloo demo must survive an LLM outage. */
-export function templateReport(sig) {
+/** Template report when the LLM is unavailable: the Qloo demo must survive an LLM outage. Plain words, EN or ES. */
+export function templateReport(sig, lang = "en") {
+  const es = lang === "es";
+  const L = (en, sp) => (es ? sp : en);
   const v = sig.verdict;
-  const n = sig.nearest_cell;
+  const o = v.offer ?? { c400: 0, c700: 0, share: null };
+  const d = sig.demand ?? {};
   const where = sig.address.split(",").slice(0, 2).join(",").trim();
-  const share0 = sig.already_served_by[0];
-  const shareTxt = share0 && share0.places ? `, and ${share0.places} of the ${share0.of} most popular places nearby already serve ${share0.part}` : "";
-  const headByLevel = {
-    RED: `The area around ${where} does not ask for ${sig.concept} (affinity ${n?.affinity?.toFixed(2)})${shareTxt}.`,
-    AMBER: `The area likes ${sig.concept} only moderately (affinity ${n?.affinity?.toFixed(2)}) and ${sig.competitors_within_700m.length} direct competitors are within 700 m.`,
-    "AMBER-GREEN": `The area likes ${sig.concept} (affinity ${n?.affinity?.toFixed(2)}) and little of it is on offer yet. Check the three things below before you sign.`,
-    UNKNOWN: `Not enough Qloo data around ${where} to judge ${sig.concept}.`,
+  const c = sig.concept;
+  const how = d.rank == null ? "" : d.rank >= 0.9 ? L("a lot", "mucho") : d.rank >= 0.75 ? L("fairly well", "bastante") : L("little", "poco");
+  const top = sig.competitors_within_700m[0];
+  const topTxt = top ? L(`${top.name} is ${top.distance_m} m away`, `${top.name} está a ${top.distance_m} m`) : "";
+  const unmeasured = d.not_measured_for?.length
+    ? L(` I could only measure taste for "${d.measured_for.join(", ")}": Qloo has no data on "${d.not_measured_for.join(", ")}" here.`, ` Solo he podido medir el gusto por «${d.measured_for.join(", ")}»: Qloo no tiene datos de «${d.not_measured_for.join(", ")}» aquí.`)
+    : "";
+  const head = {
+    "well-served": L(`The area likes ${c} ${how}, but it is already well served: ${topTxt}${o.c700 > 1 ? ` and there are ${o.c700 - 1} more within 700 m` : ""}.`, `A la zona le gusta ${how} ${c}, pero ya está bien servida: ${topTxt}${o.c700 > 1 ? ` y hay ${o.c700 - 1} más a menos de 700 m` : ""}.`),
+    mixed: L(`The area likes ${c} ${how}, with ${o.c700} rivals within 700 m: no clear gap, no saturation.`, `A la zona le gusta ${how} ${c}, con ${o.c700} rivales a menos de 700 m: ni hueco claro ni saturación.`),
+    "weak-demand": L(`The taste of the area around ${where} leans away from ${c}.`, `El gusto de la zona de ${where} va por otro lado: ${c} no encaja.`),
+    "appetite-without-offer": L(`The area likes ${c} a lot and almost nobody offers it within 700 m.`, `A la zona le gusta mucho ${c} y casi nadie lo ofrece a menos de 700 m.`),
+    "no-data": L(`Not enough Qloo data around ${where} to judge ${c}.`, `No hay datos suficientes de Qloo en ${where} para juzgar ${c}.`),
   };
-  const comps = sig.competitors_within_700m.slice(0, 3).map((c) => `${c.name} (${c.rating ?? "n/a"}★, ${c.distance_m} m)`).join(", ");
-  const share = sig.already_served_by.filter((s) => s.places > 0).map((s) => `${s.places} of the ${s.of} most popular places within 500 m already serve ${s.part}.`);
-  const alt = sig.best_alternative_cell && n && sig.best_alternative_cell.affinity > n.affinity + 0.1 ? [`Look ${sig.best_alternative_cell.distance_m} m away: affinity ${sig.best_alternative_cell.affinity.toFixed(2)} there vs ${n.affinity.toFixed(2)} here, with supply ${sig.best_alternative_cell.popularity.toFixed(2)}.`] : [];
-  const when = sig.area_profile.when.slice(0, 2).map((w) => w.name.toLowerCase()).join(" and ");
+  const comps = sig.competitors_within_700m.slice(0, 3).map((x) => `${x.name} (${x.rating ?? "–"}★, ${x.distance_m} m)`).join(", ");
+  const share = sig.already_served_by.filter((x) => x.places > 0).map((x) => L(`${x.places} of the ${x.of} most popular places within 500 m already serve ${x.part}.`, `${x.places} de los ${x.of} locales más populares a 500 m ya sirven ${x.part}.`));
+  const b = sig.best_alternative;
+  const alt = b ? [L(`Look ${b.distance_m} m away (green ring): the area likes it even more there and has ${b.c700} rivals within 700 m instead of ${o.c700}.`, `Mira a ${b.distance_m} m (círculo verde): allí gusta aún más y hay ${b.c700} rivales a 700 m en lugar de ${o.c700}.`)] : [];
+  const when = sig.area_profile.when.slice(0, 2).map((w) => w.name.toLowerCase()).join(L(" and ", " y "));
   return {
-    headline: headByLevel[v.level],
-    why: [v.rule_fired, ...v.adjustments, ...share, comps ? `Closest direct competitors: ${comps}.` : "No direct competitor within 700 m."].slice(0, 5),
-    gap: sig.gap.map((g) => `Nobody within 700 m offers ${g}.`),
-    audience: [...sig.area_profile.who.slice(0, 4).map((w) => `${w.name}: ${w.count} of the ${sig.area_profile.places} most popular places nearby cater to them`), ...(when ? [`Busiest: ${when}`] : [])],
-    actions: [...alt, comps ? `Differentiate from ${sig.competitors_within_700m[0].name} on format and price, not on the same product.` : "Be the first: own the category name in local search before anyone else does.", when ? `Open when the area is busiest for places like yours: ${when}.` : "Test opening hours for two weeks before fixing them."].slice(0, 4),
+    headline: (head[v.rule_code] ?? head.mixed) + unmeasured,
+    why: [es ? v.rule_es ?? v.rule_fired : v.rule_fired, ...(es ? v.adjustments_es ?? v.adjustments : v.adjustments), ...share, comps ? L(`Closest direct competitors: ${comps}.`, `Competidores directos más cercanos: ${comps}.`) : L("No direct competitor within 700 m.", "Ningún competidor directo a menos de 700 m.")].slice(0, 5),
+    gap: sig.gap.map((g) => L(`Nobody within 700 m offers ${g}.`, `Nadie a menos de 700 m ofrece ${g}.`)),
+    audience: [...sig.area_profile.who.slice(0, 4).map((w) => L(`${w.name}: ${w.count} of the ${sig.area_profile.places} most popular places nearby cater to them`, `${w.name}: ${w.count} de los ${sig.area_profile.places} locales más populares`)), ...(when ? [L(`Busiest: ${when}`, `Más actividad: ${when}`)] : [])],
+    actions: [...alt, top ? L(`Differentiate from ${top.name} on format and price, not on the same product.`, `Diferénciate de ${top.name} en formato y precio, no con el mismo producto.`) : L("Be the first: own the category name in local search before anyone else does.", "Sé el primero: hazte con el nombre de la categoría en las búsquedas locales."), when ? L(`Open when the area is busiest for places like yours: ${when}.`, `Abre cuando la zona tiene más actividad: ${when}.`) : L("Test opening hours for two weeks before fixing them.", "Prueba horarios dos semanas antes de fijarlos.")].slice(0, 4),
     partners: [],
-    unknowns: v.unknowns,
+    unknowns: es ? ["Tráfico de gente delante de la puerta (cuéntalo: un día laborable a las 13:00 y un sábado a las 18:00)", "Alquiler y licencia frente al ticket medio que esperas", "Renta de los hogares de la zona (Qloo mide gusto, no capacidad de gasto)"] : v.unknowns,
   };
 }
 
