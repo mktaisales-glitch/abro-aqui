@@ -30,3 +30,10 @@ Review doc: "Abro Aquí — Jurado simulado" (Claude Docs). Consensus: we misrea
 - [ ] Wed AM: autonomous "second opinion" agent (Lightning plans: better spot + verified partners), shown as a timeline.
 - [ ] Wed PM (if time): "¿Qué abro aquí?" reverse mode (address → ranked concepts). Waiting for Víctor's yes.
 - [ ] Thu AM: screenshots with base map, NYC case recorded, measured latency, specs 02–05 refresh.
+
+## 28-Oct (night): search for a "9" idea
+- 3 rounds (~25 ideas), critic filters, real-API probes, 4 jury passes (8 profiles). Results: Abro Aquí v2 avg 7.0 (best); Host-Read (podcast ads) 6.2; Who's Missing (theme nights) 6.0. Details in the Claude Docs doc "Abro Aquí — Jurado simulado" (last section) and scratchpad files (ideas-r1..r3, learnings-r3, *-spec.md, backtest-*).
+- Recommendation to Víctor: stay with Abro Aquí and spend the remaining time on: (1) real customer 15 s video, (2) deployed demo with Nemotron live and the scout agent deciding, (3) outcome backtest (known openings/closures), (4) consistent numbers + disclaimer (done).
+- Qloo API facts learned: place→taste weak; entity→entity strong; demographics indices noisy; generic tag saturates in dense centres while concept tags discriminate; rate limit ~12 parallel → go serial; multi-entity demographics in one call works; signal.demographics.age takes one value.
+- Recorded Qloo responses removed from the public repo history (rules). fixtures/demo.sqlite and fixtures/raw are local only.
+- Render: blueprint form ready (public repo URL), waiting for Víctor to paste the 3 keys and click Deploy.
