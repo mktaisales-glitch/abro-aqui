@@ -207,7 +207,7 @@ export function chatTools(ctx) {
       },
     },
     analyse_address: {
-      description: "Run the same concept at another address (e.g. '300 m north', another street). Returns verdict, demand, offer and competitors there.",
+      description: "Run the same concept at another address or at \"lat, lon\" (for the better spot use the best_alternative coordinates). Returns verdict, demand, offer and competitors there.",
       parameters: { type: "object", properties: { address: { type: "string" } }, required: ["address"] },
       run: async ({ address }) => {
         const g = await T.geocode(address);

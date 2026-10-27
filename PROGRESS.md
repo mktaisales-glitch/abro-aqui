@@ -18,3 +18,15 @@ Deadline: Nebius submit **Fri 30-Oct 18:00 CET**, Qloo **Sat 31-Oct 04:45 CET**.
 7. [x] FEEDBACK.md, docs/SUBMISSION.md, docs/VIDEO-SCRIPT.md.
 8. [ ] Update the plan doc with progress (do in the morning summary).
 9. [ ] Morning with Víctor: deploy (15 min) → live test with Nemotron + Qloo + Tavily → record NYC fixture/case live → polish from live results → video Thursday.
+
+## 27-Oct (evening): after the simulated judges review
+Review doc: "Abro Aquí — Jurado simulado" (Claude Docs). Consensus: we misread the heat map (affinity/popularity are ranks inside the circle).
+- [x] Verdict v2 (spec 01 rewritten): demand = affinity_rank within 250 m; offer = rivals 400/700 m + share; unmeasured parts reported; better spot judged with the same rules on busy blocks (≥ 15 places within 200 m).
+- [x] Cases now: Paral·lel 40 seafood → Hard (well served; Poble-sec 747 m better). Gran Via 400 → Hard; waffles not measurable (no waffle tag within 5 km).
+- [x] Tavily checks writer partners in the pipeline; partners can come from the 50 popular places.
+- [x] Bilingual plain template; hardening (trust proxy, limits, JSON errors, PII scrub + test, LLM timeout, failed calls traced, recorded fallback in fixtures/demo.sqlite). 16 tests.
+- [x] README, SUBMISSION, VIDEO-SCRIPT updated to v2 numbers and honest claims.
+- [ ] Deploy (Víctor: Render sign-up with GitHub) + keep-alive + live test with Nemotron.
+- [ ] Wed AM: autonomous "second opinion" agent (Lightning plans: better spot + verified partners), shown as a timeline.
+- [ ] Wed PM (if time): "¿Qué abro aquí?" reverse mode (address → ranked concepts). Waiting for Víctor's yes.
+- [ ] Thu AM: screenshots with base map, NYC case recorded, measured latency, specs 02–05 refresh.
