@@ -138,12 +138,14 @@ export function templateReport(sig, lang = "en") {
 }
 
 /** Chat with tools (Lightning). tools: {name: {description, parameters, run}} */
-export async function chatWithTools({ messages, tools, maxRounds = 8 }) {
+export async function chatWithTools({ messages, tools, maxRounds = 8, maxTokens = 900 }) {
   const toolDefs = Object.entries(tools).map(([name, t]) => ({ type: "function", function: { name, description: t.description, parameters: t.parameters } }));
   const calls = [];
   for (let i = 0; i < maxRounds; i++) {
     spend();
-    const res = await client.chat.completions.create({ model: MODELS.fast, messages, tools: toolDefs, tool_choice: "auto", temperature: 0.3, max_tokens: 900 });
+    const t0 = Date.now();
+    const res = await client.chat.completions.create({ model: MODELS.fast, messages, tools: toolDefs, tool_choice: "auto", temperature: 0.3, max_tokens: maxTokens });
+    const think_ms = Date.now() - t0;
     const msg = res.choices[0].message;
     messages.push(msg);
     if (!msg.tool_calls?.length) return { text: msg.content ?? "", calls, model: MODELS.fast };
@@ -151,8 +153,13 @@ export async function chatWithTools({ messages, tools, maxRounds = 8 }) {
       let args = {};
       try { args = JSON.parse(call.function.arguments || "{}"); } catch {}
       let result;
-      try { result = await tools[call.function.name].run(args); } catch (e) { result = { error: String(e.message) }; }
-      calls.push({ name: call.function.name, args, result });
+      const t1 = Date.now();
+      try {
+        const tool = tools[call.function.name];
+        if (!tool) throw new Error(`unknown tool ${call.function.name}`);
+        result = await tool.run(args);
+      } catch (e) { result = { error: String(e.message).slice(0, 200) }; }
+      calls.push({ name: call.function.name, args, result, round: i + 1, think_ms, ms: Date.now() - t1 });
       messages.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result).slice(0, 6000) });
     }
   }
