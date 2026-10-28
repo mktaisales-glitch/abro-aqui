@@ -83,9 +83,9 @@ select.rad{border:1px solid var(--line);border-radius:24px;padding:0 14px;min-he
 @media(hover:hover){.go:hover{background:var(--brick);box-shadow:0 2px 8px rgba(212,66,27,.35)}}
 .go:disabled{background:#f2a46d;cursor:progress}
 .go svg.i{width:18px;height:18px}
-.examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;align-items:center}
-.examples .ex-l{font-size:12px;color:var(--ink-3);font-weight:600;margin-right:2px}
-.examples button{border:0;background:none;padding:6px 0;min-height:36px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--brick);text-align:left;text-decoration:underline;text-decoration-color:var(--o-200);text-underline-offset:3px}
+.examples{margin-top:14px;font-size:13px;line-height:1.5}
+.examples .ex-l{font-size:13px;color:var(--ink-3);font-weight:600;margin-right:6px}
+.examples button{display:inline;border:0;background:none;padding:2px 0;min-height:0;font:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--brick);text-align:left;text-decoration:underline;text-decoration-color:var(--o-200);text-underline-offset:3px}
 @media(hover:hover){.examples button:hover{color:var(--orange);text-decoration-color:currentColor}}
 .steps{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:6px;font-size:13.5px;color:var(--ink-3)}
 .steps li.done,.steps li.now{color:var(--ink)}
@@ -287,7 +287,7 @@ form.q button{border:0;border-radius:24px;background:var(--orange);color:#fff;pa
   body.chat-open{overflow:hidden}
   .fab{transition:opacity .2s,transform .2s}
   #fitbox{overflow-x:auto}
-  .lang button,.examples button,.next button,.chips button,.fit button,.tabs button,details.rule summary{min-height:44px}
+  .lang button,.next button,.chips button,.fit button,.tabs button,details.rule summary{min-height:44px}
   .inbox .tgl{width:44px;height:44px}
 }
 @media(max-width:480px){
