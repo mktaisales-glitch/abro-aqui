@@ -360,7 +360,7 @@ $("#ask").onsubmit=async e=>{
     const d=await r.json();if(!r.ok)throw new Error(d.error||("Error "+r.status));
     d.lang=d.lang||lang;cur=d;document.body.classList.add("has-result");$("#fitbox").hidden=true;render(d);$("#log").innerHTML="";
     $("#vbox").classList.remove("in");void $("#vbox").offsetWidth;$("#vbox").classList.add("in");
-    $("#vbox").scrollIntoView({behavior:"smooth",block:"start"});
+    requestAnimationFrame(()=>setTimeout(()=>$("#vbox").scrollIntoView({behavior:"smooth",block:"start"}),60));
   }catch(err){$("#err").textContent=err.message;$("#err").hidden=false}
   finally{clearInterval(tick);$("#steps").hidden=true;$("#go").disabled=false}
 };

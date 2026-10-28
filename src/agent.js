@@ -339,7 +339,7 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
 
   if (llmEnabled) {
     try {
-      const r = await chatWithTools({ messages: [{ role: "system", content: "You are the scouting agent of Abro Aquí. Plan your own steps with the tools; never invent numbers or businesses." }, { role: "user", content: goal }], tools, maxRounds: 5, maxTokens: 700, lang, maxCalls: 6 });
+      const r = await chatWithTools({ messages: [{ role: "system", content: "You are the scouting agent of Abro Aquí. Plan your own steps with the tools; never invent numbers or businesses." }, { role: "user", content: goal }], tools, maxRounds: 7, maxTokens: 700, lang, maxCalls: 6 });
       const steps = r.calls.map((c) => stepOut(c, lang));
       const words = { "AMBER-GREEN": es ? "Prometedor" : "Promising", AMBER: es ? "Difícil" : "Hard", RED: es ? "Aquí no" : "Not here", UNKNOWN: es ? "Sin datos" : "No data" };
       let text = String(r.text ?? "").replace(/\*\*|__|^#+\s*/gm, "").replace(/^\s*[-*]\s+/gm, "").trim();

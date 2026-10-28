@@ -256,13 +256,18 @@ export async function chatWithTools({ messages, tools, maxRounds = 4, maxTokens 
     spend();
     const t0 = Date.now();
     // once the tool budget is used, the model must answer with what it has
-    const toolChoice = calls.length >= maxCalls || i === maxRounds - 1 ? "none" : "auto";
-    const res = await guarded(() => client.chat.completions.create({ model: MODELS.fast, messages, tools: toolDefs, tool_choice: toolChoice, temperature: 0.3, max_tokens: maxTokens }));
+    const last = calls.length >= maxCalls || i === maxRounds - 1;
+    // final round: no tools at all (Nemotron otherwise writes the call as text) and an explicit request to answer
+    const params = last
+      ? { model: MODELS.fast, messages: [...messages, { role: "user", content: "Answer now with what the tools returned. Do not call any tool." }], temperature: 0.3, max_tokens: maxTokens }
+      : { model: MODELS.fast, messages, tools: toolDefs, tool_choice: "auto", temperature: 0.3, max_tokens: maxTokens };
+    const res = await guarded(() => client.chat.completions.create(params));
     const think_ms = Date.now() - t0;
     const msg = res.choices[0].message;
     messages.push(msg);
-    if (!msg.tool_calls?.length) {
-      const text = afterThink(msg.content);
+    if (last || !msg.tool_calls?.length) {
+      // a tool call written as text is not an answer
+      const text = afterThink(msg.content).replace(/<tool_call>[\s\S]*?(<\/tool_call>|$)/g, "").replace(/<function=[\s\S]*$/g, "").trim();
       if (!text) throw new Error("the model returned an empty answer");
       return { text, calls, model: MODELS.fast };
     }
