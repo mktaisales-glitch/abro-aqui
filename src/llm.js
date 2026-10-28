@@ -29,8 +29,10 @@ export const ReportSchema = z.object({
 
 // Hard daily cap on LLM calls: the demo can never spend more than the credits allow, and one visitor cannot use
 // the whole day's budget (per-IP cap; the server runs every request inside withClient).
-const CAP = Number(process.env.LLM_DAILY_CAP) || 600;
-const CAP_PER_IP = Number(process.env.LLM_DAILY_CAP_PER_IP) || 60;
+export const LLM_DAILY_CAP_DEFAULT = 2500, LLM_DAILY_CAP_PER_IP_DEFAULT = 250;
+const CAP = Number(process.env.LLM_DAILY_CAP) || LLM_DAILY_CAP_DEFAULT;
+const CAP_PER_IP = Number(process.env.LLM_DAILY_CAP_PER_IP) || LLM_DAILY_CAP_PER_IP_DEFAULT;
+export const llmCaps = () => ({ total: CAP, per_visitor: CAP_PER_IP });
 const usage = { day: "", n: 0, byIp: new Map() };
 const als = new AsyncLocalStorage();
 export const withClient = (ip, fn) => als.run({ ip }, fn);

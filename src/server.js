@@ -1,12 +1,14 @@
 import express from "express";
 import crypto from "node:crypto";
 import path from "node:path";
-import { analyze, chat, compare, scout, withoutQloo } from "./agent.js";
+import { analyze, chat, compare, scout, withoutQloo, BUDGET_TEXT } from "./agent.js";
 import { llmEnabled, MODELS, withClient } from "./llm.js";
 import { scrubPII } from "./safe.js";
 import { launchPlan } from "./launch.js";
 import { explore } from "./explore.js";
 import { buildReportPdf, reportFileName } from "./report-pdf.js";
+import { matchConcept, publicConcepts, CONCEPT_LIST } from "./concepts.js";
+import { suggestPlaces, resolveConcept } from "./tools.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -30,7 +32,7 @@ app.use("/vendor/fonts", express.static(path.resolve("node_modules/@fontsource/m
 
 // --- demo protection: N requests per IP per day (in memory; reset on restart, documented)
 const quota = new Map();
-const LIMITS = { analyze: Number(process.env.DAILY_LIMIT) || 30, compare: 30, chat: 40, scout: 15, launch: 15, explore: 3, noqloo: 20, report: 60 };
+const LIMITS = { analyze: Number(process.env.DAILY_LIMIT) || 30, compare: 30, chat: 120, suggest: 400, concepts: 200, scout: 15, launch: 15, explore: 3, noqloo: 20, report: 60 };
 const today = () => new Date().toISOString().slice(0, 10);
 function allow(ip, kind = "analyze") {
   const k = `${kind}|${ip}|${today()}`;
@@ -85,13 +87,47 @@ app.post("/api/analyze", async (req, res) => {
   const concept = str(req.body?.concept, 120), address = str(req.body?.address, 200);
   if (!concept || !address) return res.status(400).json({ error: "Write a business concept (up to 120 characters) and a street address (up to 200)." });
   if (!allow(ipOf(req))) return res.status(429).json({ error: `You have used today's ${LIMITS.analyze} free analyses on this demo. Try again tomorrow.` });
+  // a concept from the list, by id, label or synonym ("hamburguesería" → burger); free text still goes to the resolver
+  const listed = matchConcept(concept);
   try {
-    const result = await withDeadline(analyze({ concept: scrubPII(concept), address, lang: lang === "es" ? "es" : "en", withoutQloo: !!without_qloo, radius: req.body?.radius }));
+    const result = await withDeadline(analyze({ concept: listed ? listed.id : scrubPII(concept), address, lang: lang === "es" ? "es" : "en", withoutQloo: !!without_qloo, radius: req.body?.radius, coords: req.body?.coords }));
     const id = crypto.randomUUID();
     keep(id, { t: Date.now(), ctx: result, history: [] });
     res.json({ id, ...result });
   } catch (e) {
     fail(res, "analyze", e);
+  }
+});
+
+// The concepts the dropdown offers (spec 06). Concepts whose tags are not written down are checked once a day
+// against Qloo in the background; one Qloo has no tag for is dropped from the list.
+const dropped = new Set();
+let conceptsChecked = 0;
+function checkConcepts() {
+  if (process.env.OFFLINE || !process.env.QLOO_API_KEY || Date.now() - conceptsChecked < 24 * 3600 * 1000) return;
+  conceptsChecked = Date.now();
+  (async () => {
+    for (const c of CONCEPT_LIST.filter((x) => !x.tags)) {
+      try { await resolveConcept([c.id]); dropped.delete(c.id); } catch (e) { if (/no place tag/.test(String(e.message))) dropped.add(c.id); }
+    }
+  })().catch(() => {});
+}
+app.get("/api/concepts", (req, res) => {
+  if (!allow(ipOf(req), "concepts")) return res.status(429).json({ error: "Daily limit reached on this demo." });
+  checkConcepts();
+  res.set("Cache-Control", "public, max-age=3600").json({ concepts: publicConcepts(dropped) });
+});
+
+// Address suggestions while typing (Photon; cached a day per query). Empty list when the service is down.
+app.get("/api/geocode/suggest", async (req, res) => {
+  const q = str(req.query?.q, 120);
+  if (!q || q.length < 4) return res.json({ results: [] });
+  if (!allow(ipOf(req), "suggest")) return res.status(429).json({ error: "Daily limit for address suggestions reached on this demo.", results: [] });
+  try {
+    res.json({ results: await withDeadline(suggestPlaces(q, req.query?.lang === "es" ? "es" : "en"), 8000) });
+  } catch (e) {
+    if (e?.code !== "MISS") console.error("[suggest]", String(e?.message ?? e).slice(0, 200));
+    res.json({ results: [] });
   }
 });
 
@@ -129,7 +165,7 @@ app.post("/api/chat", async (req, res) => {
   if (!s) return res.status(404).json({ error: "Run the analysis again: the chat uses the last one and it expired." });
   const q = str(question, 500);
   if (!q) return res.status(400).json({ error: "Ask a question of up to 500 characters." });
-  if (!allow(ipOf(req), "chat")) return res.status(429).json({ error: "Daily chat limit reached on this demo." });
+  if (!allow(ipOf(req), "chat")) return res.json({ text: lang === "es" ? BUDGET_TEXT.es : BUDGET_TEXT.en, calls: [], error: true, limit: true });
   const clean = scrubPII(q);
   try {
     const r = await withDeadline(chat({ ctx: s.ctx, history: s.history.slice(-8), question: clean, lang: lang === "es" ? "es" : "en" }));
@@ -193,13 +229,14 @@ app.post("/api/explore", async (req, res) => {
   const address = str(req.body?.address, 200);
   if (!address) return res.status(400).json({ error: "Write a street address (up to 200 characters)." });
   const radius = [500, 1000, 1500, 2000].includes(Number(req.body?.radius)) ? Number(req.body.radius) : 1000;
-  const key = `${address.toLowerCase()}|${radius}`;
+  const coords = req.body?.coords && Number.isFinite(+req.body.coords.lat) && Number.isFinite(+req.body.coords.lon) ? { lat: +req.body.coords.lat, lon: +req.body.coords.lon } : null;
+  const key = `${coords ? `${coords.lat.toFixed(5)},${coords.lon.toFixed(5)}` : address.toLowerCase()}|${radius}`;
   const hit = exploreCache.get(key);
   if (hit && Date.now() - hit.t < 24 * 3600 * 1000) return res.json(hit.v);
   if (!allow(ipOf(req), "explore")) return res.status(429).json({ error: "Daily limit for \"what fits here\" reached on this demo." });
   if (exploring) return res.status(429).json({ error: "Another \"what fits here\" is running. Try again in a few seconds." });
   try {
-    exploring = withDeadline(explore({ address, radius }), 90000);
+    exploring = withDeadline(explore({ address, radius, coords }), 90000);
     const v = await exploring;
     exploreCache.set(key, { t: Date.now(), v });
     while (exploreCache.size > 100) exploreCache.delete(exploreCache.keys().next().value);

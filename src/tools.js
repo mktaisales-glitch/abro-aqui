@@ -1,6 +1,6 @@
 // Agent tools — see specs/02-tools.md. Each returns typed data and leaves a trace entry.
 import { qloo, point } from "./qloo.js";
-import { getJSON } from "./http.js";
+import { getJSON, isCached } from "./http.js";
 import { tavily } from "@tavily/core";
 
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
@@ -50,14 +50,99 @@ export async function geocode(address, trace) {
     }
     return { lat, lon, display_name: name ? `${lat.toFixed(5)}, ${lon.toFixed(5)} (${name})` : `${lat.toFixed(5)}, ${lon.toFixed(5)}` };
   }
-  const url = `${NOMINATIM}?format=json&limit=1&q=${encodeURIComponent(address.trim())}`;
-  const hits = await osm(url, trace).catch(() => null);
-  if (hits?.[0]) return { lat: +hits[0].lat, lon: +hits[0].lon, display_name: hits[0].display_name };
-  const ph = await getJSON(`https://photon.komoot.io/api/?q=${encodeURIComponent(address.trim())}&limit=1`, { headers: UA, source: "osm", trace }).catch(() => null);
-  const f = ph?.features?.[0];
-  if (f) return { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], display_name: photonName(f.properties) };
-  if (!hits && !ph) throw new Error("The address service did not answer. Try again in a minute, or type the place as \"lat, lon\".");
+  const q = address.trim();
+  const places = namedPlaces(q);
+  const ok = (name) => !places.length || placeMatches(name, places);
+  // recordings and older cache entries were made with limit=1: use them when they already agree with the city
+  const url1 = `${NOMINATIM}?format=json&limit=1&q=${encodeURIComponent(q)}`;
+  if (isCached(url1)) {
+    const h = (await osm(url1, trace).catch(() => null))?.[0];
+    if (h && ok(h.display_name)) return { lat: +h.lat, lon: +h.lon, display_name: h.display_name };
+  }
+  // a few candidates, and the first one in the city the address names ("Avenida del Paralelo 4, Barcelona" is
+  // not in Almussafes); then the Catalan street names for Barcelona; then Photon
+  const queries = [q, ...(catalanStreet(q) !== q ? [catalanStreet(q)] : [])];
+  let first = null, answered = false;
+  for (const qq of queries) {
+    const hits = await osm(`${NOMINATIM}?format=json&limit=5&q=${encodeURIComponent(qq)}`, trace).catch(() => null);
+    if (hits) answered = true;
+    const all = (hits ?? []).map((h) => ({ lat: +h.lat, lon: +h.lon, display_name: h.display_name }));
+    first ??= all[0] ?? null;
+    const good = all.find((h) => ok(h.display_name));
+    if (good) return good;
+  }
+  for (const qq of queries) {
+    const ph = await getJSON(`https://photon.komoot.io/api/?q=${encodeURIComponent(qq)}&limit=5`, { headers: UA, source: "osm", trace }).catch(() => null);
+    if (ph) answered = true;
+    const all = (ph?.features ?? []).map((f) => ({ lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], display_name: photonName(f.properties) }));
+    first ??= all[0] ?? null;
+    const good = all.find((h) => ok(h.display_name));
+    if (good) return good;
+  }
+  // nothing in the named city: the closest guess, flagged so the page asks "is this the place?"
+  if (first) return { ...first, mismatch: places[0] };
+  if (!answered) throw new Error("The address service did not answer. Try again in a minute, or type the place as \"lat, lon\".");
   throw new Error(`Address not found: ${address}`);
+}
+
+const fold = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[·.]/g, "").replace(/\s+/g, " ").trim();
+// English (and old Spanish) names → the local name OpenStreetMap uses
+const EXONYM = { seville: "sevilla", lisbon: "lisboa", milan: "milano", rome: "roma", naples: "napoli", florence: "firenze", turin: "torino", venice: "venezia", munich: "munchen", cologne: "koln", vienna: "wien", prague: "praha", brussels: "bruxelles", saragossa: "zaragoza", gerona: "girona", lerida: "lleida", "la coruna": "a coruna", nyc: "new york", "new york city": "new york", ny: "new york", la: "los angeles", sf: "san francisco", athens: "athina", copenhagen: "kobenhavn", warsaw: "warszawa" };
+/** The places an address names after the street ("…, Barcelona" → ["barcelona"]), without postcodes. */
+export function namedPlaces(address) {
+  const parts = String(address ?? "").split(",").slice(1).map((p) => fold(p.replace(/\b\d[\d-]*\b/g, ""))).filter((p) => p.length >= 2);
+  return parts.map((p) => EXONYM[p] ?? p).filter((p) => !COUNTRY.test(p));
+}
+// countries and regions say too little: "…, Spain" must not accept any street in Spain
+const COUNTRY = /^(?:spain|espana|espanya|france|francia|usa|us|united states|estados unidos|uk|united kingdom|reino unido|england|italy|italia|germany|alemania|deutschland|portugal|catalunya|cataluna|catalonia|netherlands|mexico|argentina)$/;
+/** Does a geocoded name lie in one of the named places? (accents and case ignored) */
+export function placeMatches(displayName, places) {
+  const d = ` ${fold(displayName).replace(/[^a-z0-9]+/g, " ")} `;
+  return places.some((p) => d.includes(` ${p.replace(/[^a-z0-9]+/g, " ").trim()} `));
+}
+// Spanish street names typed for Barcelona, where OpenStreetMap has the Catalan ones
+const CAT = [
+  [/\bavenida del paralelo\b/i, "Avinguda del Paral·lel"], [/\bavenida (?:de la )?diagonal\b/i, "Avinguda Diagonal"],
+  [/\bgran v[ií]a(?! de les)(?: de las cortes catalanas)?\b/i, "Gran Via de les Corts Catalanes"], [/\bpaseo de gracia\b/i, "Passeig de Gràcia"],
+  [/\bpaseo de san juan\b/i, "Passeig de Sant Joan"], [/\bplaza (?:de )?catalu[nñ]a\b/i, "Plaça de Catalunya"], [/^diagonal\b/i, "Avinguda Diagonal"],
+  [/\bavenida\b/i, "Avinguda"], [/\bcalle\b/i, "Carrer"], [/\bpaseo\b/i, "Passeig"], [/\bplaza\b/i, "Plaça"], [/\bronda de\b/i, "Ronda de"],
+];
+/** "Avenida del Paralelo 4, Barcelona" → "Avinguda del Paral·lel 4, Barcelona"; other cities are left as typed. */
+export function catalanStreet(address) {
+  const s = String(address ?? "");
+  if (!/barcelona/i.test(s.split(",").slice(1).join(","))) return s;
+  const i = s.indexOf(",");
+  let street = s.slice(0, i);
+  for (const [re, to] of CAT) if (re.test(street)) { street = street.replace(re, to); if (!/^(Avinguda|Carrer|Passeig|Plaça|Ronda)$/.test(to)) break; }
+  return street + s.slice(i);
+}
+
+/** Coordinates the visitor picked from the suggestions: used as they are, with the label they saw. Null if invalid. */
+export function geoFromCoords(coords, label) {
+  const lat = Number(coords?.lat), lon = Number(coords?.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  return { lat, lon, display_name: String(label ?? "").trim().slice(0, 200) || `${lat.toFixed(5)}, ${lon.toFixed(5)}` };
+}
+
+// ---------- address suggestions while typing (Photon: its policy allows autocomplete; Nominatim's does not) ----------
+/** A short label for a Photon feature: "Avinguda del Paral·lel 4, el Raval, Barcelona" and its country apart. */
+export function photonLabel(p = {}) {
+  const street = [p.street, p.housenumber].filter(Boolean).join(" ");
+  const head = p.housenumber && p.street ? street : p.name && p.name !== p.street ? (street ? `${p.name}, ${street}` : p.name) : street || p.name;
+  const area = p.district ?? p.locality ?? null;
+  const city = p.city ?? p.town ?? p.village ?? p.county ?? p.state;
+  return { label: [...new Set([head, area, city].filter(Boolean))].join(", "), country: p.country ?? "" };
+}
+export async function suggestPlaces(q, lang = "en", trace) {
+  const query = String(q ?? "").trim().slice(0, 120);
+  if (query.length < 4) return [];
+  // Photon speaks en/de/fr; for Spanish the local names (default) read best
+  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5${lang === "en" ? "&lang=en" : ""}`;
+  const ph = await getJSON(url, { headers: UA, source: "osm", trace });
+  const seen = new Set();
+  return (ph?.features ?? []).map((f) => ({ ...photonLabel(f.properties), lat: f.geometry?.coordinates?.[1], lon: f.geometry?.coordinates?.[0] }))
+    .filter((x) => Number.isFinite(x.lat) && Number.isFinite(x.lon) && x.label && !seen.has(x.label + x.country) && seen.add(x.label + x.country))
+    .slice(0, 5);
 }
 
 const HOUSE = /^\d+[a-z]?(?:[-–]\d+[a-z]?)?$/i;

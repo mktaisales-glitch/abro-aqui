@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Open Here — should I open my restaurant here?</title>
 <meta name="description" content="Tell it a business and a street address. It reads the taste and the offer of the area with Qloo and tells you, with reasons, whether to open there.">
+<meta name="theme-color" content="#ffffff">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <style>
 @font-face{font-family:Michroma;src:url(/vendor/fonts/michroma-latin-400-normal.woff2) format("woff2");font-display:swap}
@@ -13,212 +14,346 @@
 @font-face{font-family:Montserrat;font-weight:600;src:url(/vendor/fonts/montserrat-latin-600-normal.woff2) format("woff2");font-display:swap}
 @font-face{font-family:Montserrat;font-weight:700;src:url(/vendor/fonts/montserrat-latin-700-normal.woff2) format("woff2");font-display:swap}
 :root{
-  --ink:#000;--ink-2:#41444a;--ink-3:#5f646b;--paper:#fff;--asphalt:#f1f2f4;--line:#dfe1e5;
-  --orange:#EF751F;--brick:#D4421B;
-  --v-red:#D4421B;--v-amber:#E8A317;--v-ag:#3E9B5F;--v-unk:#8A8F98;
-  --r:10px;--gap:20px;
-  --sign:Michroma,"Arial Narrow",system-ui,sans-serif;--body:Montserrat,system-ui,sans-serif;
+  --ink:#000;--ink-2:#3c4043;--ink-3:#5f6368;--paper:#fff;--soft:#f6f7f9;--soft-2:#eef0f3;--line:#e2e4e8;
+  --orange:#EF751F;--brick:#D4421B;--o-50:#fff5ed;--o-100:#fde6d3;--o-200:#f9c9a3;
+  --v-red:#D4421B;--v-amber:#C98A0C;--v-ag:#2E8B57;--v-unk:#80868B;
+  --r:12px;--r-lg:16px;
+  --e1:0 1px 2px rgba(60,64,67,.18),0 1px 3px 1px rgba(60,64,67,.10);
+  --e2:0 2px 6px rgba(60,64,67,.16),0 6px 20px rgba(60,64,67,.12);
+  --sign:Michroma,"Arial Narrow",system-ui,sans-serif;--body:Montserrat,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bar:72px;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%}
-body{background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--body);-webkit-font-smoothing:antialiased}
-button,input{font:inherit;color:inherit}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--orange);outline-offset:2px}
-a{color:inherit}
-.app{display:grid;grid-template-columns:minmax(360px,460px) 1fr;height:100vh}
-@media(max-width:900px){.app{grid-template-columns:1fr;height:auto}}
-/* ---------- left column ---------- */
-.col{position:relative;overflow-y:auto;border-right:1px solid var(--line);display:flex;flex-direction:column}
-.top{display:flex;align-items:center;justify-content:space-between;padding:18px 24px 6px}
-.logo{font:400 15px/1 var(--sign);letter-spacing:.04em}
+a{color:var(--brick)}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+svg.i{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:minmax(400px,480px) 1fr;height:100vh;height:100dvh}
+.col{position:relative;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;background:var(--paper);box-shadow:1px 0 0 var(--line);z-index:2}
+.top{display:flex;align-items:center;justify-content:space-between;padding:16px 24px 8px}
+.logo{display:flex;align-items:center;gap:8px;font:400 15px/1 var(--sign);letter-spacing:.06em;color:var(--ink);text-decoration:none}
 .logo b{color:var(--orange);font-weight:400}
-.lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
-.lang button{border:0;background:none;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-3)}
-.lang button[aria-pressed=true]{background:var(--ink);color:#fff}
-.pad{padding:12px 24px}
-.lead{font-size:14px;color:var(--ink-2);margin:4px 0 14px;max-width:44ch}
-form.ask{display:grid;gap:10px}
-.field{display:grid;gap:4px}
-.field span{font-size:12px;font-weight:600;color:var(--ink-2)}
-.field input{border:1px solid var(--line);border-radius:var(--r);padding:11px 12px;background:var(--paper);min-width:0}
-.field input:focus{border-color:var(--ink);outline:none;box-shadow:0 0 0 3px #ef751f33}
-.go{border:0;border-radius:var(--r);padding:13px 16px;background:var(--ink);color:#fff;font-weight:700;cursor:pointer}
-.go:hover{background:#222}
-.go:disabled{background:var(--ink-3);cursor:progress}
-.examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-.examples button{border:1px solid var(--line);background:var(--asphalt);border-radius:999px;padding:5px 11px;font-size:12.5px;cursor:pointer}
-.examples button:hover{border-color:var(--ink)}
-.steps{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px;font-size:13px;color:var(--ink-3)}
-.steps li.done{color:var(--ink)}
-.steps li.now{color:var(--ink);font-weight:600}
-.steps li::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;border:1.5px solid currentColor;margin-right:8px;vertical-align:1px}
-.steps li.done::before{background:var(--ink)}
-.steps li.now::before{background:var(--orange);border-color:var(--orange)}
-.err{background:#fdecea;border-left:3px solid var(--brick);padding:10px 12px;border-radius:6px;font-size:14px}
-/* ---------- verdict: the one loud element ---------- */
-.verdict{padding:18px 24px 8px;border-top:1px solid var(--line)}
-.vword{font:400 clamp(34px,6vw,52px)/1 var(--sign);letter-spacing:.02em;margin:0;display:flex;align-items:center;gap:14px}
-.lamp{width:22px;height:22px;border-radius:50%;flex:none;box-shadow:0 0 0 5px color-mix(in srgb,currentColor 18%,transparent);background:currentColor}
+.logo svg{width:22px;height:22px;fill:var(--orange)}
+.lang{display:flex;background:var(--soft-2);border-radius:999px;padding:3px}
+.lang button{border:0;background:none;padding:6px 12px;min-height:32px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;color:var(--ink-3)}
+.lang button[aria-pressed=true]{background:var(--paper);color:var(--ink);box-shadow:var(--e1)}
+.pad{padding:8px 24px 16px}
+.hero{font:400 26px/1.25 var(--sign);letter-spacing:.01em;margin:16px 0 8px}
+.hero em{font-style:normal;color:var(--orange)}
+.lead{font-size:14px;color:var(--ink-2);margin:0 0 16px;max-width:46ch}
+
+/* ---------- search card ---------- */
+.card{background:var(--paper);border-radius:var(--r-lg);box-shadow:var(--e2);padding:16px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--soft-2);border-radius:12px;padding:4px;margin-bottom:16px}
+.seg button{border:0;background:none;border-radius:9px;padding:8px 8px;min-height:44px;font-size:13px;font-weight:600;line-height:1.25;color:var(--ink-3);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--paper);color:var(--ink);box-shadow:var(--e1)}
+.seg button[aria-pressed=true]::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--orange);margin-right:7px;vertical-align:2px}
+form.ask{display:grid;gap:16px}
+.field{display:grid;gap:6px;position:relative}
+.field>label,.field>.lbl{font-size:12.5px;font-weight:700;color:var(--ink-2);letter-spacing:.01em}
+.inbox{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:24px;padding:0 6px 0 14px;background:var(--paper);min-height:48px;transition:box-shadow .15s,border-color .15s}
+@media(hover:hover){.inbox:hover{box-shadow:0 1px 6px rgba(32,33,36,.18);border-color:transparent}}
+.inbox:focus-within{border-color:var(--orange);box-shadow:0 0 0 3px #ef751f2e}
+.inbox svg.i{color:var(--ink-3);width:18px;height:18px}
+.inbox input{flex:1;border:0;outline:0;background:none;min-width:0;padding:12px 0;font-size:15px}
+.inbox input::placeholder{color:#8b9096}
+.inbox .tgl{border:0;background:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:var(--ink-3)}
+@media(hover:hover){.inbox .tgl:hover{background:var(--soft-2)}}
+.lb{position:absolute;left:0;right:0;top:100%;margin:6px 0 0;padding:6px 0;list-style:none;background:var(--paper);border-radius:var(--r);box-shadow:var(--e2);z-index:50;max-height:300px;overflow-y:auto}
+.lb li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;min-height:44px;cursor:pointer;font-size:14.5px}
+.lb li small{color:var(--ink-3);font-size:12.5px;text-align:right}
+.lb li[aria-selected=true]{background:var(--o-50)}
+@media(hover:hover){.lb li:hover{background:var(--o-50)}}
+.lb li[aria-selected=true]{box-shadow:inset 3px 0 0 var(--orange)}
+.lb li mark{background:none;color:var(--brick);font-weight:700}
+.lb .none{color:var(--ink-3);cursor:default}
+.hint{margin:0;font-size:13px;color:var(--brick);font-weight:600;display:flex;gap:6px;align-items:center}
+.hint svg.i{width:16px;height:16px}
+.pick{margin:0;font-size:12.5px;color:var(--ink-3)}
+.pick b{color:var(--ink)}
+.row2{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}
+select.rad{border:1px solid var(--line);border-radius:24px;padding:0 14px;min-height:48px;background:var(--paper);font-size:14px;cursor:pointer}
+.go{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:24px;min-height:48px;padding:0 24px;background:var(--orange);color:#fff;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 1px 2px rgba(212,66,27,.3);text-decoration:none;transition:background .15s,box-shadow .15s}
+@media(hover:hover){.go:hover{background:var(--brick);box-shadow:0 2px 8px rgba(212,66,27,.35)}}
+.go:disabled{background:#f2a46d;cursor:progress}
+.go svg.i{width:18px;height:18px}
+.examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;align-items:center}
+.examples .ex-l{font-size:12px;color:var(--ink-3);font-weight:600;margin-right:2px}
+.examples button{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 12px;min-height:36px;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--ink-2)}
+@media(hover:hover){.examples button:hover{border-color:var(--orange);color:var(--brick);background:var(--o-50)}}
+.steps{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:6px;font-size:13.5px;color:var(--ink-3)}
+.steps li.done,.steps li.now{color:var(--ink)}
+.steps li.now{font-weight:600}
+.steps li::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;border:2px solid currentColor;margin-right:10px;vertical-align:-1px}
+.steps li.done::before{background:var(--orange);border-color:var(--orange)}
+.steps li.now::before{border-color:var(--orange);animation:pulse 1s ease-in-out infinite alternate}
+@keyframes pulse{to{box-shadow:0 0 0 4px #ef751f33}}
+.err{margin-top:16px;background:#fdecea;border-left:4px solid var(--brick);padding:12px 14px;border-radius:8px;font-size:14px}
+
+/* ---------- verdict card ---------- */
+#result{padding:0 24px}
+.vcard{scroll-margin-top:12px;position:relative;background:var(--paper);border-radius:var(--r-lg);box-shadow:var(--e2);padding:24px 20px 16px;margin:8px 0 16px;overflow:hidden}
+.vcard::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:linear-gradient(90deg,var(--orange),var(--brick))}
+.vword{font:400 clamp(30px,4.2vw,44px)/1.05 var(--sign);letter-spacing:.02em;margin:0;display:flex;align-items:center;gap:14px}
+.lamp{width:20px;height:20px;border-radius:50%;flex:none;box-shadow:0 0 0 5px color-mix(in srgb,currentColor 18%,transparent);background:currentColor}
 .RED{color:var(--v-red)}.AMBER{color:var(--v-amber)}.AMBER-GREEN{color:var(--v-ag)}.UNKNOWN{color:var(--v-unk)}
-.headline{font-size:18px;font-weight:600;line-height:1.35;margin:12px 0 6px;max-width:40ch}
-.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 4px}
-.facts div{background:var(--asphalt);border-radius:10px;padding:8px 10px}
-.facts b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
-.facts span{font-size:11.5px;color:var(--ink-2);line-height:1.3;display:block}
-.next{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}
-.next button{border:1px solid var(--ink);background:var(--paper);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer}
-.next button:hover{background:var(--ink);color:#fff}
-.scope{background:#fdf0dc;border-radius:10px;padding:8px 10px;font-size:13px;margin:10px 0 0}
-details.s>summary{cursor:pointer;font:600 15px/1.3 var(--body);list-style:none}
-details.s>summary::after{content:" ▾";color:var(--ink-3)}
-details.s[open]>summary::after{content:" ▴"}
-.comp tr.hl td{background:#fdf0dc}
-.legend summary{cursor:pointer;font-weight:600;list-style:none}
-.legend summary::after{content:" ▾";color:var(--ink-3)}
-.legend[open] summary::after{content:" ▴"}
-.addr{font-size:13px;color:var(--ink-3);margin:0}
-details.rule{margin-top:10px;font-size:13px;color:var(--ink-2)}
-details.rule summary{cursor:pointer;font-weight:600;color:var(--ink)}
+.headline{font-size:17px;font-weight:600;line-height:1.4;margin:16px 0 8px}
+.where{display:flex;gap:8px;align-items:flex-start;margin:0;font-size:14px;font-weight:600;color:var(--ink)}
+.where svg.i{color:var(--orange);width:18px;height:18px;margin-top:2px}
+.mismatch{margin:12px 0 0;background:var(--o-50);border:1px solid var(--o-200);border-radius:var(--r);padding:12px 14px;font-size:13.5px}
+.mismatch b{display:block;margin-bottom:2px}
+.mismatch button{margin-top:8px;border:0;background:none;color:var(--brick);font-weight:700;padding:6px 0;cursor:pointer;text-decoration:underline}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0 8px}
+.facts div{background:var(--soft);border-radius:var(--r);padding:12px 10px}
+.facts b{display:block;font-size:18px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.facts div:first-child b{color:var(--brick)}
+.facts span{font-size:11.5px;color:var(--ink-2);line-height:1.35;display:block;margin-top:2px}
+.next{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.next button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--o-200);background:var(--o-50);color:var(--brick);border-radius:999px;padding:8px 14px;min-height:40px;font-size:13px;font-weight:700;cursor:pointer}
+.next button svg.i{width:16px;height:16px}
+@media(hover:hover){.next button:hover{background:var(--orange);border-color:var(--orange);color:#fff}}
+.scope{background:#fdf3dc;border-radius:var(--r);padding:10px 12px;font-size:13px;margin:12px 0 0}
+details.rule{margin-top:12px;font-size:13px;color:var(--ink-2)}
+details.rule summary{cursor:pointer;font-weight:700;color:var(--brick);list-style:none;min-height:32px;display:flex;align-items:center;gap:4px}
+details.rule summary::-webkit-details-marker{display:none}
+details.rule summary::after{content:"";width:7px;height:7px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg);margin:-3px 0 0 6px;transition:transform .2s}
+details.rule[open] summary::after{transform:rotate(-135deg);margin-top:3px}
 details.rule p{margin:6px 0 0}
-/* ---------- sections ---------- */
-section.s{padding:16px 24px;border-top:1px solid var(--line)}
-section.s h2{font:600 15px/1.3 var(--body);margin:0 0 10px}
-section.s .note{font-size:12.5px;color:var(--ink-3);margin:6px 0 0}
-ul.plain{margin:0;padding-left:18px}ul.plain li{margin:4px 0}
+.note{font-size:12.5px;color:var(--ink-3);margin:8px 0 0}
+.linkbtn{border:0;background:none;color:var(--brick);font-weight:700;cursor:pointer;padding:4px 0;text-decoration:underline}
+
+/* ---------- FAQ accordion ---------- */
+.accs{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-bottom:24px}
+.acc{min-width:0;border:1px solid var(--line);border-radius:var(--r);background:var(--paper);scroll-margin-top:12px;transition:box-shadow .15s}
+.acc.open{box-shadow:var(--e1);border-color:transparent}
+.acc h2{margin:0;font:inherit}
+.acc-h{width:100%;display:flex;align-items:center;gap:12px;border:0;background:none;text-align:left;padding:14px 16px;min-height:56px;cursor:pointer;font-size:15px;font-weight:600;color:var(--ink);border-radius:var(--r)}
+@media(hover:hover){.acc-h:hover{background:var(--soft)}}
+.acc-h .ic{width:32px;height:32px;border-radius:50%;background:var(--o-50);color:var(--orange);display:grid;place-items:center;flex:none}
+.acc-h .ic svg.i{width:18px;height:18px}
+.acc-h .t{flex:1}
+.acc-h .chev{color:var(--ink-3);transition:transform .2s}
+.acc-h[aria-expanded=true] .chev{transform:rotate(180deg);color:var(--orange)}
+.acc-p{padding:0 16px 16px;min-width:0;overflow-wrap:anywhere}
+.acc-p h3{font-size:13px;font-weight:700;margin:16px 0 8px;color:var(--ink-2)}
+.acc-p h3:first-child{margin-top:4px}
+ul.plain{margin:0;padding-left:18px;font-size:14px}ul.plain li{margin:4px 0}
+ul.plain li::marker{color:var(--orange)}
 /* gauges */
-.gauge{margin:12px 0 4px}
-.gauge .lbl{display:flex;justify-content:space-between;font-size:13px}
-.gauge .lbl b{font-variant-numeric:tabular-nums}
-.track{position:relative;height:10px;background:var(--asphalt);border-radius:5px;margin-top:6px}
-.track .fill{position:absolute;inset:0 auto 0 0;border-radius:5px;background:var(--ink)}
+.gauge{margin:8px 0 4px}
+.gauge .lbl{display:flex;justify-content:space-between;font-size:13.5px;font-weight:600}
+.gauge .lbl b{font-variant-numeric:tabular-nums;color:var(--brick)}
+.track{position:relative;height:10px;background:var(--soft-2);border-radius:5px;margin-top:8px}
+.track .fill{position:absolute;inset:0 auto 0 0;border-radius:5px;background:linear-gradient(90deg,var(--orange),var(--brick))}
 .track .mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--paper);outline:1px solid var(--ink-3)}
 .track .mark span{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-size:10.5px;color:var(--ink-3);white-space:nowrap}
+.gauge .mark:first-of-type span{transform:translateX(-30%)}
 .gauge + .gauge{margin-top:24px}
-/* competitor list */
 table.comp{width:100%;border-collapse:collapse;font-size:13.5px}
-table.comp td{padding:7px 0;border-bottom:1px solid var(--asphalt);vertical-align:top}
+table.comp td{padding:8px 0;border-bottom:1px solid var(--soft-2);vertical-align:top}
 table.comp td.n{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-2);padding-left:10px;white-space:nowrap}
-/* counts as bars */
-.bars{display:grid;grid-template-columns:auto 1fr auto;gap:5px 10px;font-size:13px;align-items:center}
-.bars .b{height:6px;background:var(--ink);border-radius:3px}
+.comp tr.hl td{background:var(--o-50)}
+.bars{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;font-size:13px;align-items:center}
+.bars .b{height:8px;background:var(--orange);border-radius:4px}
 .bars .c{font-variant-numeric:tabular-nums;color:var(--ink-2)}
-.cols2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-@media(max-width:480px){.cols2{grid-template-columns:1fr}}
-h3{font-size:13px;font-weight:600;margin:0 0 6px;color:var(--ink-2)}
+.cols2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
 .gap{display:flex;flex-wrap:wrap;gap:6px}
-.gap span{border:1.5px dashed var(--v-ag);color:#1e5c36;border-radius:6px;padding:3px 9px;font-size:13px;font-weight:600}
-/* unknowns */
-.unk label{display:grid;gap:4px;font-size:13.5px;margin-bottom:10px}
-.unk input{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-.unk .ok,#partners .ok{font-weight:600;color:#1e5c36}
-/* chat */
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-.chips button{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:4px 10px;font-size:12.5px;cursor:pointer}
-.log{display:grid;gap:8px;margin-bottom:8px}
-.scoutgo{border:0;background:var(--ink,#111);color:#fff;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
-.scoutgo:disabled{opacity:.5;cursor:wait}
-.steps2{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:6px;counter-reset:st}
-.steps2 li{counter-increment:st;display:grid;grid-template-columns:22px 1fr auto;gap:8px;font-size:13px;align-items:start;animation:fadein .3s ease both}
-.steps2 li::before{content:counter(st);width:20px;height:20px;border-radius:50%;background:var(--orange);color:#fff;font-size:11px;display:grid;place-items:center}
-.steps2 code{font-size:12px;background:rgba(0,0,0,.05);padding:1px 5px;border-radius:4px}
-.steps2 .ms{color:#777;font-size:12px;white-space:nowrap}
-.scouttext{font-weight:600;margin:12px 0 0}
-.launch{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px;margin-top:12px}
-.launch h3{margin:0 0 4px}
-.launch ul{margin:0;padding-left:18px;font-size:13.5px}
-.launch li{margin-bottom:4px}
-.launch .ok{font-weight:600;color:#1e5c36}
-.weeks{margin:12px 0 0;padding-left:18px;font-size:13.5px}
-@media (max-width:640px){.launch{grid-template-columns:1fr}}
+.gap span{border:1.5px dashed var(--v-ag);color:#1e5c36;border-radius:8px;padding:4px 10px;font-size:13px;font-weight:600}
+.unk label{display:grid;gap:6px;font-size:13.5px;margin-bottom:12px}
+.unk input{border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px}
+.unk input:focus{border-color:var(--orange);outline:none;box-shadow:0 0 0 3px #ef751f2e}
+.ok{font-weight:600;color:#1e5c36}
+.run{display:inline-flex;align-items:center;gap:8px;border:0;background:var(--orange);color:#fff;border-radius:24px;padding:0 20px;min-height:44px;font-weight:700;cursor:pointer}
+@media(hover:hover){.run:hover{background:var(--brick)}}
+.run:disabled{opacity:.6;cursor:wait}
+.steps2{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:8px;counter-reset:st}
+.steps2 li{counter-increment:st;display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;font-size:13px;align-items:start;animation:fadein .3s ease both}
+.steps2 li::before{content:counter(st);width:22px;height:22px;border-radius:50%;background:var(--orange);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+.steps2 code{font-size:12px;background:var(--soft-2);padding:1px 5px;border-radius:4px;word-break:break-all}
+.steps2 .ms{color:var(--ink-3);font-size:12px;white-space:nowrap}
+.scouttext{font-weight:600;margin:16px 0 0}
+.launch{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-top:16px}
+.launch h3{margin:0 0 4px!important}
+.launch ul,.weeks{margin:0;padding-left:18px;font-size:13.5px}
+.launch li,.weeks li{margin-bottom:4px}
+.weeks{margin-top:16px}
+.launchat{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink-2);min-height:44px}
+.launchat input{width:20px;height:20px;accent-color:var(--orange)}
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.msg{padding:9px 12px;border-radius:12px;font-size:14px;white-space:pre-wrap;max-width:92%}
-.msg.me{justify-self:end;background:var(--ink);color:#fff;border-bottom-right-radius:4px}
-.msg.bot{background:var(--asphalt);border-bottom-left-radius:4px}
-.msg .tools{display:block;font-size:11.5px;color:var(--ink-3);margin-top:4px}
-form.q{display:flex;gap:6px}
-form.q input{flex:1;border:1px solid var(--line);border-radius:var(--r);padding:9px 11px;min-width:0}
-form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;padding:0 14px;font-weight:600;cursor:pointer}
-/* tabs */
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:10px}
-.tabs button{border:0;background:none;padding:8px 10px;font-size:13px;font-weight:600;color:var(--ink-3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
-.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--orange)}
-.trace{font-size:12px;width:100%;border-collapse:collapse}
-.trace td{padding:5px 4px;border-bottom:1px solid var(--asphalt);vertical-align:top}
+.tabs{display:flex;gap:4px;background:var(--soft-2);border-radius:10px;padding:3px;margin:4px 0 12px}
+.tabs button{flex:1;border:0;background:none;padding:6px 8px;min-height:40px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink-3);cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--paper);color:var(--ink);box-shadow:var(--e1)}
+.trace{font-size:12px;width:100%;border-collapse:collapse;table-layout:fixed}
+.trace td{padding:6px 4px;border-bottom:1px solid var(--soft-2);vertical-align:top}
+.trace td:first-child{width:22%}.trace td.n{width:24%;text-align:right}
 .trace td.u{word-break:break-all;color:var(--ink-2);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px}
-.vs{display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:13px}
-.vs h3{margin-bottom:4px}
-.foot{margin-top:auto;padding:16px 24px 22px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--line)}
+.vs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;font-size:13px}
+.vs h3{margin:0 0 4px!important}
+form.q{display:flex;gap:8px}
+form.q input{flex:1;border:1px solid var(--line);border-radius:24px;padding:0 14px;min-height:44px;min-width:0}
+form.q input:focus{border-color:var(--orange);outline:none;box-shadow:0 0 0 3px #ef751f2e}
+form.q button{border:0;border-radius:24px;background:var(--orange);color:#fff;padding:0 16px;min-height:44px;font-weight:700;cursor:pointer}
+@media(hover:hover){form.q button:hover{background:var(--brick)}}
+.fit{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+.fit td,.fit th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.fit th{font-size:11.5px;color:var(--ink-3);font-weight:700}
+.fit .n{text-align:right;white-space:nowrap}
+.fit button{border:1px solid var(--o-200);background:var(--o-50);color:var(--brick);border-radius:999px;padding:0 12px;min-height:36px;font-size:12.5px;font-weight:700;cursor:pointer}
+.chip{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+.chip.AMBER-GREEN{background:#e3f2e8;color:#1e5c36}.chip.AMBER{background:#fdf0dc;color:#8a5a00}.chip.RED{background:#fbe3dc;color:#9b2c12}.chip.UNKNOWN{background:#eee;color:#555}
+#fitbox h2{font:400 18px/1.3 var(--sign);margin:24px 0 4px}
+.foot{margin-top:auto;padding:16px 24px 24px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--line)}
+/* PDF: pinned at the bottom of the results panel */
+.pdfbar{position:sticky;bottom:0;z-index:30;padding:12px 24px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--paper) 70%,rgba(255,255,255,0));display:flex}
+.pdfbar .go{flex:1}
+
 /* ---------- map ---------- */
-.mapwrap{position:relative;min-height:420px;background:var(--asphalt)}
-@media(max-width:900px){.mapwrap{height:45vh}body:not(.has-result) .mapwrap{display:none}body.has-result .mapwrap{order:-1;height:38vh;min-height:260px}}
+.mapwrap{position:relative;min-height:420px;background:var(--soft)}
 #map{position:absolute;inset:0}
 .osm-tiles{filter:grayscale(1) contrast(.9) brightness(1.06)}
-.legend{position:absolute;left:14px;bottom:14px;z-index:500;background:#fff;border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 1px 0 var(--line),0 0 0 1px var(--line)}
-.legend .classes{display:grid;gap:3px;margin:6px 0 2px}
+.leaflet-container{font:inherit;background:var(--soft)}
+.leaflet-bar{border:0!important;box-shadow:var(--e1)!important;border-radius:10px!important;overflow:hidden}
+.legend{position:absolute;left:16px;bottom:16px;z-index:500;background:#fff;border-radius:var(--r);padding:10px 12px;font-size:12px;box-shadow:var(--e2);max-width:260px}
+.legend summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:8px;min-height:24px;align-items:center}
+.legend summary::-webkit-details-marker{display:none}
+.legend summary::after{content:"";width:7px;height:7px;border:solid var(--ink-3);border-width:0 2px 2px 0;transform:rotate(-135deg);flex:none;margin-top:4px}
+.legend:not([open]) summary::after{transform:rotate(45deg);margin-top:-4px}
+.legend .classes{display:grid;gap:3px;margin:8px 0 2px}
 .legend .classes span{display:flex;align-items:center;gap:6px}
 .legend .classes i{width:14px;height:10px;border-radius:2px;margin:0}
-.legend .ttl{font-weight:600;max-width:220px}
-.modes{display:flex;gap:6px;margin-bottom:10px}
-.modes button{flex:1;border:1px solid var(--line);background:var(--paper);border-radius:var(--r);padding:8px 10px;font-size:13px;font-weight:600;cursor:pointer}
-.modes button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
-.field select{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--paper)}
-.fit{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
-.fit td,.fit th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-.fit th{font-size:11.5px;color:var(--ink-3);font-weight:600}
-.fit .n{text-align:right;white-space:nowrap}
-.chip{display:inline-block;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700;white-space:nowrap}
-.chip.AMBER-GREEN{background:#e3f2e8;color:#1e5c36}.chip.AMBER{background:#fdf0dc;color:#8a5a00}.chip.RED{background:#fbe3dc;color:#9b2c12}.chip.UNKNOWN{background:#eee;color:#555}
-.fit button{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:3px 8px;font-size:12px;cursor:pointer}
-.youlbl{background:var(--ink);color:#fff;border:0;font-weight:700}
-.bestlbl{background:#3E9B5F;color:#fff;border:0;font-weight:700}
 .legend .ends{display:flex;justify-content:space-between;color:var(--ink-3)}
 .legend .keys{display:grid;gap:3px;margin-top:6px}
 .legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px}
-.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--ink-2);z-index:400;pointer-events:none}
-.empty p{font:600 17px/1.45 var(--body);max-width:30ch;margin:0;color:var(--ink);background:rgba(255,255,255,.94);padding:18px 22px;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.12)}
-.leaflet-container{font:inherit;background:var(--asphalt)}
+.youlbl{background:var(--ink);color:#fff;border:0;font-weight:700}
+.bestlbl{background:#2E8B57;color:#fff;border:0;font-weight:700}
 .pin{width:16px;height:16px;background:var(--ink);border:3px solid #fff;box-shadow:0 0 0 1.5px var(--ink);border-radius:3px}
-/* ---------- result blocks ---------- */
-.blocks{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:10px 24px;background:var(--paper);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.blocks::-webkit-scrollbar{display:none}
-.blocks button{flex:none;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;color:var(--ink-2)}
-.blocks button:hover{border-color:var(--ink);color:var(--ink)}
-.blocks button[aria-selected=true]{background:var(--ink);border-color:var(--ink);color:#fff}
-.blk{scroll-margin-top:58px}
-.blk>section.s:first-child,.blk>.s:first-child{border-top:0}
-.reportcard{display:grid;gap:10px}
-.reportcard ul{margin:0;padding-left:18px;font-size:13.5px;color:var(--ink-2)}
-.fab{position:absolute;right:14px;bottom:30px;z-index:600;display:flex;align-items:center;gap:8px;border:0;border-radius:999px;background:var(--ink);color:#fff;padding:12px 18px 12px 14px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.25)}
-.fab:hover{background:#222}
-.fab .dot{width:26px;height:26px;border-radius:50%;background:var(--orange);display:grid;place-items:center;font-size:15px;line-height:1}
-.askintro{font-size:13px;color:var(--ink-2);margin:0 0 10px}
-@media(min-width:901px){.blocks{flex-wrap:wrap;overflow:visible}.blk{scroll-margin-top:96px}}
-@media(max-width:900px){.blocks{padding:8px 16px}.fab{bottom:24px;padding:10px 14px 10px 10px;font-size:13px}}
-[hidden]{display:none!important}
-@media (prefers-reduced-motion:no-preference){.verdict.in .vword{animation:stamp .5s cubic-bezier(.2,.9,.3,1.2)}@keyframes stamp{from{transform:scale(1.15);opacity:0}to{transform:none;opacity:1}}}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;z-index:400;pointer-events:none}
+.empty p{font:600 16px/1.5 var(--body);max-width:30ch;margin:0;color:var(--ink);background:rgba(255,255,255,.96);padding:20px 24px;border-radius:var(--r-lg);box-shadow:var(--e2)}
+.empty p::before{content:"";display:block;width:32px;height:4px;border-radius:2px;background:var(--orange);margin:0 auto 12px}
+
+/* ---------- assistant: floating over the map ---------- */
+.fab{position:absolute;right:24px;bottom:24px;z-index:1000;display:flex;align-items:center;gap:10px;border:0;border-radius:999px;background:var(--orange);color:#fff;padding:0 20px 0 14px;min-height:52px;font-weight:700;font-size:14.5px;cursor:pointer;box-shadow:0 6px 20px rgba(212,66,27,.35)}
+@media(hover:hover){.fab:hover{background:var(--brick)}}
+.fab svg.i{width:22px;height:22px}
+.chat{position:absolute;right:24px;bottom:24px;z-index:1100;width:min(400px,calc(100% - 48px));height:min(600px,calc(100% - 48px));display:flex;flex-direction:column;background:var(--paper);border-radius:var(--r-lg);box-shadow:0 12px 40px rgba(0,0,0,.22),0 2px 6px rgba(0,0,0,.08);overflow:hidden;animation:pop .18s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.chat-h{display:flex;align-items:center;gap:10px;padding:12px 8px 12px 16px;border-bottom:1px solid var(--line)}
+.chat-h .av{width:34px;height:34px;border-radius:50%;background:var(--orange);color:#fff;display:grid;place-items:center;flex:none}
+.chat-h .av svg.i{width:18px;height:18px}
+.chat-h h2{margin:0;font:400 13px/1.2 var(--sign);letter-spacing:.04em;flex:1}
+.chat-h h2 small{display:block;font:500 12px/1.3 var(--body);letter-spacing:0;color:var(--ink-3);margin-top:3px}
+.chat-x{border:0;background:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:var(--ink-2)}
+@media(hover:hover){.chat-x:hover{background:var(--soft-2)}}
+.log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:16px;overscroll-behavior:contain}
+.msg{padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.5;white-space:pre-wrap;max-width:88%;word-wrap:break-word}
+.msg.me{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:4px}
+.msg.bot{align-self:flex-start;background:var(--soft);border-bottom-left-radius:4px}
+.msg.bot b{color:var(--brick)}
+.msg.lim{background:var(--o-50);border:1px solid var(--o-200)}
+.msg .tools{display:block;font-size:11.5px;color:var(--ink-3);margin-top:4px}
+.msg.wait{color:var(--ink-3)}
+.msg.wait::after{content:"";display:inline-block;width:1.2em;text-align:left;animation:dots 1.2s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1px solid var(--o-200);background:var(--paper);color:var(--brick);border-radius:999px;padding:8px 12px;min-height:40px;font-size:13px;font-weight:600;cursor:pointer;text-align:left}
+@media(hover:hover){.chips button:hover{background:var(--o-50)}}
+.chat form.q{padding:12px;border-top:1px solid var(--line)}
+
+/* ---------- mobile ---------- */
+@media(max-width:900px){
+  .app{display:flex;flex-direction:column;height:auto}
+  .col{display:contents}
+  #result{display:contents}
+  .top{order:1}.pad{order:2}.vcard{order:3;margin:8px 16px 16px}.mapwrap{order:4}.accs{order:5;margin:16px}.foot{order:6;padding-bottom:calc(var(--bar) + 24px)}.pdfbar{order:7}
+  .top{padding:12px 16px 4px}.pad{padding:4px 16px 16px}
+  .hero{font-size:21px;margin-top:12px}
+  .card{padding:12px}
+  .mapwrap{display:none;min-height:0;height:40vh;margin:0 16px;border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--e1)}
+  body.has-result .mapwrap{display:block}
+  .legend{left:auto;right:8px;top:8px;bottom:auto;padding:6px 10px;max-width:calc(100% - 72px);font-size:11.5px}
+  .pdfbar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);box-shadow:0 -1px 0 var(--line),0 -4px 16px rgba(0,0,0,.06);z-index:1200}
+  .fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:1250;min-height:52px}
+  body.has-pdf .fab{bottom:calc(var(--bar) + 12px + env(safe-area-inset-bottom))}
+  .chat{position:fixed;inset:0;width:auto;height:auto;border-radius:0;z-index:2000;animation:sheet .22s ease-out}
+  @keyframes sheet{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
+  .chat-h{padding-top:calc(12px + env(safe-area-inset-top))}
+  .chat form.q{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+  body.chat-open{overflow:hidden}
+  body.ask-visible .fab{opacity:0;pointer-events:none;transform:translateY(8px)}
+  .fab{transition:opacity .2s,transform .2s}
+  #fitbox{overflow-x:auto}
+  .lang button,.examples button,.next button,.chips button,.fit button,.tabs button,details.rule summary{min-height:44px}
+  .inbox .tgl{width:44px;height:44px}
+}
+@media(max-width:480px){
+  .cols2,.launch,.vs{grid-template-columns:1fr}
+  .facts{gap:6px}.facts div{padding:10px 8px}.facts b{font-size:16px}
+  .row2{grid-template-columns:1fr}
+  select.rad{width:100%}
+  .seg button{font-size:12.5px}
+}
+@media (prefers-reduced-motion:no-preference){.vcard.in .vword{animation:stamp .5s cubic-bezier(.2,.9,.3,1.2)}@keyframes stamp{from{transform:scale(1.12);opacity:0}to{transform:none;opacity:1}}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-why" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></symbol>
+  <symbol id="i-spot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+  <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2"/><path d="M9 15l-3-3c1-4 4.5-8 12-9-1 7.5-5 11-9 12z"/><circle cx="14.5" cy="9.5" r="1.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+</svg>
 <div class="app">
-  <div class="col">
-    <div class="top">
-      <div class="logo">OPEN <b>HERE</b></div>
+  <aside class="col" id="col">
+    <header class="top">
+      <span class="logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7.5 7.5 0 0 0-7.5 7.5C4.5 15.3 12 22 12 22s7.5-6.7 7.5-12.5A7.5 7.5 0 0 0 12 2zm0 10.2a2.7 2.7 0 1 1 0-5.4 2.7 2.7 0 0 1 0 5.4z"/></svg>OPEN <b>HERE</b></span>
       <div class="lang" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="es" aria-pressed="false">ES</button></div>
-    </div>
+    </header>
     <div class="pad">
-      <p class="lead" data-i="lead">For restaurants, bars and cafés. Tell it your concept and the street: it reads what the area likes and what it already has, and tells you whether to open there.</p>
-      <div class="modes" role="group"><button type="button" id="m-one" aria-pressed="true" data-i="mone">Should I open my idea here?</button><button type="button" id="m-fit" aria-pressed="false" data-i="mfit">I have premises: which food business fits?</button></div>
-      <form class="ask" id="ask">
-        <label class="field" id="conceptf"><span data-i="concept">Restaurant, bar or café concept</span><input id="concept" required autocomplete="off" placeholder="seafood restaurant, ramen, cocktail bar…"></label>
-        <label class="field"><span data-i="address">Street address or “lat, lon”</span><input id="address" required autocomplete="off" placeholder="Avinguda del Paral·lel 40, Barcelona"></label>
-        <label class="field"><span data-i="radius">Area around the address</span><select id="radius"><option value="500">500 m</option><option value="1000" selected>1 km</option><option value="1500">1.5 km</option><option value="2000">2 km</option></select></label>
-        <button class="go" id="go" type="submit" data-i="go">Should I open here?</button>
-      </form>
-      <div class="examples" id="examples" aria-label="Examples"></div>
-      <ol class="steps" id="steps" hidden></ol>
+      <h1 class="hero" data-i="hero">Should I open here?</h1>
+      <p class="lead" data-i="lead">For restaurants, bars and cafés. Choose your type of business and the street: it reads what the area likes and what it already has, and tells you whether to open there.</p>
+      <div class="card">
+        <div class="seg" role="group" aria-label="What do you want to know?"><button type="button" id="m-one" aria-pressed="true" data-i="mone">Should I open my idea here?</button><button type="button" id="m-fit" aria-pressed="false" data-i="mfit">I have premises: what fits?</button></div>
+        <form class="ask" id="ask" novalidate>
+          <div class="field" id="conceptf">
+            <label for="concept" id="conceptl" data-i="concept">Type of business</label>
+            <div class="inbox"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input id="concept" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="clist" autocomplete="off" spellcheck="false" data-ph="phconcept" placeholder="Pizzeria, burger joint, coffee shop…"><button type="button" class="tgl" id="ctgl" tabindex="-1" aria-label="Show all types" data-al="showall"><svg class="i" aria-hidden="true"><use href="#i-down"/></svg></button></div>
+            <ul class="lb" id="clist" role="listbox" aria-labelledby="conceptl" hidden></ul>
+            <p class="hint" id="chint" role="alert" hidden><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><span data-i="chint">Not available yet — choose one from the list</span></p>
+          </div>
+          <div class="field" id="addressf">
+            <label for="address" id="addressl" data-i="address">Street address</label>
+            <div class="inbox"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><input id="address" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="alist" autocomplete="off" spellcheck="false" data-ph="phaddress" placeholder="Avinguda del Paral·lel 4, Barcelona"></div>
+            <ul class="lb" id="alist" role="listbox" aria-labelledby="addressl" hidden></ul>
+            <p class="pick" id="apick" hidden></p>
+            <p class="hint" id="ahint" role="alert" hidden><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><span data-i="ahint">Write a street and number, then pick it from the list</span></p>
+          </div>
+          <div class="row2">
+            <div class="field"><label for="radius" data-i="radius">Area around it</label><select class="rad" id="radius"><option value="500">500 m</option><option value="1000" selected>1 km</option><option value="1500">1.5 km</option><option value="2000">2 km</option></select></div>
+            <button class="go" id="go" type="submit"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><span id="golbl">Should I open here?</span></button>
+          </div>
+        </form>
+        <div class="examples" id="examples"><span class="ex-l" data-i="tryex">Try:</span></div>
+      </div>
+      <ol class="steps" id="steps" hidden aria-live="polite"></ol>
       <div class="err" id="err" hidden role="alert"></div>
       <div id="fitbox" hidden>
-        <h2 id="fith" style="margin:16px 0 4px"></h2>
+        <h2 id="fith"></h2>
         <p class="note" id="fithelp" style="margin:0"></p>
         <table class="fit" id="fit"></table>
         <p class="note" id="fitnote"></p>
@@ -226,142 +361,124 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
     </div>
 
     <div id="result" hidden>
-      <div class="verdict" id="vbox">
+      <div class="vcard" id="vbox">
         <p class="vword" id="vword"><span class="lamp"></span><span id="vtext"></span></p>
         <p class="headline" id="headline"></p>
-        <p class="addr" id="addr"></p><p class="note" id="langnote" hidden></p>
+        <p class="where"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span id="addr"></span></p>
+        <div class="mismatch" id="mismatch" hidden role="alert"></div>
+        <p class="note" id="langnote" hidden></p>
         <div class="facts" id="facts"></div>
         <p class="scope" id="scope" hidden></p>
-        <div class="next" id="next"><button type="button" id="go-scout" data-i="goscout">Find a better spot</button><button type="button" id="go-launch" data-i="golaunch">Plan the opening</button><button type="button" id="go-ask" data-i="goask">Ask “what if…?”</button><button type="button" id="go-pdf" data-i="gopdf">Download report (PDF)</button></div>
-        <details class="rule"><summary data-i="rule">Why this colour</summary><p id="rule"></p><div id="adjust"></div></details>
+        <div class="next" id="next">
+          <button type="button" id="go-scout"><svg class="i" aria-hidden="true"><use href="#i-spot"/></svg><span data-i="goscout">Find a better spot</span></button>
+          <button type="button" id="go-launch"><svg class="i" aria-hidden="true"><use href="#i-rocket"/></svg><span data-i="golaunch">Plan the opening</span></button>
+          <button type="button" id="go-ask"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg><span data-i="fab">Ask Open Here</span></button>
+        </div>
+        <details class="rule"><summary data-i="rule">Which rule decided it</summary><p id="rule"></p><div id="adjust"></div></details>
       </div>
 
-      <div class="blocks" id="blocks" role="tablist" aria-label="Report sections">
-        <button type="button" role="tab" id="bt-why" aria-controls="blk-why" aria-selected="true" tabindex="0" data-blk="why" data-i="bwhy">Why</button>
-        <button type="button" role="tab" id="bt-area" aria-controls="blk-area" aria-selected="false" tabindex="-1" data-blk="area" data-i="barea">Area</button>
-        <button type="button" role="tab" id="bt-scout" aria-controls="blk-scout" aria-selected="false" tabindex="-1" data-blk="scout" data-i="bscout">Better spot</button>
-        <button type="button" role="tab" id="bt-launch" aria-controls="blk-launch" aria-selected="false" tabindex="-1" data-blk="launch" data-i="blaunch">Opening plan</button>
-        <button type="button" role="tab" id="bt-ask" aria-controls="blk-ask" aria-selected="false" tabindex="-1" data-blk="ask" data-i="bask">Assistant</button>
-        <button type="button" role="tab" id="bt-how" aria-controls="blk-how" aria-selected="false" tabindex="-1" data-blk="how" data-i="bhow">How I know</button>
-        <button type="button" role="tab" id="bt-report" aria-controls="blk-report" aria-selected="false" tabindex="-1" data-blk="report" data-i="breport">Report</button>
-      </div>
-      <div class="blk" id="blk-why" role="tabpanel" aria-labelledby="bt-why" tabindex="0">
-      <section class="s">
-        <h2 data-i="numbers">What the area says</h2>
-        <div class="gauge" id="g-aff"></div>
-        <div class="gauge" id="g-sup"></div>
-        <p class="note" id="bestnote"></p>
-      </section>
-      <section class="s">
-        <h2 id="comph">Direct competitors within 700 m</h2>
-        <table class="comp" id="comp"></table>
-        <p class="note" id="share"></p><p class="note" id="pricegap"></p>
-        <div id="gapbox" hidden><h3 style="margin-top:12px" data-i="gap">Nobody nearby offers</h3><div class="gap" id="gap"></div></div>
-      </section>
-      <section class="s">
-        <h2 data-i="whyh">Why</h2><ul class="plain" id="why"></ul>
-        <h2 style="margin-top:14px" data-i="actions">What to do</h2><ul class="plain" id="actions"></ul>
-        <div id="partnersbox"><h2 style="margin-top:14px" data-i="partners">Launch partners</h2><ul class="plain" id="partners"></ul></div>
-      </section>
-      <section class="s unk">
-        <h2 data-i="unk">What Qloo cannot see</h2>
-        <p class="note" style="margin:0 0 10px" data-i="unkhelp">Qloo measures taste and offer. Answer these three yourself before you sign anything.</p>
-        <div id="unknowns"></div><p id="unkres" class="ok"></p>
-      </section>
-      </div>
-      <div class="blk" id="blk-area" role="tabpanel" aria-labelledby="bt-area" tabindex="0" hidden>
-      <section class="s" id="profbox">
-        <h2 id="profh">The 50 most popular places within 500 m</h2>
-        <div class="cols2"><div><h3 data-i="who">Who goes</h3><div class="bars" id="who"></div></div><div><h3 data-i="when">When</h3><div class="bars" id="when"></div></div></div>
-        <h3 style="margin-top:14px" data-i="serves">What they serve</h3><div class="bars" id="serves"></div>
-      </section>
-      </div>
-      <div class="blk" id="blk-scout" role="tabpanel" aria-labelledby="bt-scout" tabindex="0" hidden>
-      <section class="s" id="scoutbox">
-        <h2 data-i="scouth">Second opinion: let the agent look around</h2>
-        <p class="note" style="margin:0 0 10px" data-i="scouthelp">One goal, and the agent plans the steps: it compares the blocks nearby with the same rules and tells you whether to move or stay, and why.</p>
-        <button type="button" class="scoutgo" id="scoutgo" data-i="scoutgo">Find me a better spot</button>
-        <ol class="steps2" id="scoutsteps"></ol>
-        <p id="scouttext" class="scouttext"></p><p class="note" id="scoutby"></p>
-      </section>
-      </div>
-      <div class="blk" id="blk-launch" role="tabpanel" aria-labelledby="bt-launch" tabindex="0" hidden>
-      <section class="s" id="launchbox">
-        <h2 data-i="launchh">Plan the opening: where to announce it</h2>
-        <p class="note" style="margin:0 0 10px" data-i="launchhelp">Learned from the customers of the best-rated places that already serve your idea nearby: the music they listen to, the brands they like, the neighbours they also visit (not competitors), and the busiest blocks where the area likes your idea most.</p>
-        <button type="button" class="scoutgo" id="launchgo" data-i="launchgo">Plan my opening</button> <label class="note" id="launchatbox" hidden style="margin-left:8px"><input type="checkbox" id="launchat"> <span id="launchatlbl"></span></label>
-        <p id="launchhead" class="scouttext"></p>
-        <div class="launch" id="launch" hidden>
-          <div><h3 data-i="lmusic">Music for the opening</h3><ul id="lmusic"></ul></div>
-          <div><h3 data-i="lco">Neighbours to team up with</h3><ul id="lco"></ul></div>
-          <div><h3 data-i="lbrands">Brands to ask for sampling</h3><ul id="lbrands"></ul></div>
-          <div><h3 data-i="lposters">Posters and flyers</h3><ul id="lposters"></ul></div>
-        </div>
-        <ul class="weeks" id="lweeks"></ul>
-        <p class="note" id="lby"></p>
-      </section>
-      </div>
-      <div class="blk" id="blk-ask" role="tabpanel" aria-labelledby="bt-ask" tabindex="0" hidden>
-      <section class="s">
-        <h2 data-i="chat">Ask “what if…?”</h2>
-        <p class="askintro" data-i="askintro">Ask about this address: another radius, ignore a rival, another street. It recalculates with the same rules.</p>
-        <div class="chips" id="chips"></div>
-        <div class="log" id="log" aria-live="polite"></div>
-        <form class="q" id="qf"><input id="q" autocomplete="off" aria-label="Question"><button type="submit" data-i="ask">Ask</button></form>
-      </section>
-      </div>
-      <div class="blk" id="blk-how" role="tabpanel" aria-labelledby="bt-how" tabindex="0" hidden>
-      <section class="s">
-        <div class="tabs" role="tablist">
-          <button role="tab" aria-selected="true" data-tab="how" data-i="how">How I know</button>
-          <button role="tab" aria-selected="false" data-tab="noq" data-i="noq">Without Qloo</button>
-          <button role="tab" aria-selected="false" data-tab="cmp" data-i="cmp">Compare</button>
-        </div>
-        <div id="tab-how"><p class="note" style="margin-top:0" data-i="howhelp">Every call behind this report, without the API key.</p><table class="trace" id="trace"></table></div>
-        <div id="tab-noq" hidden><p class="note" style="margin-top:0" data-i="noqhelp">The same question answered by the language model alone, with no Qloo data. Compare the competitors.</p><div class="vs" id="vs"></div></div>
-        <div id="tab-cmp" hidden>
-          <form class="q" id="cf"><input id="addr2" autocomplete="off" aria-label="Second address" placeholder="Carrer de Blai 20, Barcelona"><button type="submit" data-i="cmpgo">Compare</button></form>
-          <div id="cmpout" style="margin-top:12px"></div>
-        </div>
-      </section>
-      </div>
-      <div class="blk" id="blk-report" role="tabpanel" aria-labelledby="bt-report" tabindex="0" hidden>
-      <section class="s reportcard">
-        <h2 data-i="reporth">Take it with you: the PDF report</h2>
-        <p class="note" style="margin:0" data-i="reporthelp">A report you can send to a partner, an agency or your bank. Built from this analysis, with no new calls.</p>
-        <ul>
-          <li data-i="rep1">The address, the verdict and the rule behind it</li>
-          <li data-i="rep2">The three key facts and a drawn taste map</li>
-          <li data-i="rep3">Direct competitors, the reasons and what the data cannot see</li>
-          <li data-i="rep4">The agent's answer and the opening plan, if you ran them</li>
-        </ul>
-        <div><button type="button" class="scoutgo" id="pdfgo" data-i="gopdf">Download report (PDF)</button></div>
-      </section>
-
+      <div class="accs" id="blocks">
+        <section class="acc" id="blk-why">
+          <h2><button type="button" class="acc-h" id="bt-why" aria-expanded="true" aria-controls="ap-why" data-blk="why"><span class="ic"><svg class="i" aria-hidden="true"><use href="#i-why"/></svg></span><span class="t" data-i="qwhy">Why this result?</span><svg class="i chev" aria-hidden="true"><use href="#i-down"/></svg></button></h2>
+          <div class="acc-p" id="ap-why" role="region" aria-labelledby="bt-why">
+            <div class="gauge" id="g-aff"></div>
+            <div class="gauge" id="g-sup"></div>
+            <p class="note" id="bestnote"></p>
+            <h3 id="comph">Direct competitors within 700 m</h3>
+            <table class="comp" id="comp"></table>
+            <p class="note" id="share"></p><p class="note" id="pricegap"></p>
+            <div id="gapbox" hidden><h3 data-i="gap">Nobody nearby offers</h3><div class="gap" id="gap"></div></div>
+            <h3 data-i="whyh">The reasons</h3><ul class="plain" id="why"></ul>
+            <h3 data-i="actions">What to do</h3><ul class="plain" id="actions"></ul>
+            <div id="partnersbox"><h3 data-i="partners">Launch partners</h3><ul class="plain" id="partners"></ul></div>
+            <div class="unk"><h3 data-i="unk">What Qloo cannot see</h3>
+              <p class="note" style="margin:0 0 12px" data-i="unkhelp">Qloo measures taste and offer. Answer these three yourself before you sign anything.</p>
+              <div id="unknowns"></div><p id="unkres" class="ok"></p></div>
+          </div>
+        </section>
+        <section class="acc" id="blk-area">
+          <h2><button type="button" class="acc-h" id="bt-area" aria-expanded="false" aria-controls="ap-area" data-blk="area"><span class="ic"><svg class="i" aria-hidden="true"><use href="#i-people"/></svg></span><span class="t" data-i="qarea">Who goes out around here?</span><svg class="i chev" aria-hidden="true"><use href="#i-down"/></svg></button></h2>
+          <div class="acc-p" id="ap-area" role="region" aria-labelledby="bt-area" hidden>
+            <p class="note" id="profh" style="margin-top:0"></p>
+            <div class="cols2"><div><h3 data-i="who">Who goes</h3><div class="bars" id="who"></div></div><div><h3 data-i="when">When</h3><div class="bars" id="when"></div></div></div>
+            <h3 data-i="serves">What they serve</h3><div class="bars" id="serves"></div>
+          </div>
+        </section>
+        <section class="acc" id="blk-scout">
+          <h2><button type="button" class="acc-h" id="bt-scout" aria-expanded="false" aria-controls="ap-scout" data-blk="scout"><span class="ic"><svg class="i" aria-hidden="true"><use href="#i-spot"/></svg></span><span class="t" data-i="qscout">Is there a better spot nearby?</span><svg class="i chev" aria-hidden="true"><use href="#i-down"/></svg></button></h2>
+          <div class="acc-p" id="ap-scout" role="region" aria-labelledby="bt-scout" hidden>
+            <p class="note" style="margin:0 0 12px" data-i="scouthelp">One goal, and the agent plans the steps: it compares the blocks nearby with the same rules and tells you whether to move or stay, and why.</p>
+            <button type="button" class="run" id="scoutgo"><svg class="i" aria-hidden="true"><use href="#i-spot"/></svg><span data-i="scoutgo">Find me a better spot</span></button>
+            <ol class="steps2" id="scoutsteps"></ol>
+            <p id="scouttext" class="scouttext" aria-live="polite"></p><p class="note" id="scoutby"></p>
+          </div>
+        </section>
+        <section class="acc" id="blk-launch">
+          <h2><button type="button" class="acc-h" id="bt-launch" aria-expanded="false" aria-controls="ap-launch" data-blk="launch"><span class="ic"><svg class="i" aria-hidden="true"><use href="#i-rocket"/></svg></span><span class="t" data-i="qlaunch">How do I launch the opening?</span><svg class="i chev" aria-hidden="true"><use href="#i-down"/></svg></button></h2>
+          <div class="acc-p" id="ap-launch" role="region" aria-labelledby="bt-launch" hidden>
+            <p class="note" style="margin:0 0 12px" data-i="launchhelp">Learned from the customers of the best-rated places that already serve your idea nearby: the music they listen to, the brands they like, the neighbours they also visit (not competitors), and the busiest blocks where the area likes your idea most.</p>
+            <button type="button" class="run" id="launchgo"><svg class="i" aria-hidden="true"><use href="#i-rocket"/></svg><span data-i="launchgo">Plan my opening</span></button>
+            <label class="launchat" id="launchatbox" hidden><input type="checkbox" id="launchat"> <span id="launchatlbl"></span></label>
+            <p id="launchhead" class="scouttext" aria-live="polite"></p>
+            <div class="launch" id="launch" hidden>
+              <div><h3 data-i="lmusic">Music for the opening</h3><ul id="lmusic"></ul></div>
+              <div><h3 data-i="lco">Neighbours to team up with</h3><ul id="lco"></ul></div>
+              <div><h3 data-i="lbrands">Brands to ask for sampling</h3><ul id="lbrands"></ul></div>
+              <div><h3 data-i="lposters">Posters and flyers</h3><ul id="lposters"></ul></div>
+            </div>
+            <ul class="weeks" id="lweeks"></ul>
+            <p class="note" id="lby"></p>
+          </div>
+        </section>
+        <section class="acc" id="blk-how">
+          <h2><button type="button" class="acc-h" id="bt-how" aria-expanded="false" aria-controls="ap-how" data-blk="how"><span class="ic"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></span><span class="t" data-i="qhow">How do we know?</span><svg class="i chev" aria-hidden="true"><use href="#i-down"/></svg></button></h2>
+          <div class="acc-p" id="ap-how" role="region" aria-labelledby="bt-how" hidden>
+            <div class="tabs" role="tablist" aria-label="How do we know?">
+              <button type="button" role="tab" aria-selected="true" data-tab="how" data-i="how">Every call</button>
+              <button type="button" role="tab" aria-selected="false" data-tab="noq" data-i="noq">Without Qloo</button>
+              <button type="button" role="tab" aria-selected="false" data-tab="cmp" data-i="cmp">Compare</button>
+            </div>
+            <div id="tab-how"><p class="note" style="margin-top:0" data-i="howhelp">Every call behind this report, without the API key.</p><table class="trace" id="trace"></table></div>
+            <div id="tab-noq" hidden><p class="note" style="margin-top:0" data-i="noqhelp">The same question answered by the language model alone, with no Qloo data. Compare the competitors.</p><div class="vs" id="vs"></div></div>
+            <div id="tab-cmp" hidden>
+              <form class="q" id="cf"><input id="addr2" autocomplete="off" aria-label="Second address" data-ph="phaddr2" placeholder="Carrer de Blai 20, Barcelona"><button type="submit" data-i="cmpgo">Compare</button></form>
+              <div id="cmpout" style="margin-top:12px"></div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
 
     <div class="foot" data-i="foot">Built on aggregated taste data about places (Qloo) and NVIDIA Nemotron on Nebius Token Factory. It decides about places, never about people, and must not be used for housing, employment or credit decisions. It does not predict success: it shows what the data supports and what it cannot see.</div>
-  </div>
+    <div class="pdfbar" id="pdfbar" hidden><a class="go" id="pdfgo" href="#" download><svg class="i" aria-hidden="true"><use href="#i-dl"/></svg><span data-i="pdf">Download PDF</span></a></div>
+  </aside>
 
-  <div class="mapwrap">
+  <main class="mapwrap" id="mapwrap">
     <div id="map" role="img" aria-label="Taste heat map around the address"></div>
-    <button type="button" class="fab" id="fab" hidden><span class="dot" aria-hidden="true">?</span><span data-i="fab">Ask Open Here</span></button>
     <div class="empty" id="empty"><p data-i="emptymap">Pick a street. The map shows how much the area likes your idea, block by block.</p></div>
     <details class="legend" id="legend" open hidden>
-      <summary class="ttl" id="legendttl">Where the area likes it most</summary>
+      <summary id="legendttl">Where the area likes it most</summary>
       <div class="classes" id="legendcls"></div>
       <div class="ends" style="font-size:11px"><span id="legendrange"></span></div>
-      <div class="keys"><span><i style="background:#000;border-radius:2px"></i><span data-i="kaddr">your address</span></span><span><i style="border:2px dashed #3E9B5F;border-radius:50%"></i><span data-i="kbest">better spot nearby</span></span><span><i style="background:#fff;border:2.5px solid #C0392B;border-radius:50%"></i><span data-i="kcomp">direct competitor (hover for name)</span></span><span><i style="border:1.5px dashed #555;border-radius:50%"></i><span id="kradius">area analysed</span></span></div>
+      <div class="keys"><span><i style="background:#000;border-radius:2px"></i><span data-i="kaddr">your address</span></span><span><i style="border:2px dashed #2E8B57;border-radius:50%"></i><span data-i="kbest">better spot nearby</span></span><span><i style="background:#fff;border:2.5px solid #C0392B;border-radius:50%"></i><span data-i="kcomp">direct competitor (hover for name)</span></span><span><i style="border:1.5px dashed #555;border-radius:50%"></i><span id="kradius">area analysed</span></span></div>
     </details>
-  </div>
+    <button type="button" class="fab" id="fab" hidden aria-controls="chat" aria-expanded="false"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg><span data-i="fab">Ask Open Here</span></button>
+    <section class="chat" id="chat" role="dialog" aria-modal="false" aria-labelledby="chatttl" hidden>
+      <div class="chat-h"><span class="av"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></span><h2 id="chatttl">OPEN HERE<small id="chatsub"></small></h2><button type="button" class="chat-x" id="chatx" aria-label="Close" data-al="close"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+      <div class="log" id="log" aria-live="polite"></div>
+      <form class="q" id="qf"><input id="q" autocomplete="off" aria-label="Question" data-ph="phq" placeholder="Ask about this report…"><button type="submit" aria-label="Send" data-al="send"><svg class="i" aria-hidden="true" style="width:18px;height:18px"><use href="#i-send"/></svg></button></form>
+    </section>
+  </main>
 </div>
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script>
-const ES={bwhy:"Por qué",barea:"Zona",bscout:"Mejor sitio",blaunch:"Plan de apertura",bask:"Asistente",bhow:"Cómo lo sé",breport:"Informe",fab:"Pregunta a Open Here",askintro:"Pregunta sobre esta dirección: otro radio, ignorar a un rival, otra calle. Lo recalcula con las mismas reglas.",reporth:"Llévatelo: el informe en PDF",reporthelp:"Un informe para enviar a un socio, a una inmobiliaria o al banco. Sale de este análisis, sin llamadas nuevas.",rep1:"La dirección, el veredicto y la regla que lo decide",rep2:"Los tres datos clave y un mapa del gusto dibujado",rep3:"La competencia directa, los porqués y lo que los datos no ven",rep4:"La respuesta del agente y el plan de apertura, si los has pedido",lead:"Para restaurantes, bares y cafeterías. Dile tu concepto y la calle: lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",concept:"Concepto de restaurante, bar o cafetería",address:"Dirección o «lat, lon»",go:"¿Abro aquí?",rule:"Por qué este color",numbers:"Lo que dice la zona",gap:"Nadie cerca ofrece",who:"Quién va",when:"Cuándo",serves:"Qué sirven",whyh:"Por qué",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",chat:"Pregunta «¿y si…?»",ask:"Preguntar",how:"Cómo lo sé",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",legend:"Cuánto le gusta a la zona (gusto de Qloo)",low:"poco",high:"mucho",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo (pasa el ratón para ver el nombre)",scouth:"Segunda opinión: deja que el agente mire alrededor",scouthelp:"Un objetivo y el agente decide los pasos: compara las manzanas cercanas con las mismas reglas y te dice si moverte o quedarte, y por qué.",scoutgo:"Búscame un sitio mejor",launchh:"Planifica la apertura: dónde anunciarla",launchhelp:"Aprendido de los clientes de los locales mejor valorados que ya sirven tu idea cerca: la música que escuchan, las marcas que les gustan, los vecinos que también visitan (no competidores) y las manzanas con más vida donde más gusta tu idea.",launchgo:"Planifica mi apertura",lmusic:"Música para la inauguración",lco:"Vecinos con los que aliarte",lbrands:"Marcas para pedir degustación",lposters:"Carteles y flyers",goscout:"Buscar un sitio mejor",gopdf:"Descargar informe (PDF)",golaunch:"Planificar la apertura",goask:"Preguntar «¿y si…?»",mone:"¿Abro mi idea aquí?",mfit:"Tengo un local: ¿qué restaurante encaja?",radius:"Zona alrededor de la dirección"};
+const ES={hero:"¿Abro aquí?",lead:"Para restaurantes, bares y cafeterías. Elige tu tipo de negocio y la calle: lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",mone:"¿Abro mi idea aquí?",mfit:"Tengo un local: ¿qué encaja?",concept:"Tipo de negocio",chint:"Aún no disponible: elige uno de la lista",address:"Dirección",ahint:"Escribe la calle y el número, y elígela de la lista",radius:"Zona alrededor",tryex:"Prueba:",goscout:"Buscar un sitio mejor",golaunch:"Planificar la apertura",fab:"Pregunta a Open Here",rule:"Qué regla lo decide",qwhy:"¿Por qué este resultado?",qarea:"¿Quién sale por la zona?",qscout:"¿Hay un sitio mejor cerca?",qlaunch:"¿Cómo lanzo la apertura?",qhow:"¿Cómo lo sabemos?",gap:"Nadie cerca ofrece",whyh:"Los motivos",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",who:"Quién va",when:"Cuándo",serves:"Qué sirven",scouthelp:"Un objetivo y el agente decide los pasos: compara las manzanas cercanas con las mismas reglas y te dice si moverte o quedarte, y por qué.",scoutgo:"Búscame un sitio mejor",launchhelp:"Aprendido de los clientes de los locales mejor valorados que ya sirven tu idea cerca: la música que escuchan, las marcas que les gustan, los vecinos que también visitan (no competidores) y las manzanas con más vida donde más gusta tu idea.",launchgo:"Planifica mi apertura",lmusic:"Música para la inauguración",lco:"Vecinos con los que aliarte",lbrands:"Marcas para pedir degustación",lposters:"Carteles y flyers",how:"Cada llamada",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",pdf:"Descargar PDF",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo (pasa el ratón para ver el nombre)",
+  phconcept:"Pizzería, hamburguesería, cafetería…",phaddress:"Avenida del Paralelo 4, Barcelona",phaddr2:"Carrer de Blai 20, Barcelona",phq:"Pregunta sobre este informe…",showall:"Ver todos los tipos",close:"Cerrar",send:"Enviar"};
+const EN_PH={phconcept:"Pizzeria, burger joint, coffee shop…",phaddress:"Avinguda del Paral·lel 4, Barcelona",phaddr2:"Carrer de Blai 20, Barcelona",phq:"Ask about this report…",showall:"Show all types",close:"Close",send:"Send"};
 const VERD={en:{RED:"Not here","AMBER":"Hard","AMBER-GREEN":"Promising",UNKNOWN:"No data"},es:{RED:"Aquí no","AMBER":"Difícil","AMBER-GREEN":"Prometedor",UNKNOWN:"Sin datos"}};
-const EXAMPLES=[["ramen","200 Schermerhorn Street, Brooklyn, New York","Ramen · Boerum Hill, NYC"],["seafood restaurant","Avinguda del Paral·lel 40, Barcelona","Seafood · Paral·lel 40"],["waffles and ice cream","41.37903, 2.15478","Waffles · Gran Via 400"],["ramen","Carrer de Sants 100, Barcelona","Ramen · Sants"]];
+// the Paral·lel 40 and Gran Via 400 examples are recorded (1.5 km): they work even when the live services do not
+const EXAMPLES=[["ramen","200 Schermerhorn Street, Brooklyn, New York","Ramen · Boerum Hill, NYC","Ramen · Boerum Hill, NYC"],["seafood restaurant","Avinguda del Paral·lel 40, Barcelona","Seafood · Paral·lel 40","Marisquería · Paral·lel 40",1500],["waffles and ice cream","41.37903, 2.15478","Waffles · Gran Via 400","Gofres · Gran Via 400",1500],["ramen","Carrer de Sants 100, Barcelona","Ramen · Sants","Ramen · Sants"]];
 const STEPS={en:["Finding the address","Matching your idea to Qloo","Reading taste, offer and competitors","Writing the verdict"],es:["Buscando la dirección","Traduciendo tu idea a Qloo","Leyendo gusto, oferta y competencia","Escribiendo el veredicto"]};
 const $=s=>document.querySelector(s);
 let lang="en",cur=null,map=null,layer=null,mode="one";
@@ -369,19 +486,88 @@ const T=(en,es)=>lang==="es"?es:en;
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const short=a=>String(a).split(",").slice(0,3).join(",").trim();
 const n2=x=>x==null?"–":lang==="es"?(+x).toFixed(2).replace(".",","):(+x).toFixed(2);
+const norm=s=>String(s??"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/·/g,"").replace(/[^a-z0-9]+/g," ").trim();
+const isMobile=()=>matchMedia("(max-width:900px)").matches;
+
+// ---------- concepts: the list the server knows how to read ----------
+let CONCEPTS=[],conceptId=null,exampleConcept=null;
+const cLabel=c=>c?(lang==="es"?c.es:c.en):"";
+const byId=id=>CONCEPTS.find(c=>c.id===id);
+const conceptName=id=>{const c=byId(id);return c?cLabel(c):id};
+function findConcept(text){const n=norm(text).replace(/^(?:a|an|the|un|una|el|la)\s+/,"");if(!n)return null;
+  for(const c of CONCEPTS){const all=[c.id,c.en,c.es,...c.synonyms].map(norm);if(all.includes(n)||all.includes(n.replace(/e?s$/,"")))return c}return null}
+fetch("/api/concepts").then(r=>r.json()).then(d=>{CONCEPTS=d.concepts||[];if(conceptId&&byId(conceptId))$("#concept").value=cLabel(byId(conceptId))}).catch(()=>{});
 
 document.querySelectorAll("[data-i]").forEach(el=>el.dataset.en=el.textContent);
 function applyLang(){
   document.documentElement.lang=lang;
   document.querySelectorAll("[data-i]").forEach(el=>el.textContent=lang==="es"&&ES[el.dataset.i]?ES[el.dataset.i]:el.dataset.en);
+  document.querySelectorAll("[data-ph]").forEach(el=>el.placeholder=(lang==="es"?ES:EN_PH)[el.dataset.ph]);
+  document.querySelectorAll("[data-al]").forEach(el=>el.setAttribute("aria-label",(lang==="es"?ES:EN_PH)[el.dataset.al]));
   document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lang===lang));
-  if(typeof setMode==="function")setMode(mode);
+  document.querySelectorAll("#examples button").forEach((b,k)=>b.textContent=EXAMPLES[k][lang==="es"?3:2]);
+  if(conceptId&&byId(conceptId))$("#concept").value=cLabel(byId(conceptId));
+  setMode(mode);
   if(cur)render(cur,true);
+  if(!$("#chat").hidden&&cur)$("#chatsub").textContent=chatSub();
 }
 document.querySelectorAll(".lang button").forEach(b=>b.onclick=()=>{lang=b.dataset.lang;try{localStorage.setItem("abro-lang",lang)}catch(e){}applyLang()});
-try{const l=localStorage.getItem("abro-lang");if(l==="es"){lang="es";applyLang()}}catch(e){}
 
-EXAMPLES.forEach(([c,a,label])=>{const b=document.createElement("button");b.type="button";b.textContent=label;b.onclick=()=>{$("#concept").value=c;$("#address").value=a;$("#ask").requestSubmit()};$("#examples").appendChild(b)});
+EXAMPLES.forEach(([c,a,,,rad])=>{const b=document.createElement("button");b.type="button";b.onclick=()=>{setMode("one");if(rad)$("#radius").value=String(rad);const k=findConcept(c);conceptId=k?.id??null;exampleConcept=k?null:c;$("#concept").value=k?cLabel(k):c;setAddress(a);$("#ask").requestSubmit()};$("#examples").appendChild(b)});
+
+// ---------- accessible combobox (input + listbox), used for the concept and the address ----------
+function combo({input,list,options,onPick,enterFirst=false}){
+  let items=[],active=-1;
+  const close=()=>{list.hidden=true;input.setAttribute("aria-expanded","false");input.removeAttribute("aria-activedescendant");active=-1};
+  const mark=k=>{active=k;[...list.children].forEach((li,i)=>li.setAttribute("aria-selected",i===k));const li=list.children[k];if(li&&li.id){input.setAttribute("aria-activedescendant",li.id);li.scrollIntoView({block:"nearest"})}};
+  const show=(arr,emptyText)=>{items=arr;active=-1;
+    if(!arr.length&&!emptyText){close();return}
+    list.innerHTML=arr.length?arr.map((o,i)=>`<li role="option" id="${list.id}-o${i}" aria-selected="false" data-k="${i}">${o.html}</li>`).join(""):`<li class="none" role="option" aria-disabled="true">${esc(emptyText)}</li>`;
+    list.hidden=false;input.setAttribute("aria-expanded","true")};
+  list.addEventListener("mousedown",e=>e.preventDefault());
+  list.addEventListener("click",e=>{const li=e.target.closest("li[data-k]");if(li){onPick(items[+li.dataset.k]);close()}});
+  input.addEventListener("keydown",e=>{
+    if(e.key==="ArrowDown"){e.preventDefault();if(list.hidden)options(input.value,true);else mark(Math.min(items.length-1,active+1))}
+    else if(e.key==="ArrowUp"){if(!list.hidden){e.preventDefault();mark(Math.max(0,active-1))}}
+    else if(e.key==="Enter"){const k=active>=0?active:enterFirst?0:-1;if(!list.hidden&&k>=0&&items[k]){e.preventDefault();onPick(items[k]);close()}else close()}
+    else if(e.key==="Escape"){if(!list.hidden){e.preventDefault();close()}}
+    else if(e.key==="Tab")close();
+  });
+  input.addEventListener("blur",()=>setTimeout(()=>{if(document.activeElement!==input)close()},120));
+  return {show,close,isOpen:()=>!list.hidden};
+}
+
+// concept: filter the list by label or synonym, in both languages
+const highlight=(label,q)=>{const n=norm(q);if(!n)return esc(label);const i=norm(label).indexOf(n);return i<0||norm(label).length!==label.length?esc(label):esc(label.slice(0,i))+"<mark>"+esc(label.slice(i,i+n.length))+"</mark>"+esc(label.slice(i+n.length))};
+function conceptOptions(q,all){
+  const n=norm(q);
+  const scored=CONCEPTS.map(c=>{if(all||!n)return[c,0,null];
+    const lab=norm(cLabel(c)),other=norm(lang==="es"?c.en:c.es);
+    if(lab.startsWith(n))return[c,0,null];if(lab.includes(n))return[c,1,null];
+    const s=c.synonyms.find(w=>norm(w).startsWith(n))??(other.startsWith(n)?(lang==="es"?c.en:c.es):null)??c.synonyms.find(w=>norm(w).includes(n));
+    return s?[c,2,s]:null}).filter(Boolean).sort((a,b)=>a[1]-b[1]);
+  cCombo.show(scored.map(([c,,s])=>({c,html:`<span>${highlight(cLabel(c),q)}</span>${s?`<small>${esc(s)}</small>`:""}`})),n?T("Not available yet — choose one from the list","Aún no disponible: elige uno de la lista"):"");
+}
+const cCombo=combo({enterFirst:true,input:$("#concept"),list:$("#clist"),options:(q,all)=>conceptOptions(q,all),onPick:o=>{conceptId=o.c.id;exampleConcept=null;$("#concept").value=cLabel(o.c);$("#chint").hidden=true}});
+$("#concept").addEventListener("input",()=>{conceptId=null;exampleConcept=null;$("#chint").hidden=true;conceptOptions($("#concept").value)});
+$("#concept").addEventListener("focus",()=>{if(!$("#concept").value)conceptOptions("",true)});
+$("#ctgl").onclick=()=>{if(cCombo.isOpen())cCombo.close();else{$("#concept").focus();conceptOptions("",true)}};
+
+// address: suggestions while typing (Photon through the server); a picked place keeps its exact coordinates
+let picked=null,sugT=null,sugAbort=null;
+function setAddress(a){$("#address").value=a;picked=null;$("#apick").hidden=true;$("#ahint").hidden=true}
+const aCombo=combo({input:$("#address"),list:$("#alist"),options:q=>{fetchSug(q,0);return Promise.resolve()},onPick:o=>{picked={...o.s,text:o.s.label};$("#address").value=o.s.label;$("#ahint").hidden=true;$("#apick").hidden=false;$("#apick").innerHTML=T(`Picked: <b>${esc(o.s.label)}, ${esc(o.s.country)}</b>`,`Elegido: <b>${esc(o.s.label)}, ${esc(o.s.country)}</b>`)}});
+function fetchSug(q,delay=350){
+  clearTimeout(sugT);q=q.trim();
+  if(q.length<4||/^-?\d{1,2}\.\d+\s*,/.test(q)){aCombo.close();return}
+  sugT=setTimeout(async()=>{
+    sugAbort?.abort();sugAbort=new AbortController();
+    try{const r=await fetch(`/api/geocode/suggest?q=${encodeURIComponent(q)}&lang=${lang}`,{signal:sugAbort.signal});const d=await r.json();
+      if($("#address").value.trim()!==q||document.activeElement!==$("#address"))return;
+      aCombo.show((d.results||[]).map(s=>({s,html:`<span>${esc(s.label)}</span><small>${esc(s.country)}</small>`})))}catch(e){}
+  },delay);
+}
+$("#address").addEventListener("input",()=>{picked=null;$("#apick").hidden=true;$("#ahint").hidden=true;fetchSug($("#address").value)});
 
 function initMap(){
   if(map)return;
@@ -391,19 +577,29 @@ function initMap(){
 initMap();
 
 function steps(i){const s=STEPS[lang];$("#steps").innerHTML=s.map((t,k)=>`<li class="${k<i?"done":k===i?"now":""}">${t}</li>`).join("")}
-
-function setMode(m){mode=m;$("#m-one").setAttribute("aria-pressed",m==="one");$("#m-fit").setAttribute("aria-pressed",m==="fit");$("#conceptf").hidden=m==="fit";$("#concept").required=m==="one";$("#go").textContent=m==="fit"?T("What fits here?","¿Qué encaja aquí?"):T("Should I open here?","¿Abro aquí?")}
+function setMode(m){mode=m;$("#m-one").setAttribute("aria-pressed",m==="one");$("#m-fit").setAttribute("aria-pressed",m==="fit");$("#conceptf").hidden=m==="fit";$("#golbl").textContent=m==="fit"?T("What fits here?","¿Qué encaja aquí?"):T("Should I open here?","¿Abro aquí?")}
 $("#m-one").onclick=()=>setMode("one");$("#m-fit").onclick=()=>setMode("fit");
+try{const l=localStorage.getItem("abro-lang");if(l==="es")lang="es"}catch(e){}
+applyLang();
+
+function addressBody(){const a=$("#address").value.trim();return picked&&picked.text===a?{address:`${picked.label}, ${picked.country}`,coords:{lat:picked.lat,lon:picked.lon}}:{address:a}}
 $("#ask").onsubmit=async e=>{
   e.preventDefault();
+  const a=$("#address").value.trim();
+  if(!a){$("#ahint").hidden=false;$("#address").focus();return}
   if(mode==="fit")return runFit();
-  const concept=$("#concept").value.trim(),address=$("#address").value.trim();
+  const typed=$("#concept").value.trim();
+  const c=conceptId&&byId(conceptId)&&cLabel(byId(conceptId))===typed?byId(conceptId):findConcept(typed);
+  const concept=c?c.id:exampleConcept&&exampleConcept===typed?exampleConcept:(!CONCEPTS.length&&typed?typed:null);
+  if(!concept){$("#chint").hidden=false;$("#concept").focus();conceptOptions("",true);return}
+  if(c){conceptId=c.id;$("#concept").value=cLabel(c)}
+  cCombo.close();aCombo.close();
   $("#err").hidden=true;$("#go").disabled=true;$("#steps").hidden=false;let i=0;steps(0);
   const tick=setInterval(()=>{i=Math.min(i+1,3);steps(i)},2500);
   try{
-    const r=await fetch("/api/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({concept,address,lang,radius:+$("#radius").value})});
+    const r=await fetch("/api/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({concept,...addressBody(),lang,radius:+$("#radius").value})});
     const d=await r.json();if(!r.ok)throw new Error(d.error||("Error "+r.status));
-    d.lang=d.lang||lang;cur=d;document.body.classList.add("has-result");$("#fitbox").hidden=true;render(d);$("#log").innerHTML="";
+    d.lang=d.lang||lang;cur=d;document.body.classList.add("has-result","has-pdf");$("#fitbox").hidden=true;render(d);resetChat();
     $("#vbox").classList.remove("in");void $("#vbox").offsetWidth;$("#vbox").classList.add("in");
     requestAnimationFrame(()=>setTimeout(()=>$("#vbox").scrollIntoView({behavior:"smooth",block:"start"}),60));
   }catch(err){$("#err").textContent=err.message;$("#err").hidden=false}
@@ -412,26 +608,28 @@ $("#ask").onsubmit=async e=>{
 
 function gauge(el,label,val,marks,help,o={}){
   const min=o.min??0,max=o.max??1,f=x=>Math.max(0,Math.min(1,((x??min)-min)/(max-min)))*100;
-  el.innerHTML=`<div class="lbl"><span>${label}</span><b>${o.fmt?o.fmt(val):n2(val)}</b></div><div class="track"><div class="fill" style="width:${f(val)}%"></div>${marks.map(([m,t])=>`<div class="mark" style="left:${f(m)}%"><span>${t}</span></div>`).join("")}</div><div class="note" style="margin-top:20px">${help}</div>`;
+  el.innerHTML=`<div class="lbl"><span>${label}</span><b>${o.fmt?o.fmt(val):n2(val)}</b></div><div class="track"><div class="fill" style="width:${f(val)}%"></div>${marks.map(([m,t])=>`<div class="mark" style="left:${f(m)}%"><span>${t}</span></div>`).join("")}</div><div class="note" style="margin-top:24px">${help}</div>`;
 }
 function bars(el,items){const max=Math.max(1,...items.map(x=>x.count));
   el.innerHTML=items.length?items.map(x=>`<span>${esc(x.name)}</span><div class="b" style="width:${Math.max(4,x.count/max*100)}%"></div><span class="c">${x.count}</span>`).join(""):`<span class="c">–</span>`;
 }
-
 function render(d,keep=false){
-  $("#result").hidden=false;$("#empty").hidden=true;$("#legend").hidden=false;$("#fab").hidden=false;
-  if(!keep&&typeof openBlock==="function")openBlock("why",{instant:true,noscroll:true});
+  $("#result").hidden=false;$("#empty").hidden=true;$("#legend").hidden=false;$("#fab").hidden=!$("#chat").hidden;$("#pdfbar").hidden=false;
+  if(!keep){BLOCKS.forEach(k=>setOpen(k,k==="why"));if(isMobile())$("#legend").open=false}
   const v=d.verdict,rep=d.report;
   $("#vword").className="vword "+v.level;$("#vtext").textContent=VERD[lang][v.level];
   $("#headline").textContent=rep.headline;
-  $("#addr").textContent=T(`${d.concept} at ${d.place??short(d.address)}`,`${d.concept} en ${d.place??short(d.address)}`);
+  $("#addr").textContent=T(`${conceptName(d.concept)} at ${d.place??short(d.address)}`,`${conceptName(d.concept)} en ${d.place??short(d.address)}`);
+  const mm=d.geo?.mismatch;$("#mismatch").hidden=!mm;
+  $("#mismatch").innerHTML=mm?T(`<b>Is this the place?</b>We could not find that street in ${esc(mm[0].toUpperCase()+mm.slice(1))}, so this is the closest match: ${esc(short(d.address))}. If it is wrong, type the address again and pick it from the list.<br><button type="button" id="refix">Fix the address</button>`,`<b>¿Es este el sitio?</b>No hemos encontrado esa calle en ${esc(mm[0].toUpperCase()+mm.slice(1))}; esta es la coincidencia más cercana: ${esc(short(d.address))}. Si no es, vuelve a escribir la dirección y elígela de la lista.<br><button type="button" id="refix">Corregir la dirección</button>`):"";
+  if($("#refix"))$("#refix").onclick=()=>{$("#address").scrollIntoView({behavior:"smooth",block:"center"});$("#address").focus();$("#address").select()};
   $("#rule").textContent=lang==="es"&&v.rule_es?v.rule_es:v.rule_fired;
   const tw=x=>x==null?T("no data","sin datos"):x>=.9?T("Very high","Muy alto"):x>=.85?T("High","Alto"):x>=.75?T("Medium","Medio"):T("Low","Bajo");
   const of0=v.offer||{c400:0,c700:0},b0=d.heatmap.best;
   $("#facts").innerHTML=`<div><b>${tw(d.heatmap.demand)}</b><span>${T("how much the area likes it","cuánto le gusta a la zona")} (${n2(d.heatmap.demand)})</span></div><div><b>${of0.c700}</b><span>${T(`direct rivals within 700 m (${of0.c400} within 400 m)`,`rivales directos a 700 m (${of0.c400} a 400 m)`)}</span></div><div><b>${b0?b0.distance_m+" m":"—"}</b><span>${b0?(b0.why?T(`to a better spot (green ring): ${b0.why.short_en}`,`hasta un sitio mejor (círculo verde): ${b0.why.short_es}`):T("to a better spot (green ring)","hasta un sitio mejor (círculo verde)")):T("no better block nearby","ninguna manzana mejor cerca")}</span></div>`;
   $("#scope").hidden=!d.outside_scope;$("#scope").textContent=d.outside_scope?T("Open Here is built for restaurants, bars and cafés. Qloo knows little about this kind of business, so read this result with care.","Open Here está pensado para restaurantes, bares y cafeterías. Qloo sabe poco de este tipo de negocio, así que lee este resultado con cautela."):"";
   $("#adjust").innerHTML=(lang==="es"&&v.adjustments_es?v.adjustments_es:v.adjustments).map(a=>`<p>${esc(a)}</p>`).join("");
-  const hm=d.heatmap,bc=hm.best,of=v.offer||{c400:0,c700:0},part=esc(d.measured?.[0]??d.resolved.find(p=>p.heatmap_tag)?.part);
+  const hm=d.heatmap,bc=hm.best,of=v.offer||{c400:0,c700:0},part=esc(conceptName(d.measured?.[0]??d.resolved.find(p=>p.heatmap_tag)?.part));
   const beats=hm.local!=null?Math.round(hm.local*100):null;const rad=d.radius||1000,radEn=rad>=1000?`${rad/1000} km`:`${rad} m`,radEs=radEn.replace(".",",");
   gauge($("#g-aff"),T("How much the area likes it","Cuánto le gusta a la zona"),hm.demand,[[.75,T("◂ red","◂ rojo")],[.85,T("promising ▸","prometedor ▸")]],T(`Qloo taste rank for “${part}” around the address (${hm.cells_used} blocks within 250 m), against a wide reference.${beats!=null?` Inside this ${radEn} circle the address beats ${beats} % of blocks.`:""}${d.unmeasured?.length?` Not measured: ${esc(d.unmeasured.join(", "))} (no Qloo taste data).`:""}`,`Puntuación de gusto de Qloo por «${part}» alrededor de la dirección (${hm.cells_used} manzanas a 250 m), frente a una referencia amplia.${beats!=null?` Dentro de este círculo de ${radEs} supera al ${beats} % de las manzanas.`:""}${d.unmeasured?.length?` Sin medir: ${esc(d.unmeasured.join(", "))} (Qloo no tiene datos de gusto).`:""}`),{min:.5,max:1});
   gauge($("#g-sup"),T("How much of it is already there","Cuánto hay ya"),of.c700,[[6,T("well served from 6","bien servida desde 6")]],T(`Direct rivals: ${of.c400} within 400 m, ${of.c700} within 700 m${of.share!=null?`; ${Math.round(of.share*100)} % of the 50 most popular places within 500 m already serve it`:""}. Well served from 3 within 400 m, 6 within 700 m or 20 %.`,`Rivales directos: ${of.c400} a 400 m, ${of.c700} a 700 m${of.share!=null?`; el ${Math.round(of.share*100)} % de los 50 locales más populares a 500 m ya lo sirve`:""}. Bien servida desde 3 a 400 m, 6 a 700 m o un 20 %.`),{min:0,max:10,fmt:x=>T(`${x} rival${x===1?"":"s"}`,`${x} rival${x===1?"":"es"}`)});
@@ -439,24 +637,22 @@ function render(d,keep=false){
   const comps=d.competitors.slice(0,8);
   $("#comph").textContent=T(`Direct competitors within 700 m: ${d.competitors.length}`,`Competencia directa a 700 m: ${d.competitors.length}`);
   $("#comp").innerHTML=comps.length?comps.map(c=>`<tr><td>${esc(c.name)}</td><td class="n">${c.rating!=null?(+c.rating).toFixed(1)+" ★":"–"}</td><td class="n">${c.price_level?esc(d.price_gap?.currency?d.price_gap.currency.repeat(+c.price_level):T("level ","nivel ")+(+c.price_level)):""}</td><td class="n">${c.distance_m} m</td></tr>`).join(""):`<tr><td>${T("None. Nobody nearby sells this.","Ninguna. Nadie cerca vende esto.")}</td></tr>`;
-  $("#share").textContent=d.share.filter(s=>s.places>0).map(s=>T(`${s.places} of the ${s.of} most popular places within 500 m already serve ${s.part}.`,`${s.places} de los ${s.of} locales más populares a 500 m ya sirven ${s.part}.`)).join(" ");
+  $("#share").textContent=d.share.filter(s=>s.places>0).map(s=>T(`${s.places} of the ${s.of} most popular places within 500 m already serve ${s.part}.`,`${s.places} de los ${s.of} locales más populares a 500 m ya sirven ${conceptName(s.part)}.`)).join(" ");
   const pg=d.price_gap,dec=x=>lang==="es"?String(x).replace(".",","):x;$("#pricegap").textContent=pg?T("By price, rivals within 700 m: ","Por precio, rivales a 700 m: ")+pg.levels.filter(l=>l.level<=3).map(l=>`${pg.currency?pg.currency.repeat(l.level):T("level ","nivel ")+l.level} ${l.rivals}${l.best?` (${T("best","mejor")}: ${l.best.name} ${dec(l.best.rating)}★)`:""}${l.open?" ← "+T("open, nobody rated 4.5+","libre, nadie con 4,5+"):""}`).join(" · ")+(pg.unpriced?T(` · ${pg.unpriced} without price`,` · ${pg.unpriced} sin precio`):""):"";
   $("#gapbox").hidden=!d.gap.length;$("#gap").innerHTML=d.gap.map(g=>`<span>${esc(g)}</span>`).join("");
-  const p=d.profile;$("#profh").textContent=T(`The ${p.places} most popular places within ${p.radius_m} m`,`Los ${p.places} locales más populares a ${p.radius_m} m`);
+  const p=d.profile;$("#profh").textContent=T(`From the ${p.places} most popular places within ${p.radius_m} m.`,`A partir de los ${p.places} locales más populares a ${p.radius_m} m.`);
   bars($("#who"),p.who.slice(0,5));bars($("#when"),p.when.slice(0,4));bars($("#serves"),p.serves.slice(0,6));
   $("#why").innerHTML=rep.why.map(x=>`<li>${esc(x)}</li>`).join("");
-  $("#actions").innerHTML=rep.actions.map(x=>`<li>${esc(x)}</li>`).join("")+`<li class="note" style="list-style:none;margin-top:6px">${T("Information to help you decide, not financial, legal or real-estate advice. Check foot traffic, rent and licences before you sign.","Información para ayudarte a decidir, no asesoramiento financiero, legal ni inmobiliario. Comprueba tráfico, alquiler y licencias antes de firmar.")}</li>`;
+  $("#actions").innerHTML=rep.actions.map(x=>`<li>${esc(x)}</li>`).join("")+`<li class="note" style="list-style:none;margin-top:8px">${T("Information to help you decide, not financial, legal or real-estate advice. Check foot traffic, rent and licences before you sign.","Información para ayudarte a decidir, no asesoramiento financiero, legal ni inmobiliario. Comprueba tráfico, alquiler y licencias antes de firmar.")}</li>`;
   $("#partnersbox").hidden=true;$("#partners").innerHTML=rep.partners.map(x=>`<li><b>${esc(x.name)}</b>${x.verified?` <span class="ok" title="${esc(x.source||"")}">✓ ${T("found on the web","encontrado en la web")}</span>`:""}: ${esc(x.reason)}</li>`).join("");
   $("#unknowns").innerHTML=rep.unknowns.map((u,k)=>`<label>${esc(u)}<input data-u="${k}" placeholder="${T("your answer","tu respuesta")}"></label>`).join("");
   $("#unkres").textContent="";
   $("#launchatbox").hidden=!d.heatmap.best;$("#launchatlbl").textContent=d.heatmap.best?T(`at the better spot (${d.heatmap.best.distance_m} m away)`,`en el mejor punto (a ${d.heatmap.best.distance_m} m)`):"";
-  if(!keep){$("#launchat").checked=false;$("#launch").hidden=true;$("#launchhead").textContent="";$("#lweeks").innerHTML="";$("#lby").textContent="";if(window.launchLayer)launchLayer.remove();$("#scoutsteps").innerHTML="";$("#scouttext").textContent="";$("#scoutby").textContent=""}
-  $("#langnote").hidden=!d.lang||d.lang===lang;$("#langnote").innerHTML=d.lang&&d.lang!==lang?`${T("This report was written in Spanish.","Este informe se escribió en inglés.")} <button type="button" id="relang">${T("Write it in English","Escríbelo en español")}</button>`:"";if($("#relang"))$("#relang").onclick=()=>$("#ask").requestSubmit();
+  if(!keep){$("#launchat").checked=false;$("#launch").hidden=true;$("#launchhead").textContent="";$("#lweeks").innerHTML="";$("#lby").textContent="";if(window.launchLayer)launchLayer.remove();$("#scoutsteps").innerHTML="";$("#scouttext").textContent="";$("#scoutby").textContent="";$("#cmpout").innerHTML="";setTab("how")}
+  $("#langnote").hidden=!d.lang||d.lang===lang;$("#langnote").innerHTML=d.lang&&d.lang!==lang?`${T("This report was written in Spanish.","Este informe se escribió en inglés.")} <button type="button" id="relang" class="linkbtn">${T("Write it in English","Escríbelo en español")}</button>`:"";if($("#relang"))$("#relang").onclick=()=>{if(conceptId)$("#concept").value=cLabel(byId(conceptId));$("#ask").requestSubmit()};
   $("#unknowns").oninput=()=>{const all=[...document.querySelectorAll("[data-u]")].every(i=>i.value.trim());$("#unkres").textContent=all?(v.level==="AMBER-GREEN"?T("With these three answered, the call is yours: the data side says Promising. Compare rent with the sales you expect before signing.","Con estas tres respondidas, la decisión es tuya: los datos dicen «Prometedor». Compara el alquiler con las ventas que esperas antes de firmar."):T("Noted. The data still says "+VERD.en[v.level].toLowerCase()+": your answers do not change the taste of the area.","Anotado. Los datos siguen diciendo «"+VERD.es[v.level].toLowerCase()+"»: tus respuestas no cambian el gusto de la zona.")):""};
-  const chips=lang==="es"?["¿Y si ignoro al competidor más cercano?","Analiza el mejor punto cercano (círculo verde)","¿Qué socios me sugieres?","¿A qué hora debería abrir?"]:["What if I ignore the closest competitor?","Analyse the better spot nearby (green ring)","Which partners would you suggest?","What hours should I open?"];
-  $("#chips").innerHTML=chips.map(c=>`<button type="button">${c}</button>`).join("");
-  $("#chips").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("#q").value=b.textContent;$("#qf").requestSubmit()});
   $("#trace").innerHTML=d.trace.map(t=>`<tr><td>${t.source}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.note?esc(t.note):t.recorded?T("recorded","grabado"):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join("")+(d.llm||[]).map(l=>`<tr><td>nebius</td><td class="u">${esc(l.model)} · ${esc(l.task)}</td><td class="n">${l.ms} ms</td></tr>`).join("");
+  $("#pdfgo").href=`/api/report.pdf?id=${encodeURIComponent(d.id)}&lang=${lang}`;
   renderNoQ(d);
   drawMap(d);
   $("#comp").querySelectorAll("tr").forEach((tr,i)=>{const c=d.competitors[i];if(!c)return;tr.onmouseenter=()=>{tr.classList.add("hl");const m=compMarkers[c.name];if(m){m.setStyle({radius:10,fillColor:"#C0392B"});m.openTooltip()}};tr.onmouseleave=()=>{tr.classList.remove("hl");const m=compMarkers[c.name];if(m){m.setStyle({radius:6,fillColor:"#fff"});m.closeTooltip()}}});
@@ -470,7 +666,9 @@ function baseLayers(d){
   const r=d.radius||1500,circle=L.circle([d.geo.lat,d.geo.lon],{radius:r,color:"#555",weight:1.5,dashArray:"5 6",fill:false,interactive:false}).addTo(layer);
   $("#kradius").textContent=T(`area analysed (${radiusLabel(r)})`,`zona analizada (${radiusLabel(r)})`);
   L.marker([d.geo.lat,d.geo.lon],{icon:L.divIcon({className:"",html:'<div class="pin"></div>',iconSize:[16,16],iconAnchor:[8,8]}),keyboard:false,zIndexOffset:1000}).bindTooltip(T("Your address","Tu dirección"),{permanent:true,direction:"top",offset:[0,-8],className:"youlbl"}).addTo(layer);
-  map.invalidateSize();map.fitBounds(circle.getBounds(),{padding:[12,12]});
+  const bb=circle.getBounds();map.invalidateSize();map.fitBounds(bb,{padding:[12,12]});
+  // on phones the map has just appeared: fit again once it has its size
+  setTimeout(()=>{map.invalidateSize();map.fitBounds(bb,{padding:[12,12]})},80);
 }
 function drawMap(d){
   baseLayers(d);
@@ -478,13 +676,13 @@ function drawMap(d){
   const cells=d.heatmap.cells.filter(c=>c.affinity_rank!=null),sorted=cells.map(c=>c.affinity_rank).sort((a,b)=>a-b),q=p=>sorted[Math.min(sorted.length-1,Math.floor(p*sorted.length))];
   const cuts=[q(.8),q(.6),q(.4),q(.2)],cls=x=>x>=cuts[0]?0:x>=cuts[1]?1:x>=cuts[2]?2:x>=cuts[3]?3:4,h=.0007;
   cells.forEach(c=>{const k=cls(c.affinity_rank);L.rectangle([[c.lat-h,c.lon-h],[c.lat+h,c.lon+h]],{stroke:false,fillColor:CLS[k],fillOpacity:CLSOP[k]}).bindTooltip(`${T("taste rank","gusto")} ${n2(c.affinity_rank)} · ${T(["top 20 % of this area","60–80 %","40–60 %","20–40 %","bottom 20 %"][k],["el 20 % más alto de la zona","60–80 %","40–60 %","20–40 %","el 20 % más bajo"][k])} · ${T("activity","actividad")} ${Math.round(c.popularity*100)} %`).addTo(layer)});
-  const part=d.measured?.[0]??d.concept;
+  const part=conceptName(d.measured?.[0]??d.concept);
   $("#legendttl").textContent=T(`Where the area likes “${part}” most`,`Dónde gusta más «${part}»`);
   $("#legendcls").innerHTML=[T("top 20 % of this area","el 20 % más alto"),T("next 20 %","siguiente 20 %"),T("middle","zona media"),T("lower 20 %","20 % bajo"),T("bottom 20 %","el 20 % más bajo")].map((t,k)=>`<span><i style="background:${CLS[k]};opacity:${Math.min(1,CLSOP[k]+.35)}"></i>${t}</span>`).join("");
   $("#legendrange").textContent=sorted.length?T(`Qloo taste rank here: ${n2(sorted[0])}–${n2(sorted.at(-1))}`,`Gusto de Qloo aquí: ${n2(sorted[0])}–${n2(sorted.at(-1))}`):"";
   window.compMarkers={};
   d.competitors.forEach(c=>{if(!c.lat)return;compMarkers[c.name]=L.circleMarker([c.lat,c.lon],{radius:6,color:"#C0392B",weight:2.5,fillColor:"#fff",fillOpacity:1}).bindTooltip(`${esc(c.name)} · ${c.rating??"–"} ★ · ${c.distance_m} m`).addTo(layer)});
-  if(d.heatmap.best){const b=d.heatmap.best;L.circle([b.lat,b.lon],{radius:110,color:"#3E9B5F",weight:3,dashArray:"6 5",fill:false}).bindTooltip(T(`Better spot · ${b.distance_m} m`,`Mejor punto · ${b.distance_m} m`),{permanent:true,direction:"top",className:"bestlbl"}).addTo(layer)}
+  if(d.heatmap.best){const b=d.heatmap.best;L.circle([b.lat,b.lon],{radius:110,color:"#2E8B57",weight:3,dashArray:"6 5",fill:false}).bindTooltip(T(`Better spot · ${b.distance_m} m`,`Mejor punto · ${b.distance_m} m`),{permanent:true,direction:"bottom",offset:[0,8],className:"bestlbl"}).addTo(layer)}
 }
 
 $("#scoutgo").onclick=async()=>{
@@ -522,56 +720,61 @@ $("#launchgo").onclick=async()=>{
   finally{b.disabled=false}
 };
 
-const ES_CONCEPT={"seafood restaurant":"marisquería",pizza:"pizzería",ramen:"ramen",sushi:"sushi",burger:"hamburguesería",tapas:"tapas","vegan restaurant":"restaurante vegano","mexican restaurant":"restaurante mexicano","italian restaurant":"restaurante italiano",brunch:"brunch","coffee shop":"cafetería",bakery:"panadería","ice cream":"heladería","cocktail bar":"coctelería","wine bar":"bar de vinos"};
 async function runFit(){
-  const address=$("#address").value.trim();if(!address)return;
-  $("#err").hidden=true;$("#go").disabled=true;$("#result").hidden=true;$("#fab").hidden=true;$("#fitbox").hidden=false;$("#fit").innerHTML="";$("#fith").textContent=T("Checking 15 restaurant, bar and café concepts… (about 20 s the first time)","Comprobando 15 conceptos de restaurante, bar y cafetería… (unos 20 s la primera vez)");$("#fithelp").textContent="";$("#fitnote").textContent="";
-  try{const r=await fetch("/api/explore",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({address,radius:+$("#radius").value,lang})});const d=await r.json();if(!r.ok)throw new Error(d.error);
+  const body=addressBody();
+  cCombo.close();aCombo.close();
+  $("#err").hidden=true;$("#go").disabled=true;$("#result").hidden=true;$("#fab").hidden=true;$("#pdfbar").hidden=true;document.body.classList.remove("has-pdf");closeChat();$("#fitbox").hidden=false;$("#fit").innerHTML="";$("#fith").textContent=T("Checking 15 restaurant, bar and café concepts… (about 20 s the first time)","Comprobando 15 conceptos de restaurante, bar y cafetería… (unos 20 s la primera vez)");$("#fithelp").textContent="";$("#fitnote").textContent="";
+  try{const r=await fetch("/api/explore",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...body,radius:+$("#radius").value,lang})});const d=await r.json();if(!r.ok)throw new Error(d.error);
     document.body.classList.add("has-result");$("#empty").hidden=true;$("#legend").hidden=true;baseLayers(d);
     $("#fith").textContent=T(`What fits at ${d.place??short(d.address)}`,`Qué encaja en ${d.place??short(d.address)}`);
     $("#fithelp").textContent=T("Same rules as the full analysis, one row per kind of business: taste rank around the address and direct rivals within 700 m. Open a row for the full report, the map and the better spot.","Mismas reglas que el análisis completo, una fila por tipo de negocio: gusto alrededor de la dirección y rivales directos a 700 m. Abre una fila para el informe completo, el mapa y el mejor punto.");
-    const name=c=>lang==="es"?(ES_CONCEPT[c]??c):c;
-    $("#fit").innerHTML=`<tr><th>${T("Business","Negocio")}</th><th>${T("Verdict","Veredicto")}</th><th class="n">${T("Taste","Gusto")}</th><th class="n">${T("Rivals 700 m","Rivales 700 m")}</th><th></th></tr>`+d.rows.map((x,i)=>`<tr><td><b>${esc(name(x.concept))}</b>${x.nearest_rival?`<br><span class="note">${T("closest","más cercano")}: ${esc(x.nearest_rival.name)}, ${x.nearest_rival.distance_m} m</span>`:""}</td><td><span class="chip ${x.level}" title="${esc(lang==="es"?x.rule_es:x.rule)}">${VERD[lang][x.level]}</span></td><td class="n">${n2(x.demand)}</td><td class="n">${x.c700??"–"}</td><td><button type="button" data-k="${i}">${T("Open","Abrir")}</button></td></tr>`).join("");
-    $("#fit").querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{const x=d.rows[+b.dataset.k];setMode("one");$("#concept").value=x.concept;$("#ask").requestSubmit()});
+    $("#fit").innerHTML=`<tr><th>${T("Business","Negocio")}</th><th>${T("Verdict","Veredicto")}</th><th class="n">${T("Taste","Gusto")}</th><th class="n">${T("Rivals 700 m","Rivales 700 m")}</th><th></th></tr>`+d.rows.map((x,i)=>`<tr><td><b>${esc(conceptName(x.concept))}</b>${x.nearest_rival?`<br><span class="note">${T("closest","más cercano")}: ${esc(x.nearest_rival.name)}, ${x.nearest_rival.distance_m} m</span>`:""}</td><td><span class="chip ${x.level}" title="${esc(lang==="es"?x.rule_es:x.rule)}">${VERD[lang][x.level]}</span></td><td class="n">${n2(x.demand)}</td><td class="n">${x.c700??"–"}</td><td><button type="button" data-k="${i}">${T("Open","Abrir")}</button></td></tr>`).join("");
+    $("#fit").querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{const x=d.rows[+b.dataset.k];setMode("one");const c=byId(x.concept);conceptId=c?.id??null;exampleConcept=c?null:x.concept;$("#concept").value=c?cLabel(c):x.concept;$("#ask").requestSubmit()});
     $("#fitnote").textContent=T(`“No data” means Qloo has no taste data for that concept here. ${d.total_ms} ms.`,`«Sin datos» quiere decir que Qloo no tiene datos de gusto de ese concepto aquí. ${d.total_ms} ms.`);
   }catch(err){$("#fith").textContent="";$("#err").textContent=err.message;$("#err").hidden=false}
   finally{$("#go").disabled=false}
 }
 
-
-// ---------- result blocks: one section at a time ----------
-const BLOCKS=["why","area","scout","launch","ask","how","report"];
-let curBlock="why";
-function openBlock(k,o={}){
-  if(!BLOCKS.includes(k))return;curBlock=k;
-  BLOCKS.forEach(x=>{const t=$("#bt-"+x),pnl=$("#blk-"+x),on=x===k;t.setAttribute("aria-selected",on);t.tabIndex=on?0:-1;pnl.hidden=!on});
-  const t=$("#bt-"+k),nv=$("#blocks");nv.scrollTo({left:t.offsetLeft-nv.clientWidth/2+t.offsetWidth/2,behavior:o.instant?"auto":"smooth"});
-  if(o.focusTab)t.focus();
-  const pnl=$("#blk-"+k),nav=$("#blocks");
-  if(!o.noscroll&&(o.scroll||pnl.getBoundingClientRect().top<nav.getBoundingClientRect().bottom-2))pnl.scrollIntoView({behavior:o.instant?"auto":"smooth",block:"start"});
-  if(k==="how"&&$("#tab-noq")&&!$("#tab-noq").hidden)loadNoQ();
-}
-document.querySelectorAll("#blocks [role=tab]").forEach(b=>{
-  b.onclick=()=>openBlock(b.dataset.blk);
-  b.onkeydown=e=>{const i=BLOCKS.indexOf(b.dataset.blk);let j=null;
-    if(e.key==="ArrowRight")j=(i+1)%BLOCKS.length;else if(e.key==="ArrowLeft")j=(i-1+BLOCKS.length)%BLOCKS.length;else if(e.key==="Home")j=0;else if(e.key==="End")j=BLOCKS.length-1;
-    if(j!=null){e.preventDefault();openBlock(BLOCKS[j],{focusTab:true})}};
-});
-$("#fab").onclick=()=>{openBlock("ask",{scroll:true});setTimeout(()=>$("#q").focus({preventScroll:true}),450)};
-$("#pdfgo").onclick=()=>{if(cur?.id)location.href=`/api/report.pdf?id=${encodeURIComponent(cur.id)}&lang=${lang}`};
+// ---------- report sections: FAQ accordion, several can be open ----------
+const BLOCKS=["why","area","scout","launch","how"];
+function setOpen(k,on){const b=$("#bt-"+k);b.setAttribute("aria-expanded",on);$("#ap-"+k).hidden=!on;$("#blk-"+k).classList.toggle("open",on);if(on&&k==="how"&&!$("#tab-noq").hidden)loadNoQ()}
+function openBlock(k,o={}){if(!BLOCKS.includes(k))return;setOpen(k,true);if(o.scroll)setTimeout(()=>$("#blk-"+k).scrollIntoView({behavior:"smooth",block:"start"}),30)}
+document.querySelectorAll(".acc-h").forEach(b=>b.onclick=()=>setOpen(b.dataset.blk,b.getAttribute("aria-expanded")!=="true"));
 $("#go-scout").onclick=()=>{openBlock("scout",{scroll:true});$("#scoutgo").click()};
 $("#go-launch").onclick=()=>{openBlock("launch",{scroll:true});$("#launchgo").click()};
-$("#go-pdf").onclick=()=>{openBlock("report");if(cur?.id)location.href=`/api/report.pdf?id=${encodeURIComponent(cur.id)}&lang=${lang}`};
-$("#go-ask").onclick=()=>{openBlock("ask",{scroll:true});setTimeout(()=>$("#q").focus({preventScroll:true}),450)};
+$("#pdfgo").onclick=e=>{if(!cur?.id){e.preventDefault();return}$("#pdfgo").href=`/api/report.pdf?id=${encodeURIComponent(cur.id)}&lang=${lang}`};
+function setTab(k){document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x.dataset.tab===k));["how","noq","cmp"].forEach(t=>$("#tab-"+t).hidden=t!==k);if(k==="noq")loadNoQ()}
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
 
-$("#qf").onsubmit=async e=>{
-  e.preventDefault();const q=$("#q").value.trim();if(!q||!cur)return;$("#q").value="";
-  add("me",q);const m=add("bot","…");
+// ---------- assistant: a chat floating over the map (a full-screen sheet on phones) ----------
+let chatFor=null,lastFocus=null;
+const CHIPS={en:["Summarise the report in 3 sentences","What would make this Promising?","What are the main risks here?","And within 500 m?","Ignore the closest competitor"],es:["Resúmeme el informe en 3 frases","¿Qué haría falta para que sea Prometedor?","¿Qué riesgos tiene este local?","¿Y en un radio de 500 m?","Ignora al competidor más cercano"]};
+const chatSub=()=>cur?`${conceptName(cur.concept)} · ${cur.place??short(cur.address)}`:"";
+function resetChat(){chatFor=null;$("#log").innerHTML="";closeChat()}
+function openChat(){
+  if(!cur)return;lastFocus=document.activeElement;
+  $("#chat").hidden=false;$("#fab").hidden=true;$("#fab").setAttribute("aria-expanded","true");document.body.classList.add("chat-open");$("#chatsub").textContent=chatSub();
+  if(chatFor!==cur.id){chatFor=cur.id;$("#log").innerHTML="";
+    add("bot",T(`Hi! I have read the whole report for **${conceptName(cur.concept)}** at ${cur.place??short(cur.address)}: the verdict is **${VERD.en[cur.verdict.level]}**. Ask me anything about it, or start with one of these:`,`¡Hola! He leído el informe completo de **${conceptName(cur.concept)}** en ${cur.place??short(cur.address)}: el veredicto es **${VERD.es[cur.verdict.level]}**. Pregúntame lo que quieras, o empieza por una de estas:`));
+    const box=document.createElement("div");box.className="chips";box.innerHTML=CHIPS[lang].map(c=>`<button type="button">${esc(c)}</button>`).join("");
+    box.querySelectorAll("button").forEach(b=>b.onclick=()=>ask(b.textContent));$("#log").appendChild(box)}
+  setTimeout(()=>$("#q").focus({preventScroll:true}),60);
+}
+function closeChat(){if($("#chat").hidden)return;$("#chat").hidden=true;document.body.classList.remove("chat-open");$("#fab").setAttribute("aria-expanded","false");if(cur&&!$("#result").hidden)$("#fab").hidden=false;if(lastFocus&&document.contains(lastFocus))lastFocus.focus({preventScroll:true})}
+$("#fab").onclick=openChat;$("#go-ask").onclick=openChat;$("#chatx").onclick=closeChat;
+$("#chat").addEventListener("keydown",e=>{if(e.key==="Escape")closeChat()});
+async function ask(q){
+  q=String(q||"").trim();if(!q||!cur)return;
+  add("me",q);const m=add("bot",T("Thinking","Pensando"));m.classList.add("wait");
   try{const r=await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:cur.id,question:q,lang})});const d=await r.json();
-    m.textContent=d.text||d.error||"";if(d.calls?.length){const s=document.createElement("span");s.className="tools";s.textContent=T("used: ","usó: ")+d.calls.map(c=>c.name).join(", ");m.appendChild(s)}}
-  catch(err){m.textContent=err.message}
-};
-function add(who,text){const m=document.createElement("div");m.className="msg "+who;m.innerHTML=esc(String(text??"")).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/(^|\s)\*([^*\s][^*]*)\*/g,"$1$2");$("#log").appendChild(m);return m}
+    m.classList.remove("wait");setMsg(m,d.text||d.error||"");if(d.limit)m.classList.add("lim");
+    if(d.calls?.length){const s=document.createElement("span");s.className="tools";s.textContent=T("used: ","usó: ")+d.calls.map(c=>c.name).join(", ");m.appendChild(s)}}
+  catch(err){m.classList.remove("wait");setMsg(m,err.message)}
+  $("#log").scrollTop=$("#log").scrollHeight;
+}
+$("#qf").onsubmit=e=>{e.preventDefault();const q=$("#q").value.trim();$("#q").value="";ask(q)};
+function setMsg(m,text){m.innerHTML=esc(String(text??"")).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/(^|\s)\*([^*\s][^*]*)\*/g,"$1$2")}
+function add(who,text){const m=document.createElement("div");m.className="msg "+who;setMsg(m,text);$("#log").appendChild(m);$("#log").scrollTop=$("#log").scrollHeight;return m}
 
 $("#cf").onsubmit=async e=>{
   e.preventDefault();const a=$("#addr2").value.trim();if(!a||!cur)return;$("#cmpout").innerHTML=`<p class="note">${T("Comparing…","Comparando…")}</p>`;
@@ -580,8 +783,6 @@ $("#cf").onsubmit=async e=>{
     $("#cmpout").innerHTML=`<table class="comp"><tr><td></td><td class="n">${T("verdict","veredicto")}</td><td class="n">${T("taste","gusto")}</td><td class="n">${T("rivals 400 m","rivales 400 m")}</td><td class="n">${T("rivals 700 m","rivales 700 m")}</td></tr>${row(cur.address.split(",").slice(0,2).join(","),cur.verdict.level,cur.heatmap.demand,cur.verdict.offer?.c400,cur.verdict.offer?.c700)}${row(o.address.split(",").slice(0,2).join(","),o.verdict.level,o.demand,o.offer?.c400,o.offer?.c700)}</table>`}
   catch(err){$("#cmpout").innerHTML=`<p class="err">${esc(err.message)}</p>`}
 };
-
-document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));["how","noq","cmp"].forEach(k=>$("#tab-"+k).hidden=k!==b.dataset.tab);if(b.dataset.tab==="noq")loadNoQ()});
 function renderNoQ(d){
   const comps=d.competitors.slice(0,5),wq=d.noqloo;
   $("#vs").innerHTML=`<div><h3>${T("With Qloo","Con Qloo")}</h3><ul class="plain">${comps.map(c=>`<li>${esc(c.name)}, ${c.rating??"–"} ★, ${c.distance_m} m</li>`).join("")||"<li>–</li>"}</ul></div><div><h3>${T("Language model alone","Solo el modelo")}</h3>${wq&&wq.headline?`<p style="margin:0 0 6px;font-weight:600">${esc(wq.headline)}</p><ul class="plain">${(wq.why||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:wq&&wq.unavailable?`<p class="note">${T("Runs when the Nebius key is configured.","Se ejecuta cuando la clave de Nebius está configurada.")}</p>`:`<p class="note" id="noqwait">${T("Asking the model alone…","Preguntando solo al modelo…")}</p>`}</div>`;
@@ -591,6 +792,10 @@ async function loadNoQ(){
   try{const r=await fetch("/api/noqloo",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:cur.id,lang})});const d=await r.json();if(!r.ok)throw new Error(d.error);cur.noqloo=d;renderNoQ(cur)}
   catch(err){const w=$("#noqwait");if(w)w.textContent=err.message}
 }
+// the map changes size when the layout does (phone ↔ desktop, the sheet opening)
+addEventListener("resize",()=>{if(map)map.invalidateSize()});
+// phones: the floating button steps aside while the card's own "Ask Open Here" is on screen
+if("IntersectionObserver" in window)new IntersectionObserver(([e])=>document.body.classList.toggle("ask-visible",e.isIntersecting)).observe($("#go-ask"));
 </script>
 </body>
 </html>

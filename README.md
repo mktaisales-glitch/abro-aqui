@@ -99,12 +99,14 @@ git clone https://github.com/mktaisales-glitch/abro-aqui && cd abro-aqui
 npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
-npm test                  # 42 tests (36 run on a public clone; 6 replay recorded Qloo data that is not published): HTTP layer and security headers, PDF report, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
+npm test                  # 49 tests (43 run on a public clone; 6 replay recorded Qloo data that is not published): HTTP layer and security headers, PDF report, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
                           # 6 of them replay the recorded Barcelona cases
-                          # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (36 of 42 run)
+                          # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (43 of 49 run)
 ```
 
-Deploy: `render.yaml` (Render blueprint) or the `Dockerfile`. API: `POST /api/analyze {concept, address, lang, without_qloo}`, `POST /api/chat {id, question}`, `POST /api/scout {id, lang}`, `POST /api/launch {id, lang, at}`, `POST /api/explore {address, radius}`, `POST /api/compare {id, address}`, `GET /api/health`. `radius` is 500, 1000 (default), 1500 or 2000.
+Deploy: `render.yaml` (Render blueprint) or the `Dockerfile`. API: `POST /api/analyze {concept, address, lang, without_qloo, coords?}` (`concept` is a listed concept id, label or synonym, e.g. "hamburguesería" → burger; free text still goes to the resolver; `coords {lat, lon}` comes from a picked address suggestion), `GET /api/concepts` (the 15 concepts with English and Spanish labels and synonyms), `GET /api/geocode/suggest?q=&lang=` (address suggestions from Photon, at most 5), `POST /api/chat {id, question, lang}`, `POST /api/scout {id, lang}`, `POST /api/launch {id, lang, at}`, `POST /api/explore {address, radius, coords?}`, `POST /api/compare {id, address}`, `GET /api/health`. `radius` is 500, 1000 (default), 1500 or 2000.
+
+Geocoding: Nominatim, then Photon; when the address names a city, the first result in that city wins ("Avenida del Paralelo 4, Barcelona" is not Almussafes), Spanish street names typed for Barcelona are retried with the Catalan ones (Avenida del Paralelo → Avinguda del Paral·lel, Calle → Carrer, Gran Vía → Gran Via de les Corts Catalanes, Paseo de Gracia → Passeig de Gràcia, Diagonal), and a result outside the named city is flagged so the page asks "Is this the place?".
 
 Offline replay: `OFFLINE=1` serves only recorded responses (`scripts/plan.js` lists every missing call, `scripts/load.js` loads recordings), which is how the tests run without network. Locally (SQLite cache), if a live call fails the server falls back to recordings when they exist; the public demo has no recordings (Qloo responses are not published), so a failed call shows up as an error in "How I know".
 
@@ -115,7 +117,7 @@ Offline replay: `OFFLINE=1` serves only recorded responses (`scripts/plan.js` li
 - `affinity_rank` compares a block with a wide reference that Qloo does not document in detail; dense city centres score high for many concepts, so offer often decides between Hard and Promising.
 - Exotic concepts may not map to a Qloo tag. The tool says so and suggests a simpler word. "How I know" shows which tag was used.
 - Geocoding uses OpenStreetMap Nominatim. You can also type "lat, lon".
-- The demo allows per IP and day: 30 analyses, 30 comparisons, 40 chat questions, 15 scout runs, 15 launch plans, 3 "what fits here" runs and 60 model calls; 600 model calls per day in total. Every request has a 60 s ceiling; after 3 model failures in a row the model is skipped for 5 minutes and the templates answer. Limits and caches live in memory and reset when the server restarts. On the free hosting plan the first visit after a quiet spell can take up to a minute.
+- The demo allows per IP and day: 30 analyses, 30 comparisons, 120 chat questions, 15 scout runs, 15 launch plans, 3 "what fits here" runs, 400 address suggestions and 250 model calls; 2,500 model calls per day in total (`LLM_DAILY_CAP_PER_IP`, `LLM_DAILY_CAP`). When the assistant's share is used up, the chat says so in plain words ("today's free limit for the assistant is used up on this demo"). Every request has a 60 s ceiling; after 3 model failures in a row the model is skipped for 5 minutes and the templates answer. Limits and caches live in memory and reset when the server restarts. On the free hosting plan the first visit after a quiet spell can take up to a minute.
 
 ## Security
 

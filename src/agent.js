@@ -1,6 +1,7 @@
 // Pipeline for one analysis + the "what if…?" chat — see specs/03-agent.md.
 import { makeTrace } from "./http.js";
 import * as T from "./tools.js";
+import { CONCEPT_LIST, knownResolved } from "./concepts.js";
 import { verdict, plainVerdictDeep, plainVerdictWords, betterSpotWhy } from "./verdict.js";
 import { llmEnabled, normalizeConcept, writeReport, writeReportWithoutQloo, templateReport, chatWithTools } from "./llm.js";
 
@@ -135,16 +136,19 @@ export async function withoutQloo({ concept, address, lang = "en" }) {
   return { ...r.data, model: r.model, ms: r.ms };
 }
 
-export async function analyze({ concept, address, lang = "en", withoutQloo = false, radius = 1000 }) {
+export async function analyze({ concept, address, lang = "en", withoutQloo = false, radius = 1000, coords = null }) {
   radius = RADII.includes(Number(radius)) ? Number(radius) : 1000;
   const trace = makeTrace();
   const llm = [];
   const t0 = Date.now();
 
-  const geo = await T.geocode(address, trace);
+  const geo = T.geoFromCoords(coords, address) ?? await T.geocode(address, trace);
 
   let parts = T.conceptParts(concept);
-  if (llmEnabled) {
+  // a concept from the list: its Qloo tags are known (or resolved from its English id), no model needed
+  const known = knownResolved(concept);
+  const listed = CONCEPT_LIST.some((c) => c.id === concept);
+  if (llmEnabled && !listed) {
     try {
       const n = await normalizeConcept(concept);
       // the model may not add parts the concept does not name: never more parts than the concept's own separators allow
@@ -158,7 +162,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
       llm.push({ task: "concept → English parts", model: "failed → word split", ms: 0, error: String(e.message).slice(0, 120) });
     }
   }
-  const resolved = await T.resolveConcept(parts, trace);
+  const resolved = known ?? await T.resolveConcept(parts, trace);
   const s = await signalsAt({ geo, resolved, radius }, trace);
 
   const { tag_ids, tag_names, ...profile } = s.profile;
@@ -312,11 +316,37 @@ export async function compare({ ctx, address }) {
   };
 }
 
-export async function chat({ ctx, history, question, lang = "en" }) {
-  if (!llmEnabled) return { text: lang === "es" ? "El chat necesita el modelo (NEBIUS_API_KEY). El análisis de arriba funciona igualmente." : "The chat needs the LLM (NEBIUS_API_KEY). The analysis above still works.", calls: [] };
-  const system = `You are "Open Here", answering follow-up questions about a location analysis for a small-business owner. When the question changes the inputs (another radius, ignoring a competitor, another address) call a tool and answer from its result. Keep answers to 2–4 short sentences, cite the numbers, never invent businesses. Verdict levels: RED / AMBER / AMBER-GREEN / UNKNOWN; there is no GREEN until the owner confirms foot traffic, rent and income. Answer in ${lang === "es" ? "Spanish" : "English"}.
+export const BUDGET_TEXT = {
+  en: "Today's free limit for the assistant is used up on this demo. Try again tomorrow: the analysis, the map and the PDF still work.",
+  es: "El límite gratuito de hoy del asistente en esta demo se ha agotado. Vuelve a probar mañana: el análisis, el mapa y el PDF siguen funcionando.",
+};
 
-Current analysis: ${JSON.stringify({ concept: ctx.concept, address: ctx.address, verdict: { level: ctx.verdict.level, rule: ctx.verdict.rule_fired, adjustments: ctx.verdict.adjustments }, demand_rank: ctx.heatmap.demand, offer: ctx.verdict.offer, best_alternative: ctx.heatmap.best, competitors: ctx.competitors.slice(0, 8).map(({ name, rating, distance_m }) => ({ name, rating, distance_m })), supply_by_part: ctx.supply_by_part, area: ctx.profile })}`;
+/** Everything the assistant may quote, in one block: the verdict, the facts, the rivals and the report as written. */
+export function chatContext(ctx) {
+  const v = ctx.verdict ?? {}, hm = ctx.heatmap ?? {}, rep = ctx.report ?? {};
+  return {
+    concept: ctx.concept,
+    address: ctx.place ?? ctx.address,
+    radius_m: ctx.radius,
+    verdict: { level: v.level, rule: v.rule_fired, adjustments: v.adjustments },
+    facts: {
+      taste_rank_0_to_1: hm.demand, beats_share_of_blocks_in_circle: hm.local,
+      direct_rivals_within_400m: v.offer?.c400, direct_rivals_within_700m: v.offer?.c700,
+      better_spot: hm.best ? { distance_m: hm.best.distance_m, why: hm.best.why?.en ?? null, rivals_700m: hm.best.c700, level: hm.best.level } : null,
+    },
+    competitors: (ctx.competitors ?? []).slice(0, 8).map(({ name, rating, distance_m }) => ({ name, rating, distance_m })),
+    supply_by_part: ctx.supply_by_part,
+    area: ctx.profile && { who: ctx.profile.who?.slice(0, 5), when: ctx.profile.when?.slice(0, 4), serves: ctx.profile.serves?.slice(0, 6) },
+    report: { headline: rep.headline, why: rep.why, actions: rep.actions, unknowns: rep.unknowns, partners: (rep.partners ?? []).map((p) => p.name) },
+  };
+}
+
+export async function chat({ ctx, history, question, lang = "en" }) {
+  const es = lang === "es";
+  if (!llmEnabled) return { text: es ? "El chat necesita el modelo (NEBIUS_API_KEY). El análisis de arriba funciona igualmente." : "The chat needs the LLM (NEBIUS_API_KEY). The analysis above still works.", calls: [] };
+  const system = `You are "Open Here", the assistant inside a location report for a small-business owner. You can see the whole report below: answer from it directly when you can (a summary, the risks, what would change the verdict, who the area is) without calling any tool. Call a tool only when the question changes the inputs (another radius, ignoring a competitor, another address or block). Write for someone with no data background: plain words, short sentences, at most 4 sentences unless asked for a list, cite the key numbers, never invent businesses or figures that are not below. Verdict words: RED = ${es ? "Aquí no" : "Not here"}, AMBER = ${es ? "Difícil" : "Hard"}, AMBER-GREEN = ${es ? "Prometedor" : "Promising"}, UNKNOWN = ${es ? "Sin datos" : "No data"}; there is no green light until the owner checks foot traffic, rent and licences. You may use **bold** for one or two key words. Answer in ${es ? "Spanish" : "English"}.
+
+The report: ${JSON.stringify(chatContext(ctx))}`;
   const messages = [{ role: "system", content: system }, ...history, { role: "user", content: question }];
   const trace = makeTrace();
   try {
@@ -324,7 +354,8 @@ Current analysis: ${JSON.stringify({ concept: ctx.concept, address: ctx.address,
     return { ...r, text: plainVerdictWords(r.text, lang), trace: trace.entries };
   } catch (e) {
     trace.add({ source: "nebius", url: "chat: Nemotron 3.5 Lightning", ms: 0, cached: false, error: String(e.message).slice(0, 120) });
-    return { text: lang === "es" ? "El modelo no ha podido responder ahora. El análisis de arriba sigue siendo válido; prueba de nuevo en un momento." : "The model could not answer right now. The analysis above still stands; try again in a moment.", calls: [], trace: trace.entries, error: true };
+    if (/daily LLM budget/.test(String(e.message))) return { text: BUDGET_TEXT[es ? "es" : "en"], calls: [], trace: trace.entries, error: true, limit: true };
+    return { text: es ? "El modelo no ha podido responder ahora. El análisis sigue siendo válido; prueba de nuevo en un momento." : "The model could not answer right now. The analysis still stands; try again in a moment.", calls: [], trace: trace.entries, error: true };
   }
 }
 

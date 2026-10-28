@@ -3,31 +3,21 @@
 import { makeTrace } from "./http.js";
 import * as T from "./tools.js";
 import { signalsAt } from "./agent.js";
+import { CONCEPT_LIST, knownResolved } from "./concepts.js";
 
-// Tags already checked on the live API; the rest are resolved with /v2/tags (and cached).
-const KNOWN = {
-  "seafood restaurant": ["urn:tag:genre:place:restaurant:seafood", "urn:tag:category:place:seafood_restaurant"],
-  pizza: ["urn:tag:genre:place:restaurant:pizza", "urn:tag:category:place:pizza"],
-  ramen: ["urn:tag:genre:place:restaurant:ramen", "urn:tag:category:place:ramen_restaurant"],
-  "coffee shop": ["urn:tag:genre:place:restaurant:coffee_shop", "urn:tag:category:place:coffee_shop"],
-  bakery: ["urn:tag:genre:place:restaurant:bakery", "urn:tag:category:place:bakery"],
-  "ice cream": ["urn:tag:genre:place:restaurant:ice_cream_shop", "urn:tag:category:place:ice_cream_shop"],
-};
 // Food and drink only: Qloo knows these places well (hair salons, gyms and shops have too little data to judge).
-export const CONCEPTS = ["seafood restaurant", "pizza", "ramen", "sushi", "burger", "tapas", "vegan restaurant", "mexican restaurant", "italian restaurant", "brunch", "coffee shop", "bakery", "ice cream", "cocktail bar", "wine bar"];
+export const CONCEPTS = CONCEPT_LIST.map((c) => c.id);
 
 const RANK = { "AMBER-GREEN": 3, AMBER: 2, RED: 1, UNKNOWN: 0 };
 
 async function resolveOne(concept, trace) {
-  const k = KNOWN[concept];
-  if (k) return [{ part: concept, heatmap_tag: k[0], competitor_tag: k[1], heat_candidates: [k[0]], comp_candidates: [k[1]], label: concept }];
-  return T.resolveConcept([concept], trace);
+  return knownResolved(concept) ?? T.resolveConcept([concept], trace);
 }
 
-export async function explore({ address, radius = 1000, concepts = CONCEPTS }) {
+export async function explore({ address, radius = 1000, concepts = CONCEPTS, coords = null }) {
   const trace = makeTrace();
   const t0 = Date.now();
-  const geo = await T.geocode(address, trace);
+  const geo = T.geoFromCoords(coords, address) ?? await T.geocode(address, trace);
   const rows = await Promise.all(concepts.map(async (concept) => {
     try {
       const resolved = await resolveOne(concept, trace);

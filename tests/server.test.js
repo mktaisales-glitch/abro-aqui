@@ -32,3 +32,19 @@ test("bad input is rejected with a short message; oversized bodies get 413; malf
   assert.equal((await post("/api/analyze", null, "{bad")).status, 400);
   assert.equal((await post("/api/analyze", { concept: "x", address: "y".repeat(60000) })).status, 413);
 });
+
+test("GET /api/concepts lists the 15 concepts with English and Spanish labels; suggestions never fail the page", async () => {
+  const r = await fetch(`http://127.0.0.1:${PORT}/api/concepts`);
+  assert.equal(r.status, 200);
+  const { concepts } = await r.json();
+  assert.equal(concepts.length, 15);
+  const burger = concepts.find((c) => c.id === "burger");
+  assert.equal(burger.es, "Hamburguesería");
+  assert.ok(burger.synonyms.includes("hamburgueseria"));
+  assert.equal(concepts[0].tags, undefined, "tags stay on the server");
+  const s = await (await fetch(`http://127.0.0.1:${PORT}/api/geocode/suggest?q=ab`)).json();
+  assert.deepEqual(s.results, [], "under 4 characters: no lookup");
+  const s2 = await fetch(`http://127.0.0.1:${PORT}/api/geocode/suggest?q=${encodeURIComponent("Carrer nowhere 1, Barcelona")}&lang=es`);
+  assert.equal(s2.status, 200);
+  assert.deepEqual((await s2.json()).results, [], "service not reachable (offline): an empty list, not an error");
+});
