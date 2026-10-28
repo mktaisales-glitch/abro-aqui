@@ -10,7 +10,7 @@ Three NVIDIA Nemotron models on Nebius Token Factory, through the OpenAI SDK (`b
 
 ## One analysis
 
-1. `geocode` → 2. Nano: concept → parts → 3. `resolveConcept` (tags) → 4. in parallel: heat map (with tag fallback), competitors per part (with fallback and `tagInUse`), area profile → 5. `verdict` (deterministic, spec 01) → 6. better spot: rivals within 1.5 km, every busy block judged with the same rules, `placesNear` to drop parks → 7. Super writes the report while, in parallel, Super answers the same question without Qloo → 8. partners in the report: only names Qloo returned for the area survive, and only those Tavily confirms on the web are kept (not found or not checked → dropped); verdict codes in the model's text are replaced by the words the page shows.
+1. `geocode` → 2. Nano: concept → parts → 3. `resolveConcept` (tags) → 4. in parallel: heat map (with tag fallback), competitors per part (with fallback and `tagInUse`), area profile → 5. `verdict` (deterministic, spec 01) → 6. better spot: rivals within 1.5 km, every busy block judged with the same rules, `placesNear` to drop parks → 7. Super writes the report while, in parallel, Lightning answers the same question without Qloo (fast model: the comparison must come back inside the request deadline) → 8. partners in the report: only names Qloo returned for the area survive, and only those Tavily confirms on the web are kept (not found or not checked → dropped); verdict codes in the model's text are replaced by the words the page shows.
 
 ## Second-opinion agent (`scout`)
 

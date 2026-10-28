@@ -180,7 +180,8 @@ export async function writeReport(signals, lang = "en") {
 /** "Without Qloo": same writer, no signals. Shows what the LLM invents on its own. */
 export async function writeReportWithoutQloo({ concept, address }, lang = "en") {
   const system = `You are a location consultant. The owner asks whether to open a business. You have NO data tools; answer from general knowledge only. Respond in ${lang === "es" ? "Spanish" : "English"}. Return JSON with keys headline, why (2-5), gap (0-4), audience (0-5), actions (2-4), partners (0-3 objects {name, reason}), unknowns (exactly 3).`;
-  return chatJSON({ model: MODELS.writer, system, user: `Concept: ${concept}\nAddress: ${address}`, schema: ReportSchema, maxTokens: 2500 });
+  // the fast model: a plain-knowledge answer for the comparison tab must come back well inside the request deadline
+  return chatJSON({ model: MODELS.fast, system, user: `Concept: ${concept}\nAddress: ${address}`, schema: ReportSchema, maxTokens: 1200 });
 }
 
 export const LaunchSchema = z.object({

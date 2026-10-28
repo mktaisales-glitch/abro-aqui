@@ -17,7 +17,7 @@ test("LLM path: Nano normalises, Super writes, Lightning calls a tool in the cha
   assert.equal(r.report.partners.length, 0, "offline: partners cannot be checked on the web, so none is shown");
   assert.equal(r.report_meta.model, "nvidia/nemotron-3-super-120b-a12b");
   assert.ok(r.without_qloo?.headline);
-  assert.deepEqual(r.llm.map((l) => l.model).sort(), ["nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B", "nvidia/nemotron-3-super-120b-a12b", "nvidia/nemotron-3-super-120b-a12b"]);
+  assert.deepEqual(r.llm.map((l) => l.model).sort(), ["nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B", "nvidia/Nemotron-3_5-Lightning", "nvidia/nemotron-3-super-120b-a12b"], "Super writes the report; Lightning answers without Qloo");
   const c = await chat({ ctx: r, history: [], question: "What if I ignore Puertecillo?" });
   assert.equal(c.calls[0].name, "nearby_competitors");
   assert.ok(c.calls[0].result.competitors.every((x) => !/Puertecillo/.test(x.name)));
