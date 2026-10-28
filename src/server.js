@@ -42,7 +42,7 @@ const ipOf = (req) => { const ip = String(req.ip ?? ""); return ip.includes(":")
 const str = (x, max) => (typeof x === "string" && x.trim() && x.length <= max ? x.trim() : null);
 let loggedProxy = false;
 app.use((req, _res, next) => {
-  if (!loggedProxy && req.path.startsWith("/api/")) { loggedProxy = true; console.log(`proxy check: ip=${req.ip} ips=${JSON.stringify(req.ips)} xff=${req.get("x-forwarded-for") ?? ""}`); }
+  if (!loggedProxy && req.path.startsWith("/api/") && req.get("x-forwarded-for")) { loggedProxy = true; console.log(`proxy check: ip=${req.ip} ips=${JSON.stringify(req.ips)} xff=${req.get("x-forwarded-for") ?? ""}`); }
   next();
 });
 // every request runs with its client's IP in context, so the LLM budget can be counted per visitor (src/llm.js)
@@ -69,7 +69,7 @@ function withDeadline(p, ms = DEADLINE_MS) {
   return Promise.race([p, new Promise((_, no) => { t = setTimeout(() => no(Object.assign(new Error("took too long"), { code: "DEADLINE" })), ms); })]).finally(() => clearTimeout(t));
 }
 /** Errors: logged in full on the server, short and safe for the visitor. */
-const SAFE = /^(Address not found|Qloo has no place tag|daily LLM budget)/;
+const SAFE = /^(Address not found|The address service did not answer|Qloo has no place tag|daily LLM budget)/;
 function fail(res, route, e) {
   console.error(`[${route}]`, e?.stack ?? e);
   if (e?.code === "MISS") return res.status(503).json({ error: "This demo is running on recorded data and this address is not recorded yet. Try one of the examples." });

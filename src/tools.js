@@ -15,24 +15,55 @@ export function haversine(lat1, lon1, lat2, lon2) {
   return Math.round(2 * R * Math.asin(Math.sqrt(a)));
 }
 
+const UA = { "User-Agent": "abro-aqui/0.1 (+https://github.com/mktaisales-glitch/abro-aqui)" };
+// OpenStreetMap Nominatim allows about 1 request per second per host; calls are spaced, and Photon (Komoot,
+// also OpenStreetMap data, no key) answers when Nominatim refuses (shared hosting IPs get rate-limited).
+let osmNext = 0;
+async function osm(url, trace) {
+  const wait = osmNext - Date.now();
+  osmNext = Math.max(Date.now(), osmNext) + 1100;
+  if (wait > 0 && !process.env.OFFLINE) await new Promise((r) => setTimeout(r, wait));
+  return getJSON(url, { headers: UA, source: "osm", trace });
+}
+const photonName = (p) => [p.name, [p.housenumber, p.street].filter(Boolean).join(" "), p.district ?? p.locality, p.city, p.state, p.postcode, p.country].filter(Boolean).join(", ");
+
+// The demo's example addresses, resolved once (28 Oct 2026): the examples never depend on a geocoder being up.
+const KNOWN_PLACES = {
+  "200 schermerhorn street, brooklyn, new york": { lat: 40.6885016, lon: -73.9854802, display_name: "State Renaissance Court, 200, Schermerhorn Street, Boerum Hill, Brooklyn, Kings County, New York, 11201, United States" },
+  "avinguda del paral·lel 40, barcelona": { lat: 41.3749859, lon: 2.1724407, display_name: "40, Avinguda del Paral·lel, el Raval, Ciutat Vella, Barcelona, Barcelonès, Barcelona, Catalunya, 08001, España" },
+  "carrer de sants 100, barcelona": { lat: 41.3756587, lon: 2.1229976, display_name: "Carrer de Sants, Sants-Badal, Sants-Montjuïc, Barcelona, Barcelonès, Barcelona, Catalunya, 08028, España" },
+  "41.37903, 2.15478": { lat: 41.37903, lon: 2.15478, display_name: "41.37903, 2.15478 (Gran Via de les Corts Catalanes 400, la Nova Esquerra de l'Eixample, l'Eixample, Barcelona, Barcelonès, Barcelona, Catalunya, 08015, España)" },
+};
+
 export async function geocode(address, trace) {
+  const known = KNOWN_PLACES[address.trim().toLowerCase()];
+  if (known) return { ...known };
   const m = address.trim().match(/^(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)$/);
   if (m) {
     const lat = +m[1], lon = +m[2];
     // name the place (and its country) when we can; coordinates alone otherwise
-    const r = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=17&lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`, { headers: { "User-Agent": "abro-aqui/0.1 (+https://github.com/mktaisales-glitch/abro-aqui)" }, source: "osm", trace }).catch(() => null);
-    return { lat, lon, display_name: r?.display_name ? `${lat.toFixed(5)}, ${lon.toFixed(5)} (${r.display_name})` : `${lat.toFixed(5)}, ${lon.toFixed(5)}` };
+    const r = await osm(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=17&lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`, trace).catch(() => null);
+    let name = r?.display_name;
+    if (!name) {
+      const ph = await getJSON(`https://photon.komoot.io/reverse?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}&limit=1`, { headers: UA, source: "osm", trace }).catch(() => null);
+      if (ph?.features?.[0]) name = photonName(ph.features[0].properties);
+    }
+    return { lat, lon, display_name: name ? `${lat.toFixed(5)}, ${lon.toFixed(5)} (${name})` : `${lat.toFixed(5)}, ${lon.toFixed(5)}` };
   }
   const url = `${NOMINATIM}?format=json&limit=1&q=${encodeURIComponent(address.trim())}`;
-  const [hit] = await getJSON(url, { headers: { "User-Agent": "abro-aqui/0.1 (+https://github.com/mktaisales-glitch/abro-aqui)" }, source: "osm", trace });
-  if (!hit) throw new Error(`Address not found: ${address}`);
-  return { lat: +hit.lat, lon: +hit.lon, display_name: hit.display_name };
+  const hits = await osm(url, trace).catch(() => null);
+  if (hits?.[0]) return { lat: +hits[0].lat, lon: +hits[0].lon, display_name: hits[0].display_name };
+  const ph = await getJSON(`https://photon.komoot.io/api/?q=${encodeURIComponent(address.trim())}&limit=1`, { headers: UA, source: "osm", trace }).catch(() => null);
+  const f = ph?.features?.[0];
+  if (f) return { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], display_name: photonName(f.properties) };
+  if (!hits && !ph) throw new Error("The address service did not answer. Try again in a minute, or type the place as \"lat, lon\".");
+  throw new Error(`Address not found: ${address}`);
 }
 
 /** Street name for a point (OpenStreetMap, cached): "Carrer de Blai, Poble-sec". Null if not found. */
 export async function streetAt({ lat, lon }, trace) {
   const url = `https://nominatim.openstreetmap.org/reverse?format=json&zoom=17&lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`;
-  const r = await getJSON(url, { headers: { "User-Agent": "abro-aqui/0.1 (+https://github.com/mktaisales-glitch/abro-aqui)" }, source: "osm", trace });
+  const r = await osm(url, trace);
   const a = r?.address ?? {};
   const road = a.road ?? a.pedestrian ?? a.square ?? null;
   const area = a.neighbourhood ?? a.quarter ?? a.suburb ?? null;
