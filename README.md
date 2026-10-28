@@ -1,5 +1,9 @@
 # Abro Aquí: *should I open here?*
 
+**Live demo: https://abro-aqui.onrender.com** (free hosting: the first visit after a quiet spell can take up to a minute)
+
+![Live: ramen at 200 Schermerhorn Street, Brooklyn comes out Promising](docs/live-promising-brooklyn.jpg)
+
 A small-business owner is about to sign a lease. Abro Aquí shows them, with reasons, what the data says about **this concept** at **this street address** before they spend 50,000–200,000 € finding out: how much the area likes it, how much of it is already there, and a better block nearby if there is one.
 
 Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
@@ -13,7 +17,7 @@ Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
 - **What to do**: positioning, opening hours and where to move.
 - **What Qloo cannot see**: foot traffic, rent and income. The owner answers these three, and only then does "Promising" become a green light.
 - **Second opinion agent**: one goal ("find me a better spot"); Nemotron 3.5 Lightning chooses which blocks to re-analyse with the same rules and recommends moving or staying; the page lists each step with its time.
-- **Launch plan, "where do I announce it?"**: learned from the customers of the best-rated rivals nearby, through Qloo's taste graph: music for the opening, brands to ask for sampling, neighbours to team up with (not competitors, checked on the web) and the poster zones on the map, with a 4-week plan. The model chooses among Qloo's candidates; code drops any name it invents ([`specs/04-launch.md`](specs/04-launch.md)).
+- **Launch plan, "where do I announce it?"** (screenshots: [agent steps](docs/live-agent-steps.jpg), [launch plan at the better spot](docs/live-launch-plan.jpg)): learned from the customers of the best-rated rivals nearby, through Qloo's taste graph: music for the opening, brands to ask for sampling, neighbours to team up with (not competitors, checked on the web) and the poster zones on the map, with a 4-week plan. The model chooses among Qloo's candidates; code drops any name it invents ([`specs/04-launch.md`](specs/04-launch.md)).
 - **"What if…?" chat**: "What if I ignore Puertecillo?", "What about Carrer de Blai?". The agent calls the tools again and recomputes the verdict.
 - **"Without Qloo"**: the same question answered by the language model alone, so you can see what it makes up.
 - **"How I know"**: every Qloo, geocoding and Tavily call behind the report (failed ones too) and every model call with its time, without the key.
@@ -57,6 +61,8 @@ Both businesses below closed. We do not claim the tool would have predicted it: 
 | --- | --- | --- |
 | Seafood restaurant, Av. del Paral·lel 40 | the area **loves** seafood (demand 0.93), but it is **well served**: Puertecillo Paral·lel (4.4★) is 26 m away, 7 seafood restaurants within 700 m, and **13 of the 50** most popular places within 500 m already serve seafood. A busy block in Poble-sec, 750 m west, likes it even more (0.99) with 4 rivals | **Hard**, with a better spot nearby |
 | Waffles and ice cream, Gran Via 400 (corner of Entença) | demand for ice cream 0.85; **7 ice-cream shops** within 700 m (Gelatomania 4.8★ at 356 m). Waffles **cannot be measured**: Qloo has no waffle-tagged place within 5 km, and the report says so instead of calling it a gap | **Hard** |
+
+![Live: seafood at Avinguda del Paral·lel 40 comes out Hard, with a better spot 747 m west (green ring)](docs/live-hard-paralel.jpg)
 
 ### The other verdicts, live on the public demo (28 Oct 2026)
 
