@@ -4,13 +4,12 @@ import assert from "node:assert/strict";
 import { seen, startQlooMock, ctx } from "./mock/qloo-launch.js";
 
 process.env.CACHE_MEMORY = "1";
-process.env.QLOO_API_URL = "http://127.0.0.1:3198";
 delete process.env.OFFLINE;
 delete process.env.NEBIUS_API_KEY;
 delete process.env.TAVILY_API_KEY;
 const cells = ctx.heatmap.cells;
 let server;
-before(async () => { server = await startQlooMock(3198); });
+before(async () => { server = await startQlooMock(); process.env.QLOO_API_URL = `http://127.0.0.1:${server.address().port}`; });
 after(() => server.close());
 
 test("seeds are the best-rated rivals that have a Qloo id", async () => {
@@ -31,11 +30,11 @@ test("poster zones: busy, liked, spread out, never the shop's own block", async 
   assert.ok(!z.some((x) => x.lat === 41.378), "a block 25 m from a chosen one is skipped");
 });
 
-test("launch plan: neighbours exclude rivals, same-concept places, closed and sensitive places; names never invented", async () => {
+test("launch plan: neighbours exclude rivals, same-concept places, closed places and care/children/grief settings, never identity; names never invented", async () => {
   const { launchPlan } = await import("../src/launch.js");
   const r = await launchPlan({ ctx });
   const names = r.candidates.neighbours.map((n) => n.name);
-  assert.deepEqual(names, ["Teatre Apolo", "Bar Ramon"]);
+  assert.deepEqual(names, ["Teatre Apolo", "Bar Ramon", "Pride Bar"], "a place is never excluded for who its customers are");
   assert.equal(r.candidates.signal, "rivals");
   assert.deepEqual(r.candidates.brands.map((b) => b.name), ["Estrella Damm"], "a rival is never proposed as a brand partner");
   assert.equal(r.meta.model, "template");
@@ -45,6 +44,7 @@ test("launch plan: neighbours exclude rivals, same-concept places, closed and se
   assert.match(r.plan.headline, /Marisqueria B/);
   const calls = seen.filter((q) => q["filter.type"]);
   assert.equal(calls.length, 3);
+  assert.ok(calls.every((q) => !q["signal.location"]), "no location signal: at street level it pulls generic luxury brands");
   assert.ok(calls.every((q) => q["signal.interests.entities"] === "id-b,id-puertecillo"));
   assert.equal(calls.find((q) => q["filter.type"] === "urn:entity:place")["filter.location.radius"], "600");
 });

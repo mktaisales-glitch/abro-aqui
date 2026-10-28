@@ -1,6 +1,6 @@
 // Minimal OpenAI-compatible mock of Nebius Token Factory, for wiring tests only.
 import http from "node:http";
-export function startMock(port = 3199) {
+export function startMock(port = 0) {
   const calls = [];
   const server = http.createServer((req, res) => {
     let body = "";
@@ -16,7 +16,7 @@ export function startMock(port = 3199) {
       } else if (sys.startsWith("Split a business concept")) {
         message = { role: "assistant", content: JSON.stringify({ parts: ["seafood restaurant"] }) };
       } else if (sys.includes("planning the opening")) {
-        message = { role: "assistant", content: JSON.stringify({ headline: "Learned from the customers of Puertecillo.", music: [{ name: "Vetusta Morla", why: "playlist" }, { name: "Invented Band", why: "x" }], co_promo: [{ name: "Teatre Apolo", idea: "ticket stub = free tapa" }], brands: [], weeks: ["a", "b", "c", "d"] }) };
+        message = { role: "assistant", content: JSON.stringify({ headline: "Learned from the customers of Puertecillo.", music: [{ name: "Vetusta Morla", why: "playlist" }, { name: "Invented Band", why: "x" }], co_promo: [{ name: "Teatre Apolo", idea: "ticket stub = free tapa" }], brands: [], weeks: ["Call Bar Inventado", "b", "c", "d"] }) };
       } else {
         message = { role: "assistant", content: JSON.stringify({ headline: "The area does not ask for seafood (affinity 0.29).", why: ["affinity 0.29", "13 of 50 serve seafood"], gap: [], audience: ["Locals: 23 of 50"], actions: ["Look 635 m away", "Open evenings"], partners: [{ name: "Sala Apolo", reason: "evening crowd" }], unknowns: ["Foot traffic?", "Rent?", "Income?"] }) };
       }
@@ -24,5 +24,5 @@ export function startMock(port = 3199) {
       res.end(JSON.stringify({ id: "x", object: "chat.completion", choices: [{ index: 0, message, finish_reason: "stop" }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } }));
     });
   });
-  return new Promise((r) => server.listen(port, () => r({ server, calls })));
+  return new Promise((r) => server.listen(port, () => r({ server, calls, port: server.address().port })));
 }

@@ -1,22 +1,20 @@
-# Spec 02 — Agent tools
+# Spec 02 — Tools (as built, 28-Oct-2026)
 
-Every tool wraps one Qloo (or Tavily) call, returns typed data, and appends a trace entry `{tool, url_without_key, ms, cached}` to the request's trace. The trace is shown to the user in the "How I know" tab. The Qloo key never leaves the server.
+Every tool wraps one external call (Qloo, OpenStreetMap or Tavily), returns typed data, and appends a trace entry `{source, url_without_key, ms, cached, error?}` to the request's trace, shown in the "How I know" tab. The Qloo key never leaves the server. Code: `src/tools.js`, `src/launch.js`.
 
-| Tool | Qloo / Tavily call | Returns |
+| Tool | Call | Returns |
 | --- | --- | --- |
-| `geocode(address)` | Nominatim (OpenStreetMap) | `{lat, lon, display_name}` |
-| `concept_to_tags(concept)` | `/v2/tags?filter.query=` (+ LLM pick) | `{category_tag, heatmap_tag, label}` |
-| `nearby_competitors(lat, lon, radius, tag)` | `/v2/insights?filter.type=urn:entity:place&filter.location=POINT()&filter.location.radius=&filter.tags=` | places with name, rating, price_level, distance_m, address |
-| `zone_taste(lat, lon, radius)` | `/v2/insights?filter.type=urn:tag&signal.location=POINT()&signal.location.radius=` | top tags with affinity |
-| `heatmap(lat, lon, radius, tag)` | `/v2/insights?filter.type=urn:heatmap&filter.location=POINT()&filter.location.radius=&signal.interests.tags=` (paged, take=50) | cells `{lat, lon, affinity, affinity_rank, popularity}` |
-| `affine_brands(lat, lon, tag)` | `/v2/insights?filter.type=urn:entity:brand&signal.location=POINT()&signal.interests.tags=` | brands with affinity (ad interests) |
-| `verify_business(name, city)` | Tavily `/search` | `{exists, url, snippet}` |
-| `compare_locations(a, b)` | runs heatmap + competitors for both | side-by-side signals |
+| `geocode(address)` | Nominatim search (or "lat, lon" typed directly) | `{lat, lon, display_name}` |
+| `resolveConcept(parts)` | `/v2/tags` with `filter.tag.types` genre / category / specialty dish, per query word | per part: heat-map tag, competitor tag and up to 3 candidates of each, scored by word overlap |
+| `tagInUse(lat, lon, tag)` | `/v2/insights` place, 5 km, `take=1` | whether a tag is used for places nearby (an empty competitor list only counts if it is) |
+| `heatmap(lat, lon, 1500, tag)` | `/v2/insights?filter.type=urn:heatmap&signal.interests.tags=` | cells `{lat, lon, affinity, affinity_rank, popularity}`, demand around the address |
+| `nearbyCompetitors(lat, lon, 700, tag)` | `/v2/insights` place + `filter.tags` | open rivals with id, rating, price level, distance |
+| `rivalsAround(lat, lon, 1500, tag)` | same, 1.5 km, `take=50` | rivals used to judge alternative blocks |
+| `placesNear(lat, lon, 200)` | `/v2/insights` place, 200 m | count: shopping street or park |
+| `zoneProfile(lat, lon, 500)` | `/v2/insights` place, 500 m, `take=50` | what the popular places serve, kind, who goes, when, and their names |
+| `priceGap(competitors)` | none (pure) | rivals per price level with the best-rated; a level is open when nobody there is rated 4.5+ |
+| `verifyBusiness(name, city)` | Tavily search | `{exists, url, title}`; found only if the name appears in a result title or URL |
+| `streetAt(lat, lon)` | Nominatim reverse | street and neighbourhood for poster zones |
+| `launchCandidates(ctx)` | `/v2/insights` artist / brand / place (600 m) with `signal.interests.entities` = best-rated rivals | music, brands, non-competing neighbours, poster zones (spec 04) |
 
-## Constraints
-
-- Cache: SQLite, key = normalized URL, TTL 24 h. Cached responses are marked `cached: true` in the trace.
-- Rate limit: 30 full analyses per IP per day (demo protection; credits are finite).
-- Heatmap `take` max is 50; page until fewer than 50 are returned or 6 pages.
-- Tag ids that work (verified 26-Oct-2026): places use `urn:tag:category:place:*`; heatmaps use `urn:tag:genre:place:restaurant:*` for restaurant-type concepts. `concept_to_tags` must return one of each.
-- Never send names of people or any personal data in any request.
+Chat and agent tools (`chatTools` in `src/agent.js`): `nearby_competitors` (radius, exclude names → recomputed verdict), `analyse_address` (address or "lat, lon" → verdict there), `zone_profile` (lat/lon, radius), `verify_business`; the scout adds `candidate_spots` (blocks the rules already rate better, computed during the analysis).

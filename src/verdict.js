@@ -54,6 +54,7 @@ export function verdict(i) {
   const coverage = i.coverage ?? 0;
   const o = offer({ competitors: i.competitors ?? [], share: i.share ?? null });
   const d2 = demand?.toFixed(2);
+  const dec = (x) => String(x).replace(".", ","); // Spanish decimal comma
   let level, rule, code, es;
 
   if (coverage < T.coverage || demand == null) {
@@ -65,29 +66,29 @@ export function verdict(i) {
     level = "RED";
     code = "weak-demand";
     rule = `Taste for this concept here ranks ${d2} on Qloo's scale, below ${T.demandWeak}: the area leans elsewhere.`;
-    es = `El gusto por este concepto aquí puntúa ${d2} en la escala de Qloo, por debajo de ${T.demandWeak}: la zona va por otro lado.`;
+    es = `El gusto por este concepto aquí puntúa ${dec(d2)} en la escala de Qloo, por debajo de ${dec(T.demandWeak)}: la zona va por otro lado.`;
   } else if (o.level === "HIGH") {
     level = "AMBER";
     code = "well-served";
     rule = `The area wants it (rank ${d2}) but is already well served: ${o.why.join("; ")}.`;
-    es = `La zona lo quiere (${d2}) pero ya está bien servida: ${o.why_es.join("; ")}.`;
+    es = `La zona lo quiere (${dec(d2)}) pero ya está bien servida: ${o.why_es.join("; ")}.`;
   } else if (o.level === "LOW" && demand >= T.demandStrong) {
     level = "AMBER-GREEN";
     code = "appetite-without-offer";
     rule = `Strong taste for it (rank ${d2} ≥ ${T.demandStrong}) and little offer (${o.c700} rivals within ${T.far} m): appetite without offer.`;
-    es = `Mucho gusto por ello (${d2} ≥ ${T.demandStrong}) y poca oferta (${o.c700} rivales a ${T.far} m): apetito sin oferta.`;
+    es = `Mucho gusto por ello (${dec(d2)} ≥ ${dec(T.demandStrong)}) y poca oferta (${o.c700} rivales a ${T.far} m): apetito sin oferta.`;
   } else {
     level = "AMBER";
     code = "mixed";
     rule = `Taste rank ${d2} with ${o.c700} rivals within ${T.far} m: neither a clear gap nor saturation.`;
-    es = `Gusto ${d2} con ${o.c700} rivales a ${T.far} m: ni hueco claro ni saturación.`;
+    es = `Gusto ${dec(d2)} con ${o.c700} rivales a ${T.far} m: ni hueco claro ni saturación.`;
   }
 
   const adjustments = [], adjustments_es = [];
   if (level === "AMBER-GREEN" && o.strong_near.length >= 2) {
     level = "AMBER";
     adjustments.push(`${o.strong_near.length} rivals rated ≥ ${T.strongRating} within ${T.near} m (${o.strong_near.join(", ")}): Promising → Hard`);
-    adjustments_es.push(`${o.strong_near.length} rivales con ≥ ${T.strongRating} a menos de ${T.near} m (${o.strong_near.join(", ")}): Prometedor → Difícil`);
+    adjustments_es.push(`${o.strong_near.length} rivales con ≥ ${dec(T.strongRating)} a menos de ${T.near} m (${o.strong_near.join(", ")}): Prometedor → Difícil`);
   }
 
   return {

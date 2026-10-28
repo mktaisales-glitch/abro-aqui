@@ -72,7 +72,7 @@ Three models, one OpenAI-compatible endpoint (`https://api.tokenfactory.nebius.c
 
 No agent framework: the tool loop is a short function in `src/llm.js`. A daily cap on model calls (`LLM_DAILY_CAP`, repair rounds included) and a 25 s timeout per call keep the public demo within its credits. Without `NEBIUS_API_KEY` the app runs in template mode (plain-language report in English or Spanish): the Qloo analysis and the verdict still work.
 
-**Tavily**: every launch partner the writer proposes is searched on the live web before it is shown, and only kept if its name appears in a result title or URL ("✓ found on the web"). In the chat, the model decides when to call `verify_business` itself.
+**Tavily**: every partner the writer proposes and every neighbour in the launch plan is searched on the live web before it is shown, and only kept if its name appears in a result title or URL ("✓ found on the web"). In the chat, the model decides when to call `verify_business` itself.
 
 ## Run it
 
@@ -81,12 +81,13 @@ git clone https://github.com/mktaisales-glitch/abro-aqui && cd abro-aqui
 npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
-npm test                  # verdict rules, pipeline on the two Barcelona cases (recorded in fixtures/demo.sqlite), LLM wiring, PII scrub
+npm test                  # 21 tests: verdict rules, launch plan (Qloo and model mocks), PII scrub; 4 more replay the two Barcelona cases
+                          # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone
 ```
 
-Deploy: `render.yaml` (Render blueprint) or the `Dockerfile`. API: `POST /api/analyze {concept, address, lang, without_qloo}`, `POST /api/chat {id, question}`, `POST /api/compare {id, address}`, `GET /api/health`.
+Deploy: `render.yaml` (Render blueprint) or the `Dockerfile`. API: `POST /api/analyze {concept, address, lang, without_qloo}`, `POST /api/chat {id, question}`, `POST /api/scout {id, lang}`, `POST /api/launch {id, lang, at}`, `POST /api/compare {id, address}`, `GET /api/health`.
 
-Offline replay: `OFFLINE=1` serves only recorded responses (`scripts/plan.js` lists every missing call, `scripts/load.js` loads recordings), which is how the tests run without network. If a live call fails, the server falls back to the recorded responses for the demo examples.
+Offline replay: `OFFLINE=1` serves only recorded responses (`scripts/plan.js` lists every missing call, `scripts/load.js` loads recordings), which is how the tests run without network. Locally (SQLite cache), if a live call fails the server falls back to recordings when they exist; the public demo has no recordings (Qloo responses are not published), so a failed call shows up as an error in "How I know".
 
 ## Limits and failure modes
 
@@ -95,19 +96,21 @@ Offline replay: `OFFLINE=1` serves only recorded responses (`scripts/plan.js` li
 - `affinity_rank` compares a block with a wide reference that Qloo does not document in detail; dense city centres score high for many concepts, so offer often decides between Hard and Promising.
 - Exotic concepts may not map to a Qloo tag. The tool says so and suggests a simpler word. "How I know" shows which tag was used.
 - Geocoding uses OpenStreetMap Nominatim. You can also type "lat, lon".
-- The demo allows 30 analyses, 30 comparisons and 60 chat questions per IP per day, and 600 model calls per day in total. On the free hosting plan the first visit after a quiet spell can take up to a minute.
+- The demo allows 30 analyses, 30 comparisons, 60 chat questions, 20 scout runs and 20 launch plans per IP per day, and 600 model calls per day in total. On the free hosting plan the first visit after a quiet spell can take up to a minute.
 
 ## Responsible use
 
-Abro Aquí decides about a **place**, never about a **person**. E-mails and phone numbers typed into the app are removed before any model or search call (`src/safe.js`, tested). Affinities are described as "the area", never as "the people who live here". Some customer-identity labels that touch protected attributes (religion, ethnicity, sexuality, disability, age groups) are filtered out of the audience panel. It must not be used for housing, employment or credit decisions. See [`specs/05-safe-use.md`](specs/05-safe-use.md).
+Abro Aquí decides about a **place**, never about a **person**. E-mails and phone numbers typed into the app are removed before any model or search call (`src/safe.js`, tested). Affinities are described as "the area", never as "the people who live here". Some customer-identity labels that touch protected attributes (religion, ethnicity, sexuality, disability, age groups) are filtered out of the audience panel. In the launch plan a neighbour is never excluded for who its customers are; only settings where a commercial promotion is out of place (clinics, schools, funeral homes, police) are skipped. It must not be used for housing, employment or credit decisions. See [`specs/05-safe-use.md`](specs/05-safe-use.md).
+
+**Coverage bias.** Qloo knows more about busy, central, touristic areas than about quiet or lower-income ones. Thin areas get **No data** rather than a verdict, which is honest, but it means the tool is most useful where data already exists; we say so instead of filling the gap with guesses.
 
 ## Layout
 
 ```
-specs/       spec-driven: verdict rules (v2 after review), tools, agent, UI, safe use
-src/         http.js (cache, trace) · qloo.js · tools.js · verdict.js · llm.js · agent.js · server.js
+specs/       spec-driven: 01 verdict (v2 after review) · 02 tools · 03 models and agents · 04 launch plan · 05 safe use · 06 UI
+src/         http.js (cache, trace) · qloo.js · tools.js · verdict.js · llm.js · agent.js (analysis, chat, scout) · launch.js · i18n.js · safe.js · server.js
 public/      one-page UI (Leaflet and fonts self-hosted, no build step)
-tests/       verdict rules on real recorded signals; end-to-end pipeline on recorded data
+tests/       verdict rules; launch plan against Qloo and Token Factory mocks; end-to-end pipeline on recorded data (local only)
 FEEDBACK.md  notes for Nebius / NVIDIA and for Qloo
 ```
 

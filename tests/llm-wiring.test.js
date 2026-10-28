@@ -6,11 +6,11 @@ import { startMock } from "./mock/token-factory.js";
 const have = fs.existsSync("fixtures/demo.sqlite");
 
 test("LLM path: Nano normalises, Super writes, Lightning calls a tool in the chat", { skip: !have }, async () => {
-  const { server, calls } = await startMock(3199);
+  const { server, calls, port } = await startMock();
   process.env.OFFLINE = "1";
   process.env.CACHE_PATH = "fixtures/demo.sqlite";
   process.env.NEBIUS_API_KEY = "test";
-  process.env.NEBIUS_BASE_URL = "http://localhost:3199/v1/";
+  process.env.NEBIUS_BASE_URL = `http://localhost:${port}/v1/`;
   const { analyze, chat } = await import("../src/agent.js?llm");
   const r = await analyze({ concept: "marisquería", address: "Avinguda del Paral·lel 40, Barcelona", withoutQloo: true });
   assert.equal(r.verdict.level, "AMBER");

@@ -3,7 +3,7 @@ import http from "node:http";
 
 export const seen = [];
 const ent = (name, extra = {}) => ({ name, entity_id: `id-${name}`, query: { affinity: 0.9 }, ...extra });
-export function startQlooMock(port) {
+export function startQlooMock(port = 0) {
   const server = http.createServer((req, res) => {
     const u = new URL(req.url, "http://x");
     seen.push(Object.fromEntries(u.searchParams));
@@ -18,7 +18,9 @@ export function startQlooMock(port) {
         ent("Teatre Apolo", { tags: [{ id: "urn:tag:category:place:theater", name: "Theater", type: "urn:tag:category:place" }], location: { lat: 41.3746, lon: 2.1689 } }),
         ent("Bar Ramon", { tags: [{ id: "urn:tag:category:place:bar", name: "Bar", type: "urn:tag:category:place" }], location: { lat: 41.3761, lon: 2.1666 } }),
         ent("Closed Bar", { properties: { is_closed: true }, location: { lat: 41.375, lon: 2.169 } }),
-        ent("Church of X", { tags: [{ id: "urn:tag:category:place:church", name: "Church", type: "urn:tag:category:place" }], location: { lat: 41.375, lon: 2.169 } }),
+        ent("Casa Paella", { tags: [{ id: "urn:tag:category:place:paella_restaurant", name: "Paella restaurant", type: "urn:tag:category:place" }], location: { lat: 41.3751, lon: 2.1688 } }),
+        ent("Dental Clinic X", { tags: [{ id: "urn:tag:category:place:dentist", name: "Dentist", type: "urn:tag:category:place" }], location: { lat: 41.375, lon: 2.169 } }),
+        ent("Pride Bar", { tags: [{ id: "urn:tag:category:place:bar", name: "Bar", type: "urn:tag:category:place" }, { id: "urn:tag:customer_identity:qloo:lgbtq_friendly", name: "LGBTQ+ friendly", type: "urn:tag:customer_identity:qloo" }], location: { lat: 41.3745, lon: 2.1700 } }),
       ];
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify({ results: { entities } }));
@@ -32,7 +34,7 @@ export const cells = [
   { lat: 41.3782, lon: 2.1692, affinity_rank: 0.97, popularity: 0.95 }, // too close to the previous one
   { lat: 41.3720, lon: 2.1650, affinity_rank: 0.95, popularity: 0.8 },
   { lat: 41.3800, lon: 2.1600, affinity_rank: 0.99, popularity: 0.3 }, // quiet block: excluded
-  { lat: 41.3700, lon: 2.1750, affinity_rank: 0.90, popularity: 0.7 },
+  { lat: 41.3710, lon: 2.1730, affinity_rank: 0.90, popularity: 0.7 },
 ];
 export const ctx = {
   concept: "seafood restaurant",

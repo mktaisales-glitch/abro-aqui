@@ -4,8 +4,9 @@
 // places that are not competitors (co-promotion). Poster zones come from the concept's own heat map.
 import { qloo, point } from "./qloo.js";
 import { makeTrace } from "./http.js";
-import { haversine, verifyBusiness, streetAt } from "./tools.js";
+import { haversine, verifyBusiness, streetAt, singular } from "./tools.js";
 import { llmEnabled, writeLaunch } from "./llm.js";
+import { esPart } from "./i18n.js";
 
 export const cityOf = (display) =>
   display.split(",").map((x) => x.trim()).find((x) => /barcelona|new york|brooklyn|manhattan|london|san francisco|madrid|paris|chicago|los angeles/i.test(x)) ??
@@ -25,13 +26,15 @@ export function signalParams(seeds, tag) {
   return tag ? { "signal.interests.tags": tag } : null;
 }
 
-const SENSITIVE = /lgbt|gay|lesbian|queer|church|mosque|synagogue|temple|religio|clinic|hospital|pharmacy|school|kindergarten|funeral|police|embassy|bank/i;
+// Settings where a commercial co-promotion is out of place (care, children, grief, public authority). Never identity:
+// a place is never excluded for who its customers are.
+const NOT_FOR_PROMO = /clinic|hospital|pharmacy|dentist|school|kindergarten|nursery|funeral|cemetery|police|embassy|consulate|courthouse/i;
 
 /**
  * Nearby places worth a co-promotion: affine to the seeds, not competitors, open, within reach.
  * A place is a competitor if it carries the concept's tag, shares a concept word in its tags, or is already in the rival list.
  */
-export function pickNeighbours(entities, { lat, lon, rivalNames = [], tagIds = [], words = [], max = 6 }) {
+export function pickNeighbours(entities, { lat, lon, rivalNames = [], tagIds = [], words = [], excludeKinds = null, max = 6 }) {
   const rivals = new Set(rivalNames.map((n) => n.toLowerCase()));
   const ids = new Set(tagIds.filter(Boolean));
   const out = [];
@@ -40,9 +43,10 @@ export function pickNeighbours(entities, { lat, lon, rivalNames = [], tagIds = [
     const tags = e.tags ?? [];
     if (tags.some((t) => ids.has(t.id))) continue;
     const names = tags.map((t) => String(t.name ?? "").toLowerCase());
-    if (words.length && names.some((nm) => words.some((w) => nm.split(/[^a-z0-9]+/).includes(w)))) continue;
+    if (words.length && names.some((nm) => words.some((w) => nm.split(/[^a-z0-9]+/).map(singular).includes(w)))) continue;
     const kind = tags.find((t) => t.type === "urn:tag:category:place" && !/^(place|restaurant|point of interest|establishment)$/i.test(t.name))?.name ?? null;
-    if (SENSITIVE.test(`${kind ?? ""} ${e.name}`)) continue;
+    if (NOT_FOR_PROMO.test(`${kind ?? ""} ${e.name}`)) continue;
+    if (excludeKinds && kind && excludeKinds.test(kind)) continue;
     const g = e.location ?? {};
     out.push({
       name: e.name,
@@ -62,7 +66,7 @@ export function pickNeighbours(entities, { lat, lon, rivalNames = [], tagIds = [
  * Poster / flyer zones: the busiest blocks where the area likes the concept most, at least `gap` metres apart,
  * excluding the block of the shop itself. score = affinity_rank × activity (popularity rank).
  */
-export function posterZones(cells, { lat, lon }, { n = 3, gap = 300, maxDist = 900, minActivity = 0.6 } = {}) {
+export function posterZones(cells, { lat, lon }, { n = 3, gap = 300, maxDist = 700, minActivity = 0.6 } = {}) {
   const cand = cells
     .map((c) => ({ ...c, distance_m: haversine(lat, lon, c.lat, c.lon) }))
     .filter((c) => c.distance_m >= 120 && c.distance_m <= maxDist && c.popularity >= minActivity && c.affinity_rank != null)
@@ -78,25 +82,29 @@ export function posterZones(cells, { lat, lon }, { n = 3, gap = 300, maxDist = 9
 
 const entOut = (e) => ({ name: e.name, affinity: e.query?.affinity != null ? Math.round(e.query.affinity * 1000) / 1000 : null, kind: (e.tags ?? []).find((t) => /genre/.test(t.type ?? ""))?.name ?? null });
 
-/** Candidates from Qloo (4 calls, 2 at a time to stay under the rate limit). */
+/** Candidates from Qloo: 3 calls in parallel (well under the rate limit). */
 export async function launchCandidates(ctx, trace, { at } = {}) {
   const spot = at ?? { lat: ctx.geo.lat, lon: ctx.geo.lon };
   const main = ctx.resolved.find((p) => p.heatmap_tag) ?? ctx.resolved[0];
   const seeds = pickSeeds(ctx.competitors ?? []);
   const sig = signalParams(seeds, main?.heatmap_tag);
-  const loc = { "signal.location": point(spot.lat, spot.lon), "signal.location.radius": 3000 };
+  // No signal.location on artists and brands: at street level it pulls generic luxury brands (see FEEDBACK.md);
+  // the seeds are already local places, so their audience carries the locality.
   const get = (type, extra = {}, take = 10) =>
     sig ? qloo("/v2/insights", { "filter.type": type, ...sig, ...extra, take }, trace).then((d) => d?.results?.entities ?? []).catch((e) => { trace.add({ source: "qloo", url: `launch:${type}`, ms: 0, cached: false, error: String(e.message).slice(0, 80) }); return []; }) : Promise.resolve([]);
 
-  const [artists, brands] = await Promise.all([get("urn:entity:artist", loc), get("urn:entity:brand", loc, 15)]);
-  const [places] = await Promise.all([
+  const [artists, brands, places] = await Promise.all([
+    get("urn:entity:artist"),
+    get("urn:entity:brand", {}, 15),
     get("urn:entity:place", { "filter.location": point(spot.lat, spot.lon), "filter.location.radius": 600 }, 40),
   ]);
 
-  const words = ctx.resolved.flatMap((p) => p.part.split(" ")).filter((w) => w.length > 3 && !/restaurant|shop|store|place|house/.test(w));
+  const words = ctx.resolved.flatMap((p) => p.part.split(" ")).filter((w) => w.length > 3 && !/restaurant|shop|store|place|house/.test(w)).map(singular);
+  // a restaurant's neighbours to team up with are not other restaurants (they compete for the same meal)
+  const isRestaurant = ctx.resolved.some((p) => /restaurant/.test(`${p.part} ${p.heatmap_tag ?? ""} ${p.competitor_tag ?? ""}`));
   const tagIds = ctx.resolved.flatMap((p) => [p.competitor_tag, p.heatmap_tag, ...(p.comp_candidates ?? [])]);
   const rivalNames = (ctx.competitors ?? []).map((c) => c.name);
-  const neighbours = pickNeighbours(places, { ...spot, rivalNames, tagIds, words });
+  const neighbours = pickNeighbours(places, { ...spot, rivalNames, tagIds, words, excludeKinds: isRestaurant ? /restaurant|steakhouse|bistro|diner|eatery/i : null });
   const rivalSet = new Set(rivalNames.map((n) => n.toLowerCase()));
   return {
     spot,
@@ -109,26 +117,42 @@ export async function launchCandidates(ctx, trace, { at } = {}) {
   };
 }
 
-/** Template plan when the model is not available: same candidates, fixed choices. */
-export function templateLaunch(c, ctx, lang = "en") {
+const list = (xs, es) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} ${es ? "y" : "and"} ${xs.at(-1)}`);
+
+/** Headline, poster texts and the 4 weeks are always written by code from the names that survived: nothing invented. */
+export function composeFixed(plan, c, ctx, lang = "en") {
   const es = lang === "es";
   const L = (en, sp) => (es ? sp : en);
-  const from = c.seeds.length ? c.seeds.map((s) => s.name).join(", ") : L(`people who like ${ctx.concept} here`, `quien disfruta de ${ctx.concept} aquí`);
-  const n = c.neighbours.slice(0, 3);
+  const seeds = c.seeds.map((s) => s.name);
+  const headline = seeds.length
+    ? L(`Learned from what the customers of ${list(seeds, es)} (the best-rated rivals nearby) also like.`, `Aprendido de lo que también les gusta a los clientes de ${list(seeds, es)} (los rivales mejor valorados cerca).`)
+    : L(`Learned from what people who like ${ctx.concept} around here also like (no rated rival to learn from).`, `Aprendido de lo que también le gusta a quien disfruta de «${ctx.resolved.map((p) => esPart(p.part)).join(" y ")}» por aquí (no hay rival valorado del que aprender).`);
+  const posters = c.posters.map((z) => {
+    const top = Math.max(1, Math.round((1 - z.activity) * 100));
+    return { where: z.street ?? `${z.lat.toFixed(4)}, ${z.lon.toFixed(4)}`, why: L(`${z.street ? `${z.street}, ` : ""}${z.distance_m} m away: taste rank ${z.demand.toFixed(2)}, among the ${top} % busiest blocks around`, `${z.street ? `${z.street}, ` : ""}a ${z.distance_m} m: gusto ${z.demand.toFixed(2).replace(".", ",")}, entre el ${top} % de manzanas con más actividad`) };
+  });
+  const nb = plan.co_promo.map((x) => x.name), mu = plan.music.map((x) => x.name), br = plan.brands.map((x) => x.name);
+  const streets = c.posters.map((z) => z.street).filter(Boolean);
+  const w2 = [nb.length && L(`agree a joint action with ${list(nb, es)}`, `cerrar una acción conjunta con ${list(nb, es)}`), mu.length && L(`build the opening playlist around ${list(mu, es)} and look for a local act in that style`, `armar la playlist de la inauguración alrededor de ${list(mu, es)} y buscar un grupo local de ese estilo`)].filter(Boolean);
+  const w1 = [posters.length && L(`posters and flyers on ${streets.length ? list(streets, es) : "the purple zones on the map"}`, `carteles y flyers en ${streets.length ? list(streets, es) : "las zonas moradas del mapa"}`), br.length && L(`ask ${list(br, es)} for product or sampling`, `pedir producto o degustación a ${list(br, es)}`)].filter(Boolean);
+  const w0 = [L("opening night", "noche de inauguración"), mu.length && L("with the playlist", "con la playlist"), br.length && L(`and the ${br[0]} sampling`, `y la degustación de ${br[0]}`), nb.length && L(`; joint offer with ${nb[0]}`, `; oferta conjunta con ${nb[0]}`)].filter(Boolean).join(" ").replace(" ;", ";");
+  const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+  const weeks = [
+    w2.length ? `${L("Week −2", "Semana −2")}: ${w2.join("; ")}.` : L("Week −2: pick the opening date and tell the street.", "Semana −2: fijar la fecha de apertura y contarlo en la calle."),
+    w1.length ? `${L("Week −1", "Semana −1")}: ${w1.join("; ")}.` : L("Week −1: flyers around the shop.", "Semana −1: flyers alrededor del local."),
+    `${L("Opening week", "Semana de apertura")}: ${cap(w0)}.`,
+    L("Week +1: ask every customer at the till how they heard about you, and keep the channel that brought people.", "Semana +1: preguntar en caja a cada cliente cómo se enteró y quedarse con el canal que trajo gente."),
+  ];
+  return { headline, posters, weeks };
+}
+
+/** Template choices when the model is not available: same candidates, fixed choices. */
+export function templateLaunch(c, ctx, lang = "en") {
+  const L = (en, sp) => (lang === "es" ? sp : en);
   return {
-    headline: c.seeds.length
-      ? L(`Built from what the customers of ${from} also like.`, `Hecho con lo que también les gusta a los clientes de ${from}.`)
-      : L(`Built from what ${from} also like.`, `Hecho con lo que también le gusta a ${from}.`),
-    music: c.music.slice(0, 3).map((m) => ({ name: m.name, why: L("high affinity with the same audience: use it for the opening playlist or a small live set", "afinidad alta con el mismo público: para la playlist de la inauguración o un directo pequeño") })),
-    co_promo: n.map((p) => ({ name: p.name, idea: L(`${p.kind ?? "neighbour"} ${p.distance_m ?? "?"} m away, same audience, does not compete: swap flyers or a joint discount in the opening week`, `${p.kind ?? "vecino"} a ${p.distance_m ?? "?"} m, mismo público y no compite: intercambiar flyers o un descuento conjunto la semana de apertura`) })),
+    music: c.music.slice(0, 3).map((m) => ({ name: m.name, why: L("the same audience listens to it: build the opening playlist around it and look for a local act in that style", "el mismo público lo escucha: arma la playlist de la inauguración a su alrededor y busca un grupo local de ese estilo") })),
+    co_promo: c.neighbours.slice(0, 3).map((p) => ({ name: p.name, idea: L(`${p.kind ?? "neighbour"} ${p.distance_m ?? "?"} m away, same audience, does not compete: swap flyers or a joint discount in the opening week`, `${p.kind ?? "vecino"} a ${p.distance_m ?? "?"} m, mismo público y no compite: intercambiar flyers o un descuento conjunto la semana de apertura`) })),
     brands: c.brands.slice(0, 2).map((b) => ({ name: b.name, idea: L("ask for product or sampling for the opening night: their fans overlap with yours", "pedir producto o degustación para la noche de apertura: sus fans se solapan con los tuyos") })),
-    posters: c.posters.map((z) => ({ where: z.street ?? `${z.lat.toFixed(4)}, ${z.lon.toFixed(4)}`, why: L(`${z.street ? `${z.street}, ` : ""}${z.distance_m} m away: taste rank ${z.demand.toFixed(2)} and busier than ${Math.round(z.activity * 100)} % of the blocks around`, `${z.street ? `${z.street}, ` : ""}a ${z.distance_m} m: gusto ${z.demand.toFixed(2).replace(".", ",")} y más actividad que el ${Math.round(z.activity * 100)} % de las manzanas de alrededor`) })),
-    weeks: [
-      L("Week −2: agree the co-promotion with the neighbours above and book the music.", "Semana −2: cerrar la co-promoción con los vecinos de arriba y reservar la música."),
-      L("Week −1: posters and flyers in the zones on the map; ask the brands for sampling.", "Semana −1: carteles y flyers en las zonas del mapa; pedir degustación a las marcas."),
-      L("Opening week: opening night with the playlist and the brand sampling; joint discount with the neighbours.", "Semana de apertura: noche de inauguración con la playlist y la degustación; descuento conjunto con los vecinos."),
-      L("Week +1: count who came from each channel (ask at the till) and keep the one that worked.", "Semana +1: contar quién vino por cada canal (preguntar en caja) y quedarse con el que funcionó."),
-    ],
   };
 }
 
@@ -173,7 +197,8 @@ export async function launchPlan({ ctx, lang = "en", at }) {
   await streetsP;
   // the model may drop everything it was given; never return an empty plan when candidates exist
   const tpl = templateLaunch(c, ctx, lang);
-  for (const k of ["music", "co_promo", "brands", "weeks"]) if (!plan[k]?.length) plan[k] = tpl[k];
-  plan.posters = tpl.posters; // coordinates come from the heat map, never from the model
+  for (const k of ["music", "co_promo", "brands"]) if (!plan[k]?.length) plan[k] = tpl[k];
+  // headline, poster zones and weeks are composed by code from the surviving names (the model never writes them)
+  plan = { music: plan.music, co_promo: plan.co_promo, brands: plan.brands, ...composeFixed(plan, c, ctx, lang) };
   return { plan, candidates: c, meta, trace: trace.entries, total_ms: Date.now() - t0 };
 }

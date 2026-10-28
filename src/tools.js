@@ -45,7 +45,7 @@ export function conceptParts(concept) {
   return parts.length > 1 ? parts : [c];
 }
 
-function singular(w) {
+export function singular(w) {
   if (w.length <= 3) return w;
   if (w.endsWith("ies")) return w.slice(0, -3) + "y";
   if (/(ches|shes|sses|xes)$/.test(w)) return w.slice(0, -2);
@@ -298,4 +298,19 @@ export async function verifyBusiness({ name, city }, trace) {
   const key = norm(name).split(" ").filter((w) => w.length > 2);
   const hit = (r.results ?? []).find((x) => { const t = norm(`${x.title} ${x.url}`); return key.length && key.every((w) => t.includes(w)); });
   return { exists: !!hit, url: hit?.url ?? null, title: hit?.title ?? null, snippet: hit?.content?.slice(0, 200) ?? null, checked: (r.results ?? []).length };
+}
+
+/**
+ * Price positions among the direct rivals within 700 m: for each price level (€, €€, €€€), how many rivals and the best rating.
+ * A level is "open" when no rival there is rated 4.5 or more; "crowded" when one is.
+ */
+export function priceGap(competitors, strong = 4.5) {
+  const levels = [1, 2, 3, 4].map((lvl) => {
+    const at = competitors.filter((c) => c.price_level === lvl && (c.distance_m ?? 1e9) <= 700);
+    const best = at.filter((c) => c.rating != null).sort((a, b) => b.rating - a.rating)[0] ?? null;
+    return { level: lvl, rivals: at.length, best: best && { name: best.name, rating: best.rating }, open: !best || best.rating < strong };
+  });
+  const priced = competitors.filter((c) => c.price_level != null).length;
+  if (!priced) return null;
+  return { levels: levels.filter((l) => l.level <= 3 || l.rivals), priced, unpriced: competitors.length - priced };
 }

@@ -140,6 +140,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
     supply_by_part: s.supply_by_part,
     already_served_by: s.share,
     gap: s.gap,
+    price_gap: T.priceGap(s.competitors),
     area_profile: profile,
   };
 
@@ -174,6 +175,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
 
   return {
     concept,
+    lang,
     address: geo.display_name,
     geo,
     resolved,
@@ -189,6 +191,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
     supply_by_part: s.supply_by_part,
     share: s.share,
     gap: s.gap,
+    price_gap: signals.price_gap,
     profile,
     trace: trace.entries,
     llm,
@@ -276,18 +279,26 @@ export async function scout({ ctx, lang = "en" }) {
     },
   };
   const city = ctx.address.split(",").map((x) => x.trim()).find((x) => /barcelona|new york|brooklyn|london|san francisco|madrid/i.test(x)) ?? "";
-  const goal = `Goal: find the best place within about 800 m to open "${ctx.concept}" near ${ctx.address}, and up to 3 complementary launch partners that really exist.
-Plan it yourself with the tools: 1) candidate_spots; 2) analyse_address on the one or two most promising candidates, passing "lat, lon"; 3) zone_profile with the lat/lon of the spot you prefer, to find complementary places (not competitors) among places_named; 4) verify_business for each partner (city: "${city}") before naming it.
-Then answer in ${lang === "es" ? "Spanish" : "English"} in at most 5 short sentences: the spot you recommend (or staying put) with its verdict and numbers, and the partners that verify_business confirmed. Never name a partner that was not confirmed. Verdict levels: RED = Not here, AMBER = Hard, AMBER-GREEN = Promising.`;
+  const es = lang === "es";
+  const goal = `Goal: decide whether there is a better place within about 800 m to open "${ctx.concept}" near ${ctx.address} (verdict there: ${ctx.verdict.level}, ${ctx.verdict.offer?.c700} rivals within 700 m), and find up to 3 complementary launch partners that really exist (city: "${city}").
+You choose which tools to call, in which order and how many times. A partner may only be named after verify_business confirmed it (exists: true). Prefer a spot whose verdict is better than the address's; if none is, say to stay or compare the trade-offs.
+Then answer in ${es ? "Spanish" : "English"} in at most 5 short sentences: the spot you recommend (or staying put) with its verdict and numbers, and the confirmed partners. Verdict levels: RED = Not here, AMBER = Hard, AMBER-GREEN = Promising.`;
 
   if (llmEnabled) {
-    const r = await chatWithTools({ messages: [{ role: "system", content: "You are the scouting agent of Abro Aquí. Use the tools; never invent numbers or businesses." }, { role: "user", content: goal }], tools, maxRounds: 10, maxTokens: 700 });
-    return { mode: "model", model: r.model, text: r.text, steps: r.calls.map(stepOut), trace: trace.entries };
+    try {
+      const r = await chatWithTools({ messages: [{ role: "system", content: "You are the scouting agent of Abro Aquí. Plan your own steps with the tools; never invent numbers or businesses." }, { role: "user", content: goal }], tools, maxRounds: 10, maxTokens: 700 });
+      const steps = r.calls.map((c) => stepOut(c, lang));
+      return { mode: "model", model: r.model, text: r.text, steps, partners: confirmed(r.calls), trace: trace.entries };
+    } catch (e) {
+      trace.add({ source: "nebius", url: `scout: ${MODEL_NOTE}`, ms: 0, cached: false, error: String(e.message).slice(0, 80) });
+      // fall through to the scripted steps so the owner still gets an answer
+    }
   }
 
   // scripted fallback (no LLM): same tools, fixed order
   const steps = [];
-  const run = async (name, args) => { const t0 = Date.now(); let result; try { result = await tools[name].run(args); } catch (e) { result = { error: String(e.message).slice(0, 200) }; } steps.push(stepOut({ name, args, result, ms: Date.now() - t0 })); return result; };
+  const calls = [];
+  const run = async (name, args) => { const t0 = Date.now(); let result; try { result = await tools[name].run(args); } catch (e) { result = { error: String(e.message).slice(0, 200) }; } const c = { name, args, result, ms: Date.now() - t0 }; calls.push(c); steps.push(stepOut(c, lang)); return result; };
   const cands = await run("candidate_spots", {});
   const top = cands.candidates?.[0];
   let chosen = null, profile = null;
@@ -299,7 +310,6 @@ Then answer in ${lang === "es" ? "Spanish" : "English"} in at most 5 short sente
   const picks = (profile?.places_named ?? []).filter((p) => p.kind && kinds.test(p.kind)).slice(0, 2);
   const verified = [];
   for (const p of picks) { const v = await run("verify_business", { name: p.name, city }); if (v.exists) verified.push(p.name); }
-  const es = lang === "es";
   const V = { RED: es ? "Aquí no" : "Not here", AMBER: es ? "Difícil" : "Hard", "AMBER-GREEN": es ? "Prometedor" : "Promising", UNKNOWN: es ? "Sin datos" : "No data" };
   const lvl = V[chosen?.verdict && !chosen.error ? chosen.verdict : top?.level] ?? "";
   const riv = chosen && !chosen.error ? chosen.competitors : top?.rivals_700m;
@@ -307,19 +317,29 @@ Then answer in ${lang === "es" ? "Spanish" : "English"} in at most 5 short sente
     ? (es ? "Ninguna manzana con vida a menos de 800 m sale mejor con las mismas reglas: la dirección es tan buena como lo que hay alrededor." : "No busy block within 800 m scores better under the same rules: the address is as good as anything around it.")
     : (es ? `Recomiendo mirar ${top.distance_m} m más allá (${top.lat.toFixed(4)}, ${top.lon.toFixed(4)}): sale «${lvl}» con ${riv} rivales a 700 m frente a ${ctx.verdict.offer?.c700} aquí.` : `Look ${top.distance_m} m away (${top.lat.toFixed(4)}, ${top.lon.toFixed(4)}): it comes out ${lvl} with ${riv} rivals within 700 m against ${ctx.verdict.offer?.c700} here.`) +
       (verified.length ? (es ? ` Socios verificados en la web: ${verified.join(", ")}.` : ` Partners verified on the web: ${verified.join(", ")}.`) : (es ? " Los socios no se han podido verificar en este modo." : " Partners could not be verified in this mode."));
-  return { mode: "scripted", model: "scripted (no LLM)", text, steps, trace: trace.entries };
+  return { mode: "scripted", model: llmEnabled ? "scripted (model failed)" : "scripted (no LLM)", text, steps, partners: confirmed(calls), trace: trace.entries };
+}
+
+const MODEL_NOTE = "Nemotron 3.5 Lightning";
+
+/** Partners the agent actually confirmed on the web (from the tool results, not from its prose). */
+function confirmed(calls) {
+  const seen = new Set();
+  return calls.filter((c) => c.name === "verify_business" && c.result?.exists === true && !seen.has(c.args?.name) && seen.add(c.args?.name)).map((c) => ({ name: c.args.name, source: c.result.url ?? null }));
 }
 
 /** A compact, display-ready step for the timeline. */
-function stepOut({ name, args, result, ms, round, think_ms }) {
+function stepOut({ name, args, result, ms, round, think_ms }, lang = "en") {
   const r = result ?? {};
+  const L = (en, sp) => (lang === "es" ? sp : en);
+  const V = { RED: L("Not here", "Aquí no"), AMBER: L("Hard", "Difícil"), "AMBER-GREEN": L("Promising", "Prometedor"), UNKNOWN: L("No data", "Sin datos") };
   let summary;
   if (r.error) summary = `error: ${r.error}`;
-  else if (name === "candidate_spots") summary = `${r.candidates?.length ?? 0} candidate blocks`;
-  else if (name === "analyse_address") summary = `${r.verdict} · demand ${r.demand?.toFixed?.(2) ?? "–"} · ${r.competitors} rivals within 700 m`;
-  else if (name === "zone_profile") summary = `${r.places} places · ${(r.places_named ?? []).slice(0, 3).map((p) => p.name).join(", ")}`;
-  else if (name === "verify_business") summary = r.exists === true ? `found: ${r.title ?? r.url}` : r.exists === false ? "not found on the web" : r.note ?? "not checked";
-  else if (name === "nearby_competitors") summary = `${r.competitors?.length ?? 0} rivals → ${r.verdict}`;
+  else if (name === "candidate_spots") summary = L(`${r.candidates?.length ?? 0} candidate blocks (computed during the analysis)`, `${r.candidates?.length ?? 0} manzanas candidatas (calculadas en el análisis)`);
+  else if (name === "analyse_address") summary = L(`${V[r.verdict] ?? r.verdict} · demand ${r.demand?.toFixed?.(2) ?? "–"} · ${r.competitors} rivals within 700 m`, `${V[r.verdict] ?? r.verdict} · gusto ${r.demand?.toFixed?.(2).replace(".", ",") ?? "–"} · ${r.competitors} rivales a 700 m`);
+  else if (name === "zone_profile") summary = L(`${r.places} places · `, `${r.places} locales · `) + (r.places_named ?? []).slice(0, 3).map((p) => p.name).join(", ");
+  else if (name === "verify_business") summary = r.exists === true ? L(`found: ${r.title ?? r.url}`, `encontrado: ${r.title ?? r.url}`) : r.exists === false ? L("not found on the web", "no aparece en la web") : r.note ?? L("not checked", "sin comprobar");
+  else if (name === "nearby_competitors") summary = L(`${r.competitors?.length ?? 0} rivals → ${V[r.verdict] ?? r.verdict}`, `${r.competitors?.length ?? 0} rivales → ${V[r.verdict] ?? r.verdict}`);
   else summary = JSON.stringify(r).slice(0, 120);
   return { tool: name, args, summary, ms, round: round ?? null, think_ms: think_ms ?? null };
 }
