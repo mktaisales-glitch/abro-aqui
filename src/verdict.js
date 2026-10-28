@@ -131,7 +131,9 @@ export function plainVerdictWords(text, lang = "en") {
     .replace(/\bRED\b/g, W.RED)
     .replace(/\b(?:Red|Rojo|ROJO)(?= (?:verdict|veredicto|zone|zona|level|nivel)\b)/g, W.RED)
     .replace(/\bGREEN\b/g, W["AMBER-GREEN"])
-    .replace(/\bUNKNOWN\b/g, W.UNKNOWN);
+    .replace(/\bUNKNOWN\b/g, W.UNKNOWN)
+    // the codes started with a vowel: "an AMBER verdict" becomes "an Hard verdict" once translated
+    .replace(/\b([Aa])n («?)(Hard|Not here|No data)\b/g, "$1 $2$3");
 }
 
 /** Apply plainVerdictWords to every string inside a model answer (arrays and objects included). */
