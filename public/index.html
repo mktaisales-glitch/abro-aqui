@@ -571,7 +571,7 @@ $("#qf").onsubmit=async e=>{
     m.textContent=d.text||d.error||"";if(d.calls?.length){const s=document.createElement("span");s.className="tools";s.textContent=T("used: ","usó: ")+d.calls.map(c=>c.name).join(", ");m.appendChild(s)}}
   catch(err){m.textContent=err.message}
 };
-function add(who,text){const m=document.createElement("div");m.className="msg "+who;m.textContent=text;$("#log").appendChild(m);return m}
+function add(who,text){const m=document.createElement("div");m.className="msg "+who;m.innerHTML=esc(String(text??"")).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/(^|\s)\*([^*\s][^*]*)\*/g,"$1$2");$("#log").appendChild(m);return m}
 
 $("#cf").onsubmit=async e=>{
   e.preventDefault();const a=$("#addr2").value.trim();if(!a||!cur)return;$("#cmpout").innerHTML=`<p class="note">${T("Comparing…","Comparando…")}</p>`;
