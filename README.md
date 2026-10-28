@@ -116,7 +116,7 @@ Offline replay: `OFFLINE=1` serves only recorded responses (`scripts/plan.js` li
 
 ## Security
 
-Keys stay on the server (Qloo's travels in a header, never in a URL, so "How I know" cannot show it). Security headers (CSP, no framing, nosniff, no referrer). All model and third-party text is escaped before it reaches the page. Web search results never go back to the model (only found / not found and the link), the chat's tools only work within 2–3 km of the analysed address and have a budget of 6 calls per answer, so a prompt injection cannot run up costs. E-mails, phones, Spanish ID numbers and IBANs are removed before any model or search call. `npm audit --omit=dev`: 0 vulnerabilities (28 Oct 2026).
+Keys stay on the server (Qloo's travels in a header, never in a URL, so "How I know" cannot show it). Security headers (CSP, no framing, nosniff, origin-only referrer: OpenStreetMap tiles require one). All model and third-party text is escaped before it reaches the page. Web search results never go back to the model (only found / not found and the link), the chat's tools only work within 2–3 km of the analysed address and have a budget of 6 calls per answer, so a prompt injection cannot run up costs. E-mails, phones, Spanish ID numbers and IBANs are removed before any model or search call. `npm audit --omit=dev`: 0 vulnerabilities (28 Oct 2026).
 
 ## Responsible use
 

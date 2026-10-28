@@ -15,7 +15,7 @@ app.use((_req, res, next) => {
   res.set({
     "Content-Security-Policy": "default-src 'self'; img-src 'self' data: https://tile.openstreetmap.org; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
     "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
+    "Referrer-Policy": "strict-origin-when-cross-origin", // OpenStreetMap tiles require a referer (their usage policy)
     "X-Frame-Options": "DENY",
   });
   next();
