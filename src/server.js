@@ -136,10 +136,14 @@ app.post("/api/noqloo", async (req, res) => {
   const s = sessions.get(id);
   if (!s?.ctx) return res.status(404).json({ error: "Run the analysis again: it expired." });
   if (s.noqloo) return res.json(s.noqloo);
-  if (!allow(ipOf(req), "noqloo")) return res.status(429).json({ error: "Daily limit reached on this demo." });
+  // two clicks at once share one model call
+  if (!s.noqlooP) {
+    if (!allow(ipOf(req), "noqloo")) return res.status(429).json({ error: "Daily limit reached on this demo." });
+    s.noqlooP = withDeadline(withoutQloo({ concept: s.ctx.concept, address: scrubPII(s.ctx.address), lang: lang === "es" ? "es" : "en" }))
+      .then((v) => (s.noqloo = v)).finally(() => { s.noqlooP = null; });
+  }
   try {
-    s.noqloo = await withDeadline(withoutQloo({ concept: s.ctx.concept, address: scrubPII(s.ctx.address), lang: lang === "es" ? "es" : "en" }));
-    res.json(s.noqloo);
+    res.json(await s.noqlooP);
   } catch (e) {
     fail(res, "noqloo", e);
   }
@@ -234,16 +238,21 @@ app.post("/api/explore", async (req, res) => {
   const key = `${coords ? `${coords.lat.toFixed(5)},${coords.lon.toFixed(5)}` : address.toLowerCase()}|${radius}`;
   const hit = exploreCache.get(key);
   // every "what fits" answer gets a chat session of its own (the assistant reads the table)
-  const withChat = (v) => { const id = crypto.randomUUID(); keep(id, { t: Date.now(), fit: v, history: [] }); return { id, ...v }; };
-  if (hit && Date.now() - hit.t < 24 * 3600 * 1000) return res.json(withChat(hit.v));
+  // one chat session per cached table (repeating the same request reuses it instead of filling the session store)
+  const withChat = (entry) => {
+    if (!entry.sid || !sessions.has(entry.sid)) { entry.sid = crypto.randomUUID(); keep(entry.sid, { t: Date.now(), fit: entry.v, history: [] }); }
+    return { id: entry.sid, ...entry.v };
+  };
+  if (hit && Date.now() - hit.t < 24 * 3600 * 1000) return res.json(withChat(hit));
   if (!allow(ipOf(req), "explore")) return res.status(429).json({ error: "Daily limit for \"what fits here\" reached on this demo." });
   if (exploring) return res.status(429).json({ error: "Another \"what fits here\" is running. Try again in a few seconds." });
   try {
     exploring = withDeadline(explore({ address, radius, coords }), 90000);
     const v = await exploring;
-    exploreCache.set(key, { t: Date.now(), v });
+    const entry = { t: Date.now(), v };
+    exploreCache.set(key, entry);
     while (exploreCache.size > 100) exploreCache.delete(exploreCache.keys().next().value);
-    res.json(withChat(v));
+    res.json(withChat(entry));
   } catch (e) {
     fail(res, "explore", e);
   } finally {

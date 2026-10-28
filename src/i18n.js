@@ -21,6 +21,9 @@ export const ES_TAGS = {
   "waffles": "gofres", "waffle": "gofres", "specialty coffee": "café de especialidad", "ramen": "ramen",
 };
 export const es = (name) => ES_TAGS[String(name ?? "").toLowerCase()] ?? name;
-const PARTS = { "seafood restaurant": "marisco", "seafood": "marisco", "ice cream": "helado", "waffles": "gofres", "waffle": "gofres", "specialty coffee": "café de especialidad", "coffee": "café", "bakery": "pan", "ramen": "ramen", "pizza": "pizza", "tapas": "tapas" };
+const PARTS = { "seafood restaurant": "marisco", "seafood": "marisco", "ice cream": "helado", "waffles": "gofres", "waffle": "gofres", "specialty coffee": "café de especialidad", "coffee": "café", "bakery": "pan", "ramen": "ramen", "pizza": "pizza", "tapas": "tapas",
+  "burger": "hamburguesas", "burgers": "hamburguesas", "sushi": "sushi", "vegan restaurant": "cocina vegana", "vegan": "cocina vegana", "mexican restaurant": "cocina mexicana",
+  "mexican": "cocina mexicana", "italian restaurant": "cocina italiana", "italian": "cocina italiana", "brunch": "brunch", "coffee shop": "café", "cocktail bar": "cócteles",
+  "cocktails": "cócteles", "wine bar": "vino", "wine": "vino" };
 /** A concept part in Spanish, lower case: "seafood restaurant" → "marisco". */
 export const esPart = (p) => PARTS[String(p ?? "").toLowerCase()] ?? String(es(p)).toLowerCase();

@@ -38,7 +38,7 @@ export async function explore({ address, radius = 1000, concepts = CONCEPTS, coo
         offer_measured: s.supply_by_part.every((p) => p.measured),
       };
     } catch (e) {
-      return { concept, level: "UNKNOWN", rule_code: "no-tag", rule: String(e.message).slice(0, 160), rule_es: "Qloo no tiene una etiqueta para este concepto.", demand: null };
+      return { concept, level: "UNKNOWN", rule_code: "no-tag", rule: /no place tag/.test(String(e.message)) ? "Qloo has no tag for this concept." : "No data for this concept here right now.", rule_es: /no place tag/.test(String(e.message)) ? "Qloo no tiene una etiqueta para este concepto." : "Ahora mismo no hay datos de este concepto aquí.", demand: null };
     }
   }));
   rows.sort((a, b) => RANK[b.level] - RANK[a.level] || (a.rule_code === "mixed" ? -1 : 0) - (b.rule_code === "mixed" ? -1 : 0) || (b.demand ?? -1) - (a.demand ?? -1) || (a.c700 ?? 99) - (b.c700 ?? 99));

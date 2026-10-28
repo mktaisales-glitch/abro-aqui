@@ -107,3 +107,10 @@ test("model text never shows internal verdict codes; better spot says exactly wh
   assert.equal(w.text, "same verdict (Hard), 1 rival within 700 m instead of 3, the area likes it more (0.82 vs 0.78)");
   assert.equal(betterSpotWhy({ level: "AMBER-GREEN", demand: 0.9, c700: 1 }, { level: "AMBER", demand: 0.9, c700: 4 }).reason, "better_verdict");
 });
+
+test("Spanish model answers: colour words become verdict words, decimals take a comma", async () => {
+  const { plainVerdictWords } = await import("../src/verdict.js");
+  assert.equal(plainVerdictWords("El veredicto sigue siendo ROJO, con gusto 0.687 y 1.500 m.", "es"), "El veredicto sigue siendo «Aquí no», con gusto 0,687 y 1.500 m.");
+  assert.equal(plainVerdictWords("El tomate rojo.", "es"), "El tomate rojo.");
+  assert.equal(plainVerdictWords("rank 0.78", "en"), "rank 0.78");
+});

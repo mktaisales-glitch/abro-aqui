@@ -124,6 +124,7 @@ export const VERDICT_WORDS = {
  */
 export function plainVerdictWords(text, lang = "en") {
   if (typeof text !== "string") return text;
+  if (lang === "es") text = spanishTouches(text);
   const W = VERDICT_WORDS[lang === "es" ? "es" : "en"];
   return text
     .replace(/\bAMBER[-_ ]GREEN\b/gi, W["AMBER-GREEN"])
@@ -133,7 +134,20 @@ export function plainVerdictWords(text, lang = "en") {
     .replace(/\bGREEN\b/g, W["AMBER-GREEN"])
     .replace(/\bUNKNOWN\b/g, W.UNKNOWN)
     // the codes started with a vowel: "an AMBER verdict" becomes "an Hard verdict" once translated
-    .replace(/\b([Aa])n («?)(Hard|Not here|No data)\b/g, "$1 $2$3");
+    .replace(/\b([Aa])n («?)(Hard|Not here|No data)\b/g, "$1 $2$3")
+;
+}
+
+/** Spanish model answers: colour words become the verdict words, and decimals take a comma ("0.78" → "0,78"). */
+export function spanishTouches(text) {
+  if (typeof text !== "string") return text;
+  return text
+    .replace(/\b(sigue|queda|está|esta|sale|seguiría|quedaría|estaría)( en)? (?:rojo|ROJO)\b/g, (_m, v) => `${v} en «Aquí no»`)
+    .replace(/\ben (?:rojo|ROJO)\b/g, "en «Aquí no»")
+    .replace(/\bROJO\b/g, "«Aquí no»")
+    .replace(/(^|[^\p{L}])(?:en )?ámbar(?![\p{L}])/giu, "$1«Difícil»")
+    .replace(/\b0\.(\d+)/g, "0,$1")
+    .replace(/(\d)\.(\d{1,2})(?!\d)/g, "$1,$2");
 }
 
 /** Apply plainVerdictWords to every string inside a model answer (arrays and objects included). */

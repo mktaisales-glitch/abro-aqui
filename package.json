@@ -2,7 +2,7 @@
   "name": "abro-aqui",
   "version": "0.1.0",
   "description": "Should I open here? Location-intelligence agent for small businesses, grounded in Qloo taste data and NVIDIA Nemotron on Nebius Token Factory.",
-  "main": "index.js",
+  "main": "src/server.js",
   "scripts": {
     "test": "node --env-file-if-exists=.env --test --test-timeout=60000 tests/*.test.js",
     "dev": "node --env-file-if-exists=.env --watch src/server.js",

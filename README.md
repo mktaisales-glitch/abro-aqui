@@ -99,9 +99,9 @@ git clone https://github.com/mktaisales-glitch/abro-aqui && cd abro-aqui
 npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
-npm test                  # 49 tests (43 run on a public clone; 6 replay recorded Qloo data that is not published): HTTP layer and security headers, PDF report, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
+npm test                  # 54 tests (48 run on a public clone; 6 replay recorded Qloo data that is not published): HTTP layer and security headers, PDF report, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
                           # 6 of them replay the recorded Barcelona cases
-                          # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (43 of 49 run)
+                          # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (48 of 54 run)
 ```
 
 Deploy: `render.yaml` (Render blueprint) or the `Dockerfile`. API: `POST /api/analyze {concept, address, lang, without_qloo, coords?}` (`concept` is a listed concept id, label or synonym, e.g. "hamburguesería" → burger; free text still goes to the resolver; `coords {lat, lon}` comes from a picked address suggestion), `GET /api/concepts` (the 15 concepts with English and Spanish labels and synonyms), `GET /api/geocode/suggest?q=&lang=` (address suggestions from Photon, at most 5), `POST /api/chat {id, question, lang}`, `POST /api/scout {id, lang}`, `POST /api/launch {id, lang, at}`, `POST /api/explore {address, radius, coords?}`, `POST /api/compare {id, address}`, `GET /api/health`. `radius` is 500, 1000 (default), 1500 or 2000.

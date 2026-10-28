@@ -84,6 +84,7 @@ select.rad{border:1px solid var(--line);border-radius:24px;padding:0 14px;min-he
 .go:disabled{background:#f2a46d;cursor:progress}
 .go svg.i{width:18px;height:18px}
 .examples{margin-top:14px;font-size:13px;line-height:1.5}
+.linkbtn{border:0;background:none;padding:0;font:inherit;font-weight:700;color:var(--brick);text-decoration:underline;cursor:pointer}
 .examples .ex-l{font-size:13px;color:var(--ink-3);font-weight:600;margin-right:6px}
 .examples button{display:inline;border:0;background:none;padding:2px 0;min-height:0;font:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--brick);text-align:left;text-decoration:underline;text-decoration-color:var(--o-200);text-underline-offset:3px}
 @media(hover:hover){.examples button:hover{color:var(--orange);text-decoration-color:currentColor}}
@@ -475,7 +476,6 @@ const ES={hero:"¿Abro aquí?",lead:"Para restaurantes, bares y cafeterías. Eli
   phconcept:"Pizzería, hamburguesería, cafetería…",phaddress:"Avenida del Paralelo 4, Barcelona",phaddr2:"Carrer de Blai 20, Barcelona",phq:"Pregunta sobre este informe…",showall:"Ver todos los tipos",close:"Cerrar",send:"Enviar"};
 const EN_PH={phconcept:"Pizzeria, burger joint, coffee shop…",phaddress:"Avinguda del Paral·lel 4, Barcelona",phaddr2:"Carrer de Blai 20, Barcelona",phq:"Ask about this report…",showall:"Show all types",close:"Close",send:"Send"};
 const VERD={en:{RED:"Not here","AMBER":"Hard","AMBER-GREEN":"Promising",UNKNOWN:"No data"},es:{RED:"Aquí no","AMBER":"Difícil","AMBER-GREEN":"Prometedor",UNKNOWN:"Sin datos"}};
-// the Paral·lel 40 and Gran Via 400 examples are recorded (1.5 km): they work even when the live services do not
 const EXAMPLES=[["ramen","Rambla del Poblenou 100, Barcelona","Ramen bar at Rambla del Poblenou 100, Barcelona","Ramen en la Rambla del Poblenou 100, Barcelona"]];
 const STEPS={en:["Finding the address","Matching your idea to Qloo","Reading taste, offer and competitors","Writing the verdict"],es:["Buscando la dirección","Traduciendo tu idea a Qloo","Leyendo gusto, oferta y competencia","Escribiendo el veredicto"]};
 const $=s=>document.querySelector(s);
@@ -511,7 +511,7 @@ function applyLang(){
 }
 document.querySelectorAll(".lang button").forEach(b=>b.onclick=()=>{lang=b.dataset.lang;try{localStorage.setItem("abro-lang",lang)}catch(e){}applyLang()});
 
-EXAMPLES.forEach(([c,a,,,rad])=>{const b=document.createElement("button");b.type="button";b.onclick=()=>{setMode("one");if(rad)$("#radius").value=String(rad);const k=findConcept(c);conceptId=k?.id??null;exampleConcept=k?null:c;$("#concept").value=k?cLabel(k):c;setAddress(a);$("#ask").requestSubmit()};$("#examples").appendChild(b)});
+EXAMPLES.forEach(([c,a])=>{const b=document.createElement("button");b.type="button";b.onclick=()=>{setMode("one");const k=findConcept(c);conceptId=k?.id??null;exampleConcept=k?null:c;$("#concept").value=k?cLabel(k):c;setAddress(a);$("#ask").requestSubmit()};$("#examples").appendChild(b)});
 
 // ---------- accessible combobox (input + listbox), used for the concept and the address ----------
 function combo({input,list,options,onPick,enterFirst=false}){
@@ -578,8 +578,19 @@ function steps(i){const s=STEPS[lang];$("#steps").innerHTML=s.map((t,k)=>`<li cl
 function setMode(m){mode=m;$("#m-one").setAttribute("aria-pressed",m==="one");$("#m-fit").setAttribute("aria-pressed",m==="fit");$("#conceptf").hidden=m==="fit";$("#golbl").textContent=m==="fit"?T("What fits here?","¿Qué encaja aquí?"):T("Should I open here?","¿Abro aquí?")}
 $("#m-one").onclick=()=>setMode("one");$("#m-fit").onclick=()=>setMode("fit");
 try{const l=localStorage.getItem("abro-lang");if(l==="es")lang="es"}catch(e){}
+{const u=new URLSearchParams(location.search).get("lang");if(u==="es"||u==="en")lang=u}
 applyLang();
 
+// the server answers in English; the Spanish page shows its errors in Spanish
+const ERR_ES=[[/^An external service is slow/,"Un servicio externo va lento ahora mismo. Prueba de nuevo en un minuto."],[/^An external service did not answer/,"Un servicio externo no ha respondido. Prueba de nuevo en un minuto."],
+ [/^This demo is running on recorded data/,"Esta demo funciona con datos grabados y esta dirección aún no está grabada. Prueba el ejemplo."],[/^Write a business concept/,"Escribe un tipo de negocio y una dirección."],
+ [/^You have used today's (\d+)[\s\S]*$/,"Has usado los $1 análisis gratuitos de hoy en esta demo. Vuelve mañana."],[/^Daily .*limit|^Daily limit/,"Se ha alcanzado el límite diario de esta demo. Vuelve mañana."],
+ [/^Run the analysis again/,"Vuelve a hacer el análisis: el anterior ha caducado."],[/^This report has expired/,"Este informe ha caducado (se guardan 2 horas). Vuelve a hacer el análisis y descárgalo."],
+ [/^Write the second address/,"Escribe la segunda dirección."],[/^Ask a question/,"Haz una pregunta de hasta 500 caracteres."],[/^Write a street address/,"Escribe una dirección."],
+ [/^Another "what fits here" is running/,"Ya hay otro «¿qué encaja?» en marcha. Prueba en unos segundos."],[/^Address not found: (.*)/,"No encuentro la dirección: $1"],
+ [/^The address service did not answer/,"El servicio de direcciones no ha respondido. Prueba de nuevo en un minuto o escribe el sitio como «lat, lon»."],[/^Qloo has no place tag/,"Qloo no tiene datos para este tipo de negocio."],
+ [/^Failed to fetch|NetworkError|Load failed/,"Sin conexión con el servidor. Comprueba tu conexión y prueba de nuevo."]];
+const errText=m=>{m=String(m??"");if(lang!=="es")return m;for(const[re,es]of ERR_ES)if(re.test(m))return re.source.includes("(")?m.replace(re,es):es;return m};
 function addressBody(){const a=$("#address").value.trim();return picked&&picked.text===a?{address:`${picked.label}, ${picked.country}`,coords:{lat:picked.lat,lon:picked.lon}}:{address:a}}
 $("#ask").onsubmit=async e=>{
   e.preventDefault();
@@ -600,7 +611,7 @@ $("#ask").onsubmit=async e=>{
     d.lang=d.lang||lang;cur=d;document.body.classList.add("has-result","has-pdf");$("#fitbox").hidden=true;render(d);resetChat();chatCtx=chatFromCur();
     $("#vbox").classList.remove("in");void $("#vbox").offsetWidth;$("#vbox").classList.add("in");
     requestAnimationFrame(()=>setTimeout(()=>$("#vbox").scrollIntoView({behavior:"smooth",block:"start"}),60));
-  }catch(err){$("#err").textContent=err.message;$("#err").hidden=false}
+  }catch(err){$("#err").textContent=errText(err.message);$("#err").hidden=false}
   finally{clearInterval(tick);$("#steps").hidden=true;$("#go").disabled=false}
 };
 
@@ -692,7 +703,7 @@ $("#scoutgo").onclick=async()=>{
     $("#scoutby").textContent=(d.mode==="model"?T(`Steps chosen by ${d.model} on Nebius Token Factory (${d.steps.length} tool calls), listed after the run.`,`Pasos elegidos por ${d.model} en Nebius Token Factory (${d.steps.length} llamadas a herramientas), listados al terminar.`):d.model.includes("failed")?T("The model did not answer: fixed steps instead.","El modelo no respondió: pasos fijos en su lugar."):T("Fixed steps (no model configured).","Pasos fijos (sin modelo configurado)."));
     document.querySelectorAll("#trace tr.x-scout").forEach(x=>x.remove());
     if(d.trace?.length)$("#trace").insertAdjacentHTML("beforeend",d.trace.map(t=>`<tr class="x-scout"><td>${t.source} · ${T("agent","agente")}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.note?esc(t.note):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join(""));
-  }catch(err){$("#scouttext").textContent=err.message}
+  }catch(err){$("#scouttext").textContent=errText(err.message)}
   finally{b.disabled=false}
 };
 
@@ -714,7 +725,7 @@ $("#launchgo").onclick=async()=>{
     document.querySelectorAll("#trace tr.x-launch").forEach(x=>x.remove());
     if(d.meta.error)$("#trace").insertAdjacentHTML("beforeend",`<tr class="x-launch"><td>nebius · ${T("launch","apertura")}</td><td class="u">${esc(d.meta.model)}</td><td class="n">${esc(d.meta.error)}</td></tr>`);
     if(d.trace?.length)$("#trace").insertAdjacentHTML("beforeend",d.trace.map(t=>`<tr class="x-launch"><td>${t.source} · ${T("launch","apertura")}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.note?esc(t.note):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join(""));
-  }catch(err){$("#launchhead").textContent=err.message}
+  }catch(err){$("#launchhead").textContent=errText(err.message)}
   finally{b.disabled=false}
 };
 
@@ -730,7 +741,7 @@ async function runFit(){
     $("#fit").innerHTML=`<tr><th>${T("Business","Negocio")}</th><th>${T("Verdict","Veredicto")}</th><th class="n">${T("Taste","Gusto")}</th><th class="n">${T("Rivals 700 m","Rivales 700 m")}</th><th></th></tr>`+d.rows.map((x,i)=>`<tr><td><b>${esc(conceptName(x.concept))}</b>${x.nearest_rival?`<br><span class="note">${T("closest","más cercano")}: ${esc(x.nearest_rival.name)}, ${x.nearest_rival.distance_m} m</span>`:""}</td><td><span class="chip ${x.level}" title="${esc(lang==="es"?x.rule_es:x.rule)}">${VERD[lang][x.level]}</span></td><td class="n">${n2(x.demand)}</td><td class="n">${x.c700??"–"}</td><td><button type="button" data-k="${i}">${T("Open","Abrir")}</button></td></tr>`).join("");
     $("#fit").querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{const x=d.rows[+b.dataset.k];setMode("one");const c=byId(x.concept);conceptId=c?.id??null;exampleConcept=c?null:x.concept;$("#concept").value=c?cLabel(c):x.concept;$("#ask").requestSubmit()});
     $("#fitnote").textContent=T(`“No data” means Qloo has no taste data for that concept here. ${d.total_ms} ms.`,`«Sin datos» quiere decir que Qloo no tiene datos de gusto de ese concepto aquí. ${d.total_ms} ms.`);
-  }catch(err){$("#fith").textContent="";$("#err").textContent=err.message;$("#err").hidden=false}
+  }catch(err){$("#fith").textContent="";$("#err").textContent=errText(err.message);$("#err").hidden=false}
   finally{$("#go").disabled=false}
 }
 
@@ -773,7 +784,7 @@ async function ask(q){
   try{const r=await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:chatCtx.id,question:q,lang})});const d=await r.json();
     m.classList.remove("wait");setMsg(m,d.text||d.error||"");if(d.limit)m.classList.add("lim");
     if(d.calls?.length){const s=document.createElement("span");s.className="tools";s.textContent=T("used: ","usó: ")+d.calls.map(c=>c.name).join(", ");m.appendChild(s)}}
-  catch(err){m.classList.remove("wait");setMsg(m,err.message)}
+  catch(err){m.classList.remove("wait");setMsg(m,errText(err.message))}
   $("#log").scrollTop=$("#log").scrollHeight;
 }
 $("#qf").onsubmit=e=>{e.preventDefault();const q=$("#q").value.trim();$("#q").value="";ask(q)};
@@ -785,16 +796,17 @@ $("#cf").onsubmit=async e=>{
   try{const r=await fetch("/api/compare",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:cur.id,address:a})});const o=await r.json();if(!r.ok)throw new Error(o.error);
     const row=(name,lvl,dem,c4,c7)=>`<tr><td>${esc(name)}</td><td class="n ${lvl}" style="font-weight:700">${VERD[lang][lvl]}</td><td class="n">${n2(dem)}</td><td class="n">${c4??"–"}</td><td class="n">${c7??"–"}</td></tr>`;
     $("#cmpout").innerHTML=`<table class="comp"><tr><td></td><td class="n">${T("verdict","veredicto")}</td><td class="n">${T("taste","gusto")}</td><td class="n">${T("rivals 400 m","rivales 400 m")}</td><td class="n">${T("rivals 700 m","rivales 700 m")}</td></tr>${row(cur.address.split(",").slice(0,2).join(","),cur.verdict.level,cur.heatmap.demand,cur.verdict.offer?.c400,cur.verdict.offer?.c700)}${row(o.address.split(",").slice(0,2).join(","),o.verdict.level,o.demand,o.offer?.c400,o.offer?.c700)}</table>`}
-  catch(err){$("#cmpout").innerHTML=`<p class="err">${esc(err.message)}</p>`}
+  catch(err){$("#cmpout").innerHTML=`<p class="err">${esc(errText(err.message))}</p>`}
 };
 function renderNoQ(d){
   const comps=d.competitors.slice(0,5),wq=d.noqloo;
   $("#vs").innerHTML=`<div><h3>${T("With Qloo","Con Qloo")}</h3><ul class="plain">${comps.map(c=>`<li>${esc(c.name)}, ${c.rating??"–"} ★, ${c.distance_m} m</li>`).join("")||"<li>–</li>"}</ul></div><div><h3>${T("Language model alone","Solo el modelo")}</h3>${wq&&wq.headline?`<p style="margin:0 0 6px;font-weight:600">${esc(wq.headline)}</p><ul class="plain">${(wq.why||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:wq&&wq.unavailable?`<p class="note">${T("Runs when the Nebius key is configured.","Se ejecuta cuando la clave de Nebius está configurada.")}</p>`:`<p class="note" id="noqwait">${T("Asking the model alone…","Preguntando solo al modelo…")}</p>`}</div>`;
 }
 async function loadNoQ(){
-  if(!cur||cur.noqloo)return;
+  if(!cur||cur.noqloo||cur.noqP)return;cur.noqP=true;
   try{const r=await fetch("/api/noqloo",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:cur.id,lang})});const d=await r.json();if(!r.ok)throw new Error(d.error);cur.noqloo=d;renderNoQ(cur)}
-  catch(err){const w=$("#noqwait");if(w)w.textContent=err.message}
+  catch(err){const w=$("#noqwait");if(w){w.innerHTML=`${esc(errText(err.message))} <button type="button" class="linkbtn" id="noqretry">${T("Try again","Reintentar")}</button>`;$("#noqretry").onclick=()=>{w.textContent=T("Asking the model alone…","Preguntando solo al modelo…");loadNoQ()}}}
+  finally{if(cur)cur.noqP=false}
 }
 // the map changes size when the layout does (phone ↔ desktop, the sheet opening)
 addEventListener("resize",()=>{if(map)map.invalidateSize()});
