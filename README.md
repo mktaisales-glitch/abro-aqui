@@ -49,7 +49,7 @@ How we read Qloo's heat map: `affinity` and `popularity` are ranks **inside** th
 
 There is no automatic green, because Qloo measures taste and offer, not foot traffic, rent or income.
 
-### Two real Barcelona cases (recorded 26–27 Oct 2026)
+### Two real Barcelona cases (recorded 26–27 Oct 2026, confirmed live on 28 Oct)
 
 Both businesses below closed. We do not claim the tool would have predicted it: the seafood restaurant lasted ten years, and businesses close for reasons no taste data can see. What we show is what the data says *today* about opening the same concept at the same address.
 
@@ -57,6 +57,15 @@ Both businesses below closed. We do not claim the tool would have predicted it: 
 | --- | --- | --- |
 | Seafood restaurant, Av. del Paral·lel 40 | the area **loves** seafood (demand 0.93), but it is **well served**: Puertecillo Paral·lel (4.4★) is 26 m away, 7 seafood restaurants within 700 m, and **13 of the 50** most popular places within 500 m already serve seafood. A busy block in Poble-sec, 750 m west, likes it even more (0.99) with 4 rivals | **Hard**, with a better spot nearby |
 | Waffles and ice cream, Gran Via 400 (corner of Entença) | demand for ice cream 0.85; **7 ice-cream shops** within 700 m (Gelatomania 4.8★ at 356 m). Waffles **cannot be measured**: Qloo has no waffle-tagged place within 5 km, and the report says so instead of calling it a gap | **Hard** |
+
+### The other verdicts, live on the public demo (28 Oct 2026)
+
+| Case | What Qloo says | Verdict |
+| --- | --- | --- |
+| Ramen, 200 Schermerhorn Street, Brooklyn (Boerum Hill) | taste rank 0.92, **one** rival within 700 m, 1 of 50 popular places serves it. The report: "People here really want ramen but almost no one serves it." | **Promising** (green only after foot traffic, rent and income are checked) |
+| Ramen, Carrer de Sants 100, Barcelona | taste rank 0.57, below the 0.75 line: the area's taste leans elsewhere | **Not here** |
+
+On the Paral·lel case, the language model alone (same Nemotron 3 Super, no Qloo) answered: *"Opening a seafood restaurant at Avinguda del Paral·lel 40 is promising due to high foot traffic and tourism density."* That is the gap Qloo closes.
 
 ## NVIDIA Nemotron on Nebius Token Factory
 
