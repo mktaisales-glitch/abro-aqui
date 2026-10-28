@@ -1,0 +1,12 @@
+# Keeps the free Render instance warm during the judging window (it sleeps after 15 min idle).
+name: keep-alive
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: curl -fsS -m 60 https://abro-aqui.onrender.com/api/health || true
