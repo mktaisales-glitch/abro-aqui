@@ -333,7 +333,7 @@ export async function scout({ ctx, lang = "en" }) {
   const es = lang === "es";
   // the scout looks for the spot; launch partners come from the launch plan (Qloo taste graph + Tavily)
   delete tools.verify_business;
-  const goal = `Goal: decide whether there is a better place within about 800 m to open "${ctx.concept}" near ${ctx.address}. The address comes out ${ctx.verdict.level} with ${ctx.verdict.offer?.c700} rivals within 700 m and taste rank ${ctx.heatmap.demand}.
+  const goal = `Goal: decide whether there is a better place within about 800 m to open "${ctx.concept}" near ${ctx.address}. The address comes out ${ctx.verdict.level} with ${ctx.verdict.offer?.c700} rival${ctx.verdict.offer?.c700===1?"":"s"} within 700 m and taste rank ${ctx.heatmap.demand}.
 You choose which tools to call, in which order and how many times: compare up to three candidate blocks with analyse_address (pass "lat, lon"), and use zone_profile to say what the recommended block is like.
 Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at most 4 short sentences: the block you recommend (with its distance, verdict, taste rank and rivals) or staying put, and why. The tools return verdict codes; write them as: RED = ${es ? "Aquí no" : "Not here"}, AMBER = ${es ? "Difícil" : "Hard"}, AMBER-GREEN = ${es ? "Prometedor" : "Promising"}, UNKNOWN = ${es ? "Sin datos" : "No data"}.`;
 
@@ -374,7 +374,7 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
   const riv = chosen && !chosen.error ? chosen.competitors : top?.rivals_700m;
   const text = !top
     ? (es ? "Ninguna manzana con vida a menos de 800 m sale mejor con las mismas reglas: la dirección es tan buena como lo que hay alrededor." : "No busy block within 800 m scores better under the same rules: the address is as good as anything around it.")
-    : (es ? `Recomiendo mirar ${top.distance_m} m más allá (${top.lat.toFixed(4)}, ${top.lon.toFixed(4)}): sale «${lvl}» con ${riv} rivales a 700 m frente a ${ctx.verdict.offer?.c700} aquí.` : `Look ${top.distance_m} m away (${top.lat.toFixed(4)}, ${top.lon.toFixed(4)}): it comes out ${lvl} with ${riv} rivals within 700 m against ${ctx.verdict.offer?.c700} here.`);
+    : (es ? `Recomiendo mirar ${top.distance_m} m más allá (${top.lat.toFixed(4)}, ${top.lon.toFixed(4)}): sale «${lvl}» con ${riv} rival${riv===1?"":"es"} a 700 m frente a ${ctx.verdict.offer?.c700} aquí.` : `Look ${top.distance_m} m away (${top.lat.toFixed(4)}, ${top.lon.toFixed(4)}): it comes out ${lvl} with ${riv} rival${riv===1?"":"s"} within 700 m against ${ctx.verdict.offer?.c700} here.`);
   return { mode: "scripted", model: llmEnabled ? "scripted (model failed)" : "scripted (no LLM)", text, steps, trace: trace.entries };
 }
 
@@ -403,7 +403,7 @@ function stepOut({ name, args, result, ms, round, think_ms }, lang = "en") {
   let summary;
   if (r.error) summary = `error: ${r.error}`;
   else if (name === "candidate_spots") summary = L(`${r.candidates?.length ?? 0} candidate blocks (computed during the analysis)`, `${r.candidates?.length ?? 0} manzanas candidatas (calculadas en el análisis)`);
-  else if (name === "analyse_address") summary = L(`${V[r.verdict] ?? r.verdict} · demand ${r.demand?.toFixed?.(2) ?? "–"} · ${r.competitors} rivals within 700 m`, `${V[r.verdict] ?? r.verdict} · gusto ${r.demand?.toFixed?.(2).replace(".", ",") ?? "–"} · ${r.competitors} rivales a 700 m`);
+  else if (name === "analyse_address") summary = L(`${V[r.verdict] ?? r.verdict} · demand ${r.demand?.toFixed?.(2) ?? "–"} · ${r.competitors} rival${r.competitors===1?"":"s"} within 700 m`, `${V[r.verdict] ?? r.verdict} · gusto ${r.demand?.toFixed?.(2).replace(".", ",") ?? "–"} · ${r.competitors} rival${r.competitors===1?"":"es"} a 700 m`);
   else if (name === "zone_profile") summary = L(`${r.places} places · `, `${r.places} locales · `) + (r.places_named ?? []).slice(0, 3).map((p) => p.name).join(", ");
   else if (name === "verify_business" && r.note === "direct competitor: not a partner") summary = L("refused: a direct competitor is not a partner", "rechazado: un competidor directo no es un socio");
   else if (name === "verify_business") summary = r.exists === true ? L(`found: ${r.title ?? r.url}`, `encontrado: ${r.title ?? r.url}`) : r.exists === false ? L("not found on the web", "no aparece en la web") : r.note ?? L("not checked", "sin comprobar");

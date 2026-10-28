@@ -219,7 +219,7 @@ export function templateReport(sig, lang = "en") {
     : "";
   const head = {
     "well-served": L(`The area likes ${c} ${how}, but it is already well served: ${topTxt}${o.c700 > 1 ? ` and there are ${o.c700 - 1} more within 700 m` : ""}.`, `A la zona le gusta ${how} ${c}, pero ya está bien servida: ${topTxt}${o.c700 > 1 ? ` y hay ${o.c700 - 1} más a menos de 700 m` : ""}.`),
-    mixed: L(`The area likes ${c} ${how}, with ${o.c700} rivals within 700 m: no clear gap, no saturation.`, `A la zona le gusta ${how} ${c}, con ${o.c700} rivales a menos de 700 m: ni hueco claro ni saturación.`),
+    mixed: L(`The area likes ${c} ${how}, with ${o.c700} rival${o.c700===1?"":"s"} within 700 m: no clear gap, no saturation.`, `A la zona le gusta ${how} ${c}, con ${o.c700} rival${o.c700===1?"":"es"} a menos de 700 m: ni hueco claro ni saturación.`),
     "weak-demand": L(`The taste of the area around ${where} leans away from ${c}.`, `El gusto de la zona de ${where} va por otro lado: ${c} no encaja.`),
     "appetite-without-offer": L(`The area likes ${c} a lot and almost nobody offers it within 700 m.`, `A la zona le gusta mucho ${c} y casi nadie lo ofrece a menos de 700 m.`),
     "no-data": L(`Not enough Qloo data around ${where} to judge ${c}.`, `No hay datos suficientes de Qloo en ${where} para juzgar ${c}.`),
@@ -235,7 +235,7 @@ export function templateReport(sig, lang = "en") {
     : null;
   const share = sig.already_served_by.filter((x) => x.places > 0).map((x) => L(`${x.places} of the ${x.of} most popular places within 500 m already serve ${x.part}.`, `${x.places} de los ${x.of} locales más populares a 500 m ya ${x.places === 1 ? "sirve" : "sirven"} ${esPart(x.part)}.`));
   const b = sig.best_alternative;
-  const alt = b ? [L(`Look ${b.distance_m} m away (green ring): the area likes it even more there and has ${b.c700} rivals within 700 m instead of ${o.c700}.`, `Mira a ${b.distance_m} m (círculo verde): allí gusta aún más y hay ${b.c700} rivales a 700 m en lugar de ${o.c700}.`)] : [];
+  const alt = b ? [L(`Look ${b.distance_m} m away (green ring): the area likes it even more there and has ${b.c700} rival${b.c700===1?"":"s"} within 700 m instead of ${o.c700}.`, `Mira a ${b.distance_m} m (círculo verde): allí gusta aún más y hay ${b.c700} rival${b.c700===1?"":"es"} a 700 m en lugar de ${o.c700}.`)] : [];
   const when = sig.area_profile.when.slice(0, 2).map((w) => N(w.name).toLowerCase()).join(L(" and ", " y "));
   return {
     headline: (head[v.rule_code] ?? head.mixed) + unmeasured,

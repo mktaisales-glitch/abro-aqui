@@ -32,8 +32,8 @@ export function offer({ competitors = [], share = null }) {
   const c700 = competitors.filter((c) => near(c, T.far)).length;
   const strong = competitors.filter((c) => near(c, T.near) && (c.rating ?? 0) >= T.strongRating);
   const why = [], why_es = [];
-  if (c400 >= T.highNear) { why.push(`${c400} rivals within ${T.near} m`); why_es.push(`${c400} rivales a menos de ${T.near} m`); }
-  if (c700 >= T.highFar) { why.push(`${c700} rivals within ${T.far} m`); why_es.push(`${c700} rivales a menos de ${T.far} m`); }
+  if (c400 >= T.highNear) { why.push(`${c400} rival${c400===1?"":"s"} within ${T.near} m`); why_es.push(`${c400} rival${c400===1?"":"es"} a menos de ${T.near} m`); }
+  if (c700 >= T.highFar) { why.push(`${c700} rival${c700===1?"":"s"} within ${T.far} m`); why_es.push(`${c700} rival${c700===1?"":"es"} a menos de ${T.far} m`); }
   if (share != null && share >= T.highShare) { why.push(`${Math.round(share * 100)} % of the popular places nearby already serve it`); why_es.push(`el ${Math.round(share * 100)} % de los locales populares cercanos ya lo sirven`); }
   let level = "MEDIUM";
   if (why.length) level = "HIGH";
@@ -81,15 +81,15 @@ export function verdict(i) {
   } else {
     level = "AMBER";
     code = "mixed";
-    rule = `Taste rank ${d2} with ${o.c700} rivals within ${T.far} m: neither a clear gap nor saturation.`;
-    es = `Gusto ${dec(d2)} con ${o.c700} rivales a ${T.far} m: ni hueco claro ni saturación.`;
+    rule = `Taste rank ${d2} with ${o.c700} rival${o.c700===1?"":"s"} within ${T.far} m: neither a clear gap nor saturation.`;
+    es = `Gusto ${dec(d2)} con ${o.c700} rival${o.c700===1?"":"es"} a ${T.far} m: ni hueco claro ni saturación.`;
   }
 
   const adjustments = [], adjustments_es = [];
   if (level === "AMBER-GREEN" && o.strong_near.length >= 2) {
     level = "AMBER";
-    adjustments.push(`${o.strong_near.length} rivals rated ≥ ${T.strongRating} within ${T.near} m (${o.strong_near.join(", ")}): Promising → Hard`);
-    adjustments_es.push(`${o.strong_near.length} rivales con ≥ ${dec(T.strongRating)} a menos de ${T.near} m (${o.strong_near.join(", ")}): Prometedor → Difícil`);
+    adjustments.push(`${o.strong_near.length} rival${o.strong_near.length===1?"":"s"} rated ≥ ${T.strongRating} within ${T.near} m (${o.strong_near.join(", ")}): Promising → Hard`);
+    adjustments_es.push(`${o.strong_near.length} rival${o.strong_near.length===1?"":"es"} con ≥ ${dec(T.strongRating)} a menos de ${T.near} m (${o.strong_near.join(", ")}): Prometedor → Difícil`);
   }
 
   return {
