@@ -50,7 +50,8 @@ const TXT = {
 const OK = /[\u0000-ÿıŒœˆ˜ -⁯€™−]/;
 const SWAP = { "★": "*", "→": "->", "≥": ">=", "≤": "<=" };
 export function safeText(s) {
-  return [...String(s ?? "")].map((ch) => (OK.test(ch) ? ch : SWAP[ch] ?? (ch.normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^\u0000-ÿ]/g, "") || ""))).join("");
+  // thin and no-break spaces (the app writes "590\u202Fm") are missing from the fonts: plain space
+  return [...String(s ?? "").replace(/[\u00a0\u2000-\u200b\u202f\u205f]/g, " ")].map((ch) => (OK.test(ch) ? ch : SWAP[ch] ?? (ch.normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^\u0000-ÿ]/g, "") || ""))).join("");
 }
 const num = (x, lang, d = 2) => (x == null ? "–" : lang === "es" ? x.toFixed(d).replace(".", ",") : x.toFixed(d));
 const radiusLabel = (r, lang) => (r >= 1000 ? `${String(r / 1000).replace(".", lang === "es" ? "," : ".")} km` : `${r} m`);

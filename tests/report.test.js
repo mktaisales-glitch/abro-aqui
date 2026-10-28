@@ -33,3 +33,8 @@ test("file name is plain ASCII; characters the fonts lack fall back to plain let
   assert.equal(reportFileName({ concept: "Café & tapas", geo: { display_name: "40, Avinguda del Paral·lel, Barcelona" } }), "open-here-cafe-tapas-40-avinguda-del-paral-lel.pdf");
   assert.equal(safeText("Paral·lel, Gràcia, 12 €, 4.6 ★, Łódź"), "Paral·lel, Gràcia, 12 €, 4.6 *, ódz");
 });
+
+test("thin and no-break spaces become plain spaces (the fonts lack them)", async () => {
+  const { safeText } = await import("../src/report-pdf.js");
+  assert.equal(safeText("590 m and 7 rivals"), "590 m and 7 rivals");
+});
