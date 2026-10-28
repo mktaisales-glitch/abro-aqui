@@ -18,3 +18,10 @@ test("scripted scout answers without the model and never mentions partners", { s
     assert.equal(r.steps[0].tool, "candidate_spots");
   }
 });
+
+test("scout numbers must come from the tools: sentences with invented numbers are dropped", async () => {
+  const { groundNumbers } = await import("../src/agent.js");
+  const r = groundNumbers("Move 393 m east: demand 0,97 and 3 rivals within 700 m. It has 12 rivals at 0.55.", [{ distance_m: 393, demand: 0.971, competitors: 3 }]);
+  assert.equal(r.text, "Move 393 m east: demand 0,97 and 3 rivals within 700 m.");
+  assert.equal(r.dropped, 1);
+});

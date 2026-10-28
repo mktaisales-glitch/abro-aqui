@@ -311,6 +311,11 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
       let text = String(r.text ?? "").replace(/\*\*|__|^#+\s*/gm, "").replace(/^\s*[-*]\s+/gm, "").trim();
       text = text.replace(/\b(?:AMBER-GREEN|AMBER‑GREEN|AMBER|RED|UNKNOWN)\b/g, (m) => `«${words[m.replace("‑", "-")]}»`);
       if (es) text = text.replace(/taste[‑ -]rank/gi, "gusto");
+      // every number in the answer must come from a tool result or the analysis; sentences with others are dropped
+      const checked = groundNumbers(text, [ctx.verdict, ctx.heatmap?.demand, ctx.heatmap?.best, ...r.calls.map((c) => c.result)]);
+      if (!checked.text) throw new Error("the answer had no sentence whose numbers came from the tools");
+      text = checked.text;
+      if (checked.dropped) trace.add({ source: "check", url: `scout: ${checked.dropped} sentence(s) dropped (numbers not in the tool results)`, ms: 0, cached: false });
       return { mode: "model", model: r.model, text, steps, trace: trace.entries };
     } catch (e) {
       trace.add({ source: "nebius", url: `scout: ${MODEL_NOTE}`, ms: 0, cached: false, error: String(e.message).slice(0, 80) });
@@ -339,6 +344,21 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
 }
 
 const MODEL_NOTE = "Nemotron 3.5 Lightning";
+
+/** Numbers in free text that the tool results back up (decimals within ±0.006, integers exactly). */
+export function groundNumbers(text, sources) {
+  const known = [150, 200, 250, 300, 400, 500, 700, 800, 1500, 0.75, 0.85, 4.5, 50]; // the rules' own radii and thresholds
+  JSON.stringify(sources, (_k, v) => { if (typeof v === "number") known.push(v); return v; });
+  const ok = (raw) => {
+    const x = Number(raw.replace(",", "."));
+    if (!Number.isFinite(x)) return true;
+    if (/[.,]/.test(raw)) return known.some((k) => Math.abs(k - x) < 0.006);
+    return known.some((k) => Math.round(k) === x || Math.abs(k * 100 - x) < 0.6); // integers, or percentages of a share
+  };
+  const sentences = String(text).split(/(?<=[.!?])\s+/);
+  const kept = sentences.filter((sn) => (sn.match(/\d+(?:[.,]\d+)?/g) ?? []).every(ok));
+  return { text: kept.join(" ").trim(), dropped: sentences.length - kept.length };
+}
 
 /** A compact, display-ready step for the timeline. */
 function stepOut({ name, args, result, ms, round, think_ms }, lang = "en") {
