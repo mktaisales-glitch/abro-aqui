@@ -1,19 +1,21 @@
-# Demo video script (Nebius, ≤ 3:00, public YouTube)
+# Demo video script (2:18)
 
-Rules from the judges: the "aha" in the first 30 seconds; say "Nebius Token Factory" and the model names out loud; show the product working, not slides. Voice: the team, in English. Screen: the live demo.
+Screen recording of the live site (ramen at Rambla del Poblenou 100, Barcelona, 28-Oct-2026), edited with zooms, captions, voice-over and music. Sources on screen: Ara (23 Sep 2025) for Barcelona opening costs; Parsa et al., Cornell HRA Quarterly (2005), 2,439 restaurants, for closures.
 
-| Time | Screen | Voice |
+| Time | Scene | Voice-over |
 | --- | --- | --- |
-| 0:00–0:07 | Generic Barcelona street at dusk, "Se traspasa" sign on an unbranded shutter (no business name or number visible) → cut to the app | "Every week someone signs a lease on a gut feeling. Before you do, ask: should I open here?" |
-| 0:07–0:14 | Click "Ramen · Boerum Hill, NYC". Verdict: **Promising**. "People here really want ramen but almost no one serves it." | "Open Here reads the street with Qloo. Ramen in Boerum Hill, Brooklyn: the area wants it, one rival within 700 metres. Promising." |
-| 0:14–0:20 | Click "Seafood · Paral·lel 40". Verdict: **Hard**; Puertecillo at 26 m | "Seafood on Paral·lel, Barcelona: loved, but seven seafood restaurants within 700 metres. Hard." |
-| 0:20–0:40 | Click "Find me a better spot": the agent's steps appear (`candidate_spots` → `analyse_address` on several blocks → `zone_profile`, with times), then its recommendation; the green ring on the map | "So I give an agent one goal. NVIDIA Nemotron 3.5 Lightning, on Nebius Token Factory, picks its own tools and re-checks the blocks around with the same rules: Poble-sec, 750 metres west, has four rivals instead of seven." |
-| 0:40–1:00 | Click "Plan my opening": music, neighbours with ✓ (checked on the live web with Tavily), brands, purple poster zones on the map | "And when you open: what do the customers of the best seafood places here also love? Qloo's taste graph answers across domains: the music for the opening night, the brands to ask for sampling, the neighbours to team up with, and the streets for the posters." |
-| 1:00–1:20 | Open "Why this colour", the two gauges, the price-position line | "The verdict is not the model's mood: it is a rule on Qloo data you can open. Even the price: the €€ tier is taken by a 4.7-star rival; nobody rated 4.5 or more sits at €€€." |
-| 1:20–1:40 | Click "Ramen · Sants" (**Not here**, 0.57), then "Waffles · Gran Via 400": the headline ends "Qloo has no data on waffles here" | "It also says no: ramen in Sants ranks 0.57. And it is honest about what it cannot see. Waffles? Qloo has no waffle data in this part of town, so it says so, instead of inventing a gap." |
-| 1:40–2:00 | Tab "Without Qloo" side by side | "Without Qloo, the language model alone invents a neighbourhood. With it, every number and every name is traceable." |
-| 2:00–2:25 | Tab "How I know", then README models table | "Three Nemotron models, each for its job: Nano turns 'gofres y helados' into parts Qloo can match, Lightning runs the agents, Super writes the report as validated JSON, and code drops any name it did not get from Qloo." |
-| 2:25–2:45 | "What Qloo cannot see" with the three questions | "And it tells you what it cannot see: foot traffic, rent and income. There is no automatic green." |
-| 2:45–3:00 | Logo + URL | "Open Here. Open where your idea belongs." |
-
-Recording: OBS at 1920×1080, browser zoom at 110 %, cursor highlight on. Record voice separately. Keep total under 2:58.
+| 0:00 | Hook — premises | Imagine you've found the perfect premises for your restaurant. |
+| 0:03 | Hook — Barcelona costs (Ara, 23 Sep 2025) | In Barcelona, a renovation can cost three thousand euros per square metre. A licence can add a hundred thousand more. A hundred-square-metre restaurant in the Eixample needs at least four hundred thousand euros to open. |
+| 0:18 | Hook — €400,000 at stake | Four hundred thousand euros... on the line, before your first customer walks in. |
+| 0:24 | Hook — 6 in 10 (Parsa et al., 2005) | And in one study of nearly two and a half thousand restaurants, six in ten closed or changed hands within three years. Failure was highest where restaurants crowd together. |
+| 0:35 | Open Here: value and three pillars | Open Here helps small business owners choose where to open, before they sign. It reads what a street really likes with Qloo's taste data, counts the rivals already there, and uses NVIDIA Nemotron agents on Nebius to look for a better block nearby. |
+| 0:51 | Access: abro-aqui.onrender.com | It's free to try. Go to abro-aqui.onrender.com. No sign-up. |
+| 0:56 | Use: concept + street + area | Type your idea, the street, and how far around to look. Then press the button. |
+| 1:05 | Verdict | The verdict: Hard. The area likes ramen, but three places already serve it. |
+| 1:10 | Map and better spot | The map shows taste block by block. The green ring marks a block nearby that the same rules rate better. And every number has a reason you can open. |
+| 1:19 | Agent (Nemotron 3.5 Lightning, Nebius Token Factory) | Find a better spot hands the question to an agent. NVIDIA Nemotron on Nebius Token Factory picks its own steps and calls the tools, then weighs that block against your address and explains its choice. Code drops any number the tools didn't return. |
+| 1:35 | Opening plan (Qloo cross-domain) | Plan the opening uses Qloo across domains: what customers of the best ramen places nearby also love. Music, brands, and neighbours to team up with. |
+| 1:45 | With / without Qloo | The comparison tab shows what Qloo adds: the real rivals around the corner, by name, rating and distance. Without that data, a model can only guess. |
+| 1:55 | What fits here | Already have premises? Switch mode, and it ranks fifteen food and drink ideas for that address. |
+| 2:02 | PDF report | And when you're done, download the full report as a PDF: the address, the verdict and every reason behind it. Ready for your partner, or your bank. |
+| 2:11 | Close | Open Here. Know before you sign. Try it free at abro-aqui.onrender.com. |
