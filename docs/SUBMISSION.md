@@ -16,7 +16,7 @@
 In Barcelona, two businesses we knew closed: a seafood restaurant on Avinguda del Paral·lel and a waffle-and-ice-cream shop at Gran Via and Entença. Both owners chose the address the way most small businesses do: gut feeling, a friend's opinion, a walk around the block. Big chains pay location-intelligence firms for this decision. The owner of one shop can't. Agents can now do the analyst's job, if they know what the neighbourhood actually likes. That's what Qloo knows.
 
 ### What it does
-You type a concept ("seafood restaurant", "gofres y helados", "hair salon") and an address, and choose the area around it (500 m to 2 km). Or you type only the address of premises you have and ask **"what fits?"**: 14 kinds of business ranked with the same rules, from a ramen bar to a hair salon. For one concept you get:
+You type a concept ("seafood restaurant", "gofres y helados", "ramen") and an address, and choose the area around it (500 m to 2 km). Or you type only the address of premises you have and ask **"what fits?"**: 15 restaurant, bar and café concepts ranked with the same rules. For one concept you get:
 
 - **A verdict**: Not here, Hard, Promising or No data. It comes from deterministic rules on Qloo signals, and the rule that fired is shown.
 - **Two gauges**: how much the area likes the concept (Qloo `affinity_rank` around the address) and how much of it is already there (real rivals within 400 and 700 m, and the share of popular places that already serve it).

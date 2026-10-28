@@ -194,10 +194,14 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
 
   const noQloo = await noQlooP;
 
+  // Abro Aquí is for food and drink; Qloo's place data elsewhere is thin, so say so
+  const scopeTags = resolved.map((p) => `${p.heatmap_tag ?? ""} ${p.competitor_tag ?? ""}`).join(" ");
+  const outside_scope = !/restaurant|bar\b|_bar|pub|cafe|coffee|bakery|ice_cream|dessert|tea|wine|cocktail|brewery|food|pizza|ramen|sushi|burger|taco|brunch|deli|bistro|juice/.test(scopeTags);
   return {
     concept,
     lang,
     radius,
+    outside_scope,
     address: geo.display_name,
     geo,
     resolved,

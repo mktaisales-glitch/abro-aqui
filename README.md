@@ -1,12 +1,12 @@
-# Abro Aquí: *should I open here?*
+# Abro Aquí: *should I open my restaurant here?*
 
 **Live demo: https://abro-aqui.onrender.com** (free hosting: the first visit after a quiet spell can take up to a minute)
 
 ![Live: ramen at 200 Schermerhorn Street, Brooklyn comes out Promising](docs/live-promising-brooklyn.jpg)
 
-A small-business owner is about to sign a lease. Abro Aquí shows them, with reasons, what the data says about **this concept** at **this street address** before they spend 50,000–200,000 € finding out: how much the area likes it, how much of it is already there, and a better block nearby if there is one.
+For restaurants, bars and cafés. An owner is about to sign a lease. Abro Aquí shows them, with reasons, what the data says about **this concept** at **this street address** before they spend 50,000–200,000 € finding out: how much the area likes it, how much of it is already there, and a better block nearby if there is one.
 
-Two questions, same rules: **"should I open my idea here?"** (a concept and an address) and **"I have premises: what fits?"** (an address; 14 kinds of business ranked, from restaurants to hair salons; see [`specs/07-explore.md`](specs/07-explore.md)). The owner picks the area around the address: 500 m, 1 km (default), 1.5 km or 2 km.
+Two questions, same rules: **"should I open my idea here?"** (a concept and an address) and **"I have premises: which food business fits?"** (an address; 15 restaurant, bar and café concepts ranked; see [`specs/07-explore.md`](specs/07-explore.md)). The owner picks the area around the address: 500 m, 1 km (default), 1.5 km or 2 km.
 
 Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
 

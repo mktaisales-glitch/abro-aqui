@@ -1,4 +1,4 @@
-// "I have a premises: what fits here?" — the same rules run for a list of concepts at one address, ranked.
+// "I have premises: which food business fits here?" — the same rules run for a list of concepts at one address, ranked.
 // No report and no better-spot search per concept (that is what the full analysis is for): taste rank, offer, verdict.
 import { makeTrace } from "./http.js";
 import * as T from "./tools.js";
@@ -12,9 +12,9 @@ const KNOWN = {
   "coffee shop": ["urn:tag:genre:place:restaurant:coffee_shop", "urn:tag:category:place:coffee_shop"],
   bakery: ["urn:tag:genre:place:restaurant:bakery", "urn:tag:category:place:bakery"],
   "ice cream": ["urn:tag:genre:place:restaurant:ice_cream_shop", "urn:tag:category:place:ice_cream_shop"],
-  "hair salon": ["urn:tag:genre:place:hair_salon", "urn:tag:category:place:hair_salon"],
 };
-export const CONCEPTS = ["seafood restaurant", "pizza", "ramen", "sushi", "burger", "vegan restaurant", "coffee shop", "bakery", "ice cream", "cocktail bar", "hair salon", "gym", "bookstore", "supermarket"];
+// Food and drink only: Qloo knows these places well (hair salons, gyms and shops have too little data to judge).
+export const CONCEPTS = ["seafood restaurant", "pizza", "ramen", "sushi", "burger", "tapas", "vegan restaurant", "mexican restaurant", "italian restaurant", "brunch", "coffee shop", "bakery", "ice cream", "cocktail bar", "wine bar"];
 
 const RANK = { "AMBER-GREEN": 3, AMBER: 2, RED: 1, UNKNOWN: 0 };
 

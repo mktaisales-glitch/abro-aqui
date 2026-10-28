@@ -1,10 +1,10 @@
-# Spec 07 — "I have premises: what fits?" and the analysed area (28-Oct-2026)
+# Spec 07 — "I have premises: which food business fits?" and the analysed area (28-Oct-2026)
 
 **Question:** "I have (or can rent) premises at this address. Which kind of business fits?"
 
-The same verdict rules as spec 01 run for 14 kinds of business at one address: seafood restaurant, pizza, ramen, sushi, burger, vegan restaurant, coffee shop, bakery, ice cream, cocktail bar, hair salon, gym, bookstore, supermarket. Per row: verdict, taste rank around the address (mean `affinity_rank` within 250 m), direct rivals within 700 m and the closest one. Rows are ranked Promising → Hard (neither gap nor saturation first, then well served) → Not here → No data, then by taste rank. No report, no better spot and no model call per row: opening a row runs the full analysis.
+Abro Aquí is for food and drink: Qloo knows restaurants, bars and cafés well and has too little data on hair salons, gyms or shops to judge them (live test: a hair salon in Sants showed 0 rivals, which is missing data, not missing offer). The same verdict rules as spec 01 run for 15 concepts at one address: seafood restaurant, pizza, ramen, sushi, burger, tapas, vegan, Mexican, Italian, brunch, coffee shop, bakery, ice cream, cocktail bar, wine bar. A concept typed in the single analysis that falls outside food and drink gets a visible note saying so. Per row: verdict, taste rank around the address (mean `affinity_rank` within 250 m), direct rivals within 700 m and the closest one. Rows are ranked Promising → Hard (neither gap nor saturation first, then well served) → Not here → No data, then by taste rank. No report, no better spot and no model call per row: opening a row runs the full analysis.
 
-Tags for 7 concepts are fixed (checked on the live API); the rest are resolved with `/v2/tags` and cached. A concept Qloo has no tag for (bookstore, supermarket in our tests) shows "No data" with the reason, never an error. Qloo knows food and drink places best; the page says that rows for hair salons, gyms or shops rest on thinner data.
+Tags for 7 concepts are fixed (checked on the live API); the rest are resolved with `/v2/tags` and cached. A concept Qloo has no tag for shows "No data" with the reason, never an error.
 
 ## Analysed area
 
