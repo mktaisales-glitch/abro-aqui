@@ -273,7 +273,7 @@ export async function scout({ ctx, lang = "en" }) {
   const tools = {
     ...chatTools(ctx, trace),
     candidate_spots: {
-      description: "Busy blocks within 800 m that the verdict rules already rate better than the address, best first (lat, lon, distance_m, level, demand, rivals within 700 m). Start here.",
+      description: "Busy blocks within 800 m that the verdict rules already rate better than the address, best first (lat, lon, distance_m, level, demand, rivals within 700 m), computed during the analysis.",
       parameters: { type: "object", properties: {} },
       run: async () => ({ address_verdict: ctx.verdict.level, address_rivals_700m: ctx.verdict.offer?.c700, candidates: (ctx.candidates ?? []).map(({ lat, lon, distance_m, level, demand, c700, places_200m }) => ({ lat, lon, distance_m, level, demand, rivals_700m: c700, places_200m })) }),
     },

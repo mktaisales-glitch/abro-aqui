@@ -33,6 +33,9 @@ You type a concept ("seafood restaurant", "gofres y helados", "specialty coffee"
 
 On the two real cases: the seafood restaurant at Paral·lel 40 gets **Hard**. The area loves seafood (0.93), but it is already full of it: Puertecillo (4.4★) is 26 m away, 7 seafood restaurants within 700 m, 13 of the 50 most popular places nearby serve seafood. A busy block in Poble-sec, 750 m away, likes it even more, with 4 rivals within 700 m instead of 7. The waffle-and-ice-cream shop at Gran Via 400 also gets **Hard**: 7 ice-cream shops within 700 m; and the report says plainly that Qloo has no waffle data there, instead of inventing a gap.
 
+### Who pays
+Two buyers, same verdict: the owner about to sign (one report before a lease that will cost 50,000–200,000 €), and the commercial real-estate agency that lists dozens of premises a month and can attach a verdict, a better block nearby and a launch plan to every listing (which is the recurring use). Prices we will test: 49 € per report, 199 €/month per agency. Not validated with customers yet.
+
 ### How we built it (what makes it Qloo-powered)
 - `/v2/tags` resolves each part of the concept into a **genre tag** (the heat map only answers to `genre:place:restaurant:*`) and a **category or specialty-dish tag** (competitors). Candidates are scored by word overlap, so "seafood restaurant" does not resolve to "seafood donburi". If a tag returns no data and is not used within 5 km, we fall back to the next candidate.
 - The `urn:heatmap` insight around the address gives, per block, `affinity_rank` (demand against a wide reference, averaged within 250 m), and `affinity`/`popularity`, which are ranks inside the 1.5 km circle: we use them as context and to keep the better spot on busy blocks, never to decide.
@@ -46,7 +49,7 @@ On the two real cases: the seafood restaurant at Paral·lel 40 gets **Hard**. Th
 The agent decides about places, never people. E-mails and phone numbers typed by users are removed before any model or search call. Customer-identity labels that touch protected attributes are filtered out of the audience panel. In the launch plan no place is excluded for who its customers are. Thin-data areas get "No data" rather than a guess, and we document that this favours data-rich areas. It is not for housing, employment or credit decisions. It says what it cannot see.
 
 ### What's next
-Pricing we'd test: 49 € per report for an owner, 199 €/month for commercial real-estate agencies that want a verdict on every listing.
+A backtest on openings and closures with known outcomes, counted as it comes out; talk to five owners and two agencies in Barcelona before setting prices.
 
 ---
 

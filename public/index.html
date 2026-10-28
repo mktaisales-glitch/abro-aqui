@@ -279,7 +279,7 @@ let lang="en",cur=null,map=null,layer=null;
 const T=(en,es)=>lang==="es"?es:en;
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const short=a=>String(a).split(",").slice(0,3).join(",").trim();
-const n2=x=>x==null?"–":(+x).toFixed(2);
+const n2=x=>x==null?"–":lang==="es"?(+x).toFixed(2).replace(".",","):(+x).toFixed(2);
 
 document.querySelectorAll("[data-i]").forEach(el=>el.dataset.en=el.textContent);
 function applyLang(){
