@@ -149,7 +149,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
     supply_by_part: s.supply_by_part,
     already_served_by: s.share,
     gap: s.gap,
-    price_gap: T.priceGap(s.competitors),
+    price_gap: T.priceGap(s.competitors) && { ...T.priceGap(s.competitors), currency: /united states|estados unidos|usa\b|new york|nueva york|brooklyn/i.test(geo.display_name) ? "$" : /united kingdom|reino unido|london/i.test(geo.display_name) ? "£" : "€" },
     area_profile: profile,
   };
 
@@ -307,7 +307,10 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
     try {
       const r = await chatWithTools({ messages: [{ role: "system", content: "You are the scouting agent of Abro Aquí. Plan your own steps with the tools; never invent numbers or businesses." }, { role: "user", content: goal }], tools, maxRounds: 10, maxTokens: 700, lang });
       const steps = r.calls.map((c) => stepOut(c, lang));
-      const text = String(r.text ?? "").replace(/\*\*|__|^#+\s*/gm, "").replace(/^\s*[-*]\s+/gm, "").trim();
+      const words = { "AMBER-GREEN": es ? "Prometedor" : "Promising", AMBER: es ? "Difícil" : "Hard", RED: es ? "Aquí no" : "Not here", UNKNOWN: es ? "Sin datos" : "No data" };
+      let text = String(r.text ?? "").replace(/\*\*|__|^#+\s*/gm, "").replace(/^\s*[-*]\s+/gm, "").trim();
+      text = text.replace(/\b(?:AMBER-GREEN|AMBER‑GREEN|AMBER|RED|UNKNOWN)\b/g, (m) => `«${words[m.replace("‑", "-")]}»`);
+      if (es) text = text.replace(/taste[‑ -]rank/gi, "gusto");
       return { mode: "model", model: r.model, text, steps, trace: trace.entries };
     } catch (e) {
       trace.add({ source: "nebius", url: `scout: ${MODEL_NOTE}`, ms: 0, cached: false, error: String(e.message).slice(0, 80) });

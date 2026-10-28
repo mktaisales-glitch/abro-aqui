@@ -83,8 +83,8 @@ export function posterZones(cells, { lat, lon }, { n = 3, gap = 300, maxDist = 7
 const entOut = (e) => ({ name: e.name, affinity: e.query?.affinity != null ? Math.round(e.query.affinity * 1000) / 1000 : null, kind: (e.tags ?? []).find((t) => /genre|category/.test(t.type ?? ""))?.name ?? null, tags: (e.tags ?? []).slice(0, 8).map((t) => t.name) });
 
 // Brands a small food, drink or neighbourhood business cannot realistically approach for sampling or a co-branded item.
-const NOT_FOR_SAMPLING = /fashion|apparel|clothing|footwear|shoe|jewel|cosmetic|beauty|skincare|software|app\b|technology|tech\b|electronics|marketplace|travel|airline|bank|insurance|automotive|car\b|telecom|furniture/i;
-const RESTAURANT_BRAND = /restaurant|fast food|burger|pizza|chain|food delivery/i;
+const NOT_FOR_SAMPLING = /ngo|charity|humanitarian|nonprofit|non-profit|political|government|fashion|apparel|clothing|footwear|shoe|jewel|cosmetic|beauty|skincare|software|app\b|technology|tech\b|electronics|marketplace|travel|airline|bank|insurance|automotive|car\b|telecom|furniture/i;
+const RESTAURANT_BRAND = /restaurant|dining|fast food|burger|pizza|chain|food delivery/i;
 /** Brands worth asking: not a rival, not a restaurant chain for a restaurant, not a category a shop cannot approach. */
 export function pickBrands(brands, { rivalNames = [], isRestaurant = false, max = 10 } = {}) {
   const rivals = new Set(rivalNames.map((n) => n.toLowerCase()));
@@ -155,7 +155,8 @@ export function composeFixed(plan, c, ctx, lang = "en") {
   const seeds = c.seeds.map((s) => s.name);
   const away = c.spot ? haversine(ctx.geo.lat, ctx.geo.lon, c.spot.lat, c.spot.lon) : 0;
   const where = away > 50 ? L(`For the better spot, ${away} m away: `, `Para el mejor punto, a ${away} m: `) : "";
-  const headline = where + (seeds.length
+  const lc = (x) => (where ? x.charAt(0).toLowerCase() + x.slice(1) : x);
+  const headline = where + lc(seeds.length
     ? L(`Learned from what the customers of ${list(seeds, es)} (the best-rated rivals nearby) also like.`, `Aprendido de lo que también les gusta a los clientes de ${list(seeds, es)} (los rivales mejor valorados cerca).`)
     : L(`Learned from what people who like ${ctx.concept} around here also like (no rated rival to learn from).`, `Aprendido de lo que también le gusta a quien disfruta de «${ctx.resolved.map((p) => esPart(p.part)).join(" y ")}» por aquí (no hay rival valorado del que aprender).`));
   const posters = c.posters.map((z) => {

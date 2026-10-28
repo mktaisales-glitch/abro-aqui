@@ -134,7 +134,7 @@ Examples: "marisquería" → {"parts":["seafood restaurant"]}; "seafood restaura
 
 const WRITER_SYSTEM = `You are "Abro Aquí", a location-intelligence advisor for small-business owners. You receive structured signals from Qloo (aggregated taste and offer of an area, never about individuals) and a verdict that code already computed. Explain it like a trusted advisor talking to a bar or shop owner: plain words, no jargon, no decimals in the headline, concrete names and metres.
 Rules: never change the verdict; never invent a business, rating or number that is not in the signals; never claim to predict success; refer to people only as "the area" or the customer identities listed. If demand.not_measured_for is not empty, say plainly that taste was only measured for demand.measured_for.
-Signals: verdict (level, rule_fired, adjustments, offer: rivals within 400 m / 700 m and share of popular places that already serve it); demand (rank = Qloo affinity_rank around the address 0-1, how much the area likes the concept compared with a wide reference; vs_surroundings = rank inside the 1.5 km circle); best_alternative (a nearby busy block the same rules rate better, with distance_m and its nearest rivals; null if none); competitors_within_700m; supply_by_part; already_served_by; gap; price_gap (direct rivals within 700 m by price level 1-3 = €/€€/€€€, with the best-rated one; open = no rival there rated 4.5+); area_profile (what the popular places serve, kind, who goes, when).
+Signals: verdict (level, rule_fired, adjustments, offer: rivals within 400 m / 700 m and share of popular places that already serve it); demand (rank = Qloo affinity_rank around the address 0-1, how much the area likes the concept compared with a wide reference; vs_surroundings = rank inside the 1.5 km circle); best_alternative (a nearby busy block the same rules rate better, with distance_m and its nearest rivals; null if none); competitors_within_700m; supply_by_part; already_served_by; gap; price_gap (direct rivals within 700 m by price level 1-3, written with price_gap.currency repeated, e.g. $, $$, $$$; with the best-rated one; open = no rival there rated 4.5+); area_profile (what the popular places serve, kind, who goes, when).
 Respond in {lang}. Return JSON with keys:
 headline: one plain sentence with the main reason behind the verdict (the verdict word is shown separately: never write it, and never write colour words like red, amber or green);
 why: 2-5 bullets, each citing a number or a name from the signals;
@@ -196,12 +196,12 @@ export function templateReport(sig, lang = "en") {
     "no-data": L(`Not enough Qloo data around ${where} to judge ${c}.`, `No hay datos suficientes de Qloo en ${where} para juzgar ${c}.`),
   };
   const comps = sig.competitors_within_700m.slice(0, 3).map((x) => `${x.name} (${x.rating == null ? "–" : es ? String(x.rating).replace(".", ",") : x.rating}★, ${x.distance_m} m)`).join(", ");
-  const EUR = (n) => "€".repeat(n);
+  const EUR = (n) => (sig.price_gap?.currency ?? "€").repeat(n);
   const pg = sig.price_gap;
   const openL = pg?.levels.filter((l) => l.open && l.level <= 3) ?? [];
   const crowded = pg?.levels.filter((l) => !l.open) ?? [];
   const priceAction = pg && openL.length && crowded.length
-    ? L(`Price position: ${crowded.map((l) => `${EUR(l.level)} is taken (${l.best.name} ${l.best.rating}★)`).join(", ")}; nobody rated 4.5+ at ${openL.map((l) => `${EUR(l.level)}${l.rivals ? ` (best: ${l.best?.name ?? "–"} ${l.best?.rating ?? ""}★)` : " (no rival)"}`).join(", ")}. Aim there.`,
+    ? L(`Price position: ${crowded.map((l) => `${EUR(l.level)} is taken (${l.best.name} ${l.best.rating}★)`).join(", ")}; nobody rated 4.5+ at ${openL.map((l) => `${EUR(l.level)}${l.rivals ? ` (best: ${l.best?.name ?? "–"} ${l.best?.rating ?? ""}★)` : " (no rival)"}`).join(", ")}. Worth a look if your costs fit that price.`,
         `Posición de precio: ${crowded.map((l) => `${EUR(l.level)} está cogido (${l.best.name} ${String(l.best.rating).replace(".", ",")}★)`).join(", ")}; nadie con 4,5+ en ${openL.map((l) => `${EUR(l.level)}${l.rivals ? ` (el mejor: ${l.best?.name ?? "–"} ${String(l.best?.rating ?? "").replace(".", ",")}★)` : " (sin rival)"}`).join(", ")}. Vale la pena estudiarlo si tus costes encajan en ese precio.`)
     : null;
   const share = sig.already_served_by.filter((x) => x.places > 0).map((x) => L(`${x.places} of the ${x.of} most popular places within 500 m already serve ${x.part}.`, `${x.places} de los ${x.of} locales más populares a 500 m ya ${x.places === 1 ? "sirve" : "sirven"} ${esPart(x.part)}.`));
