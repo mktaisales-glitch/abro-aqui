@@ -75,8 +75,8 @@ export function verdict(i) {
   } else if (o.level === "LOW" && demand >= T.demandStrong) {
     level = "AMBER-GREEN";
     code = "appetite-without-offer";
-    rule = `Strong taste for it (rank ${d2} ≥ ${T.demandStrong}) and little offer (${o.c700} rivals within ${T.far} m): appetite without offer.`;
-    es = `Mucho gusto por ello (${dec(d2)} ≥ ${dec(T.demandStrong)}) y poca oferta (${o.c700} rivales a ${T.far} m): apetito sin oferta.`;
+    rule = `Strong taste for it (rank ${d2} ≥ ${T.demandStrong}) and little offer (${o.c700} rival${o.c700 === 1 ? "" : "s"} within ${T.far} m): appetite without offer.`;
+    es = `Mucho gusto por ello (${dec(d2)} ≥ ${dec(T.demandStrong)}) y poca oferta (${o.c700} rival${o.c700 === 1 ? "" : "es"} a ${T.far} m): apetito sin oferta.`;
   } else {
     level = "AMBER";
     code = "mixed";

@@ -137,6 +137,7 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
 .mapwrap{position:relative;min-height:420px;background:var(--asphalt)}
 @media(max-width:900px){.mapwrap{height:45vh}body:not(.has-result) .mapwrap{display:none}body.has-result .mapwrap{order:-1;height:38vh;min-height:260px}}
 #map{position:absolute;inset:0}
+.osm-tiles{filter:grayscale(1) contrast(.9) brightness(1.06)}
 .legend{position:absolute;left:14px;bottom:14px;z-index:500;background:#fff;border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 1px 0 var(--line),0 0 0 1px var(--line)}
 .legend .ramp{height:8px;width:160px;border-radius:4px;background:linear-gradient(90deg,#fde3cf,#f7a35c,#EF751F,#D4421B,#7a1e08);margin:4px 0 2px}
 .legend .ends{display:flex;justify-content:space-between;color:var(--ink-3)}
@@ -296,7 +297,7 @@ EXAMPLES.forEach(([c,a,label])=>{const b=document.createElement("button");b.type
 function initMap(){
   if(map)return;
   map=L.map("map",{zoomControl:true,attributionControl:true}).setView([41.385,2.165],13);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",maxZoom:19}).addTo(map);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap contributors",maxZoom:19,className:"osm-tiles"}).addTo(map);
 }
 initMap();
 
@@ -336,7 +337,7 @@ function render(d,keep=false){
   const hm=d.heatmap,bc=hm.best,of=v.offer||{c400:0,c700:0},part=esc(d.measured?.[0]??d.resolved.find(p=>p.heatmap_tag)?.part);
   const beats=hm.local!=null?Math.round(hm.local*100):null;
   gauge($("#g-aff"),T("How much the area likes it","Cuánto le gusta a la zona"),hm.demand,[[.75,T("◂ red","◂ rojo")],[.85,T("promising ▸","prometedor ▸")]],T(`Qloo taste rank for “${part}” around the address (${hm.cells_used} blocks within 250 m), against a wide reference.${beats!=null?` Inside this 1.5 km circle the address beats ${beats} % of blocks.`:""}${d.unmeasured?.length?` Not measured: ${esc(d.unmeasured.join(", "))} (no Qloo taste data).`:""}`,`Puntuación de gusto de Qloo por «${part}» alrededor de la dirección (${hm.cells_used} manzanas a 250 m), frente a una referencia amplia.${beats!=null?` Dentro de este círculo de 1,5 km supera al ${beats} % de las manzanas.`:""}${d.unmeasured?.length?` Sin medir: ${esc(d.unmeasured.join(", "))} (Qloo no tiene datos de gusto).`:""}`),{min:.5,max:1});
-  gauge($("#g-sup"),T("How much of it is already there","Cuánto hay ya"),of.c700,[[6,T("well served from 6","bien servida desde 6")]],T(`Direct rivals: ${of.c400} within 400 m, ${of.c700} within 700 m${of.share!=null?`; ${Math.round(of.share*100)} % of the 50 most popular places within 500 m already serve it`:""}. Well served from 3 within 400 m, 6 within 700 m or 20 %.`,`Rivales directos: ${of.c400} a 400 m, ${of.c700} a 700 m${of.share!=null?`; el ${Math.round(of.share*100)} % de los 50 locales más populares a 500 m ya lo sirve`:""}. Bien servida desde 3 a 400 m, 6 a 700 m o un 20 %.`),{min:0,max:10,fmt:x=>T(`${x} rivals`,`${x} rivales`)});
+  gauge($("#g-sup"),T("How much of it is already there","Cuánto hay ya"),of.c700,[[6,T("well served from 6","bien servida desde 6")]],T(`Direct rivals: ${of.c400} within 400 m, ${of.c700} within 700 m${of.share!=null?`; ${Math.round(of.share*100)} % of the 50 most popular places within 500 m already serve it`:""}. Well served from 3 within 400 m, 6 within 700 m or 20 %.`,`Rivales directos: ${of.c400} a 400 m, ${of.c700} a 700 m${of.share!=null?`; el ${Math.round(of.share*100)} % de los 50 locales más populares a 500 m ya lo sirve`:""}. Bien servida desde 3 a 400 m, 6 a 700 m o un 20 %.`),{min:0,max:10,fmt:x=>T(`${x} rival${x===1?"":"s"}`,`${x} rival${x===1?"":"es"}`)});
   $("#bestnote").textContent=bc?T(`Better spot: ${bc.distance_m} m away (green ring) on a busy block, the area likes it more (${n2(bc.demand)}) and there are ${bc.c700} rivals within 700 m instead of ${of.c700}.${bc.density_unchecked?" (Street density not checked: Qloo did not answer.)":""}`,`Mejor punto: a ${bc.distance_m} m (círculo verde), en una manzana con vida; allí gusta más (${n2(bc.demand)}) y hay ${bc.c700} rivales a 700 m en lugar de ${of.c700}.${bc.density_unchecked?" (Densidad de la calle sin comprobar: Qloo no respondió.)":""}`):T("No nearby busy block scores better under the same rules.","Ninguna manzana con vida cercana sale mejor con las mismas reglas.");
   const comps=d.competitors.slice(0,8);
   $("#comph").textContent=T(`Direct competitors within 700 m: ${d.competitors.length}`,`Competencia directa a 700 m: ${d.competitors.length}`);
