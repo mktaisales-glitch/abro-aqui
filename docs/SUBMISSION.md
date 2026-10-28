@@ -16,7 +16,7 @@
 In Barcelona, two businesses we knew closed: a seafood restaurant on Avinguda del Paral·lel and a waffle-and-ice-cream shop at Gran Via and Entença. Both owners chose the address the way most small businesses do: gut feeling, a friend's opinion, a walk around the block. Big chains pay location-intelligence firms for this decision. The owner of one shop can't. Agents can now do the analyst's job, if they know what the neighbourhood actually likes. That's what Qloo knows.
 
 ### What it does
-You type a concept ("seafood restaurant", "gofres y helados", "specialty coffee") and an address. You get:
+You type a concept ("seafood restaurant", "gofres y helados", "hair salon") and an address, and choose the area around it (500 m to 2 km). Or you type only the address of premises you have and ask **"what fits?"**: 14 kinds of business ranked with the same rules, from a ramen bar to a hair salon. For one concept you get:
 
 - **A verdict**: Not here, Hard, Promising or No data. It comes from deterministic rules on Qloo signals, and the rule that fired is shown.
 - **Two gauges**: how much the area likes the concept (Qloo `affinity_rank` around the address) and how much of it is already there (real rivals within 400 and 700 m, and the share of popular places that already serve it).
@@ -43,7 +43,7 @@ Two buyers, same verdict: the owner about to sign (one report before a lease tha
 - Seeded with the entity ids of the best-rated rivals (`signal.interests.entities`), the insights for `urn:entity:artist`, `urn:entity:brand` and `urn:entity:place` (600 m) build the launch plan: cross-domain taste from the customers of the places that already win on that street.
 - Without tags, within 500 m, it gives the 50 most popular places, whose cuisine, category, customer-identity and time-of-day tags become the area profile and the share of places that already serve the concept.
 - The verdict is deterministic and specified in `specs/01-verdict.md`, which documents how we corrected our first reading of the heat map. The LLM explains; it never decides.
-- Spec-driven: six spec files, 31 tests (verdict rules, the two recorded cases end to end, LLM wiring and JSON extraction, launch-plan selection against a Qloo mock, Qloo rate limiting, the scout's fallback, personal-data scrub; the 5 that replay recorded Qloo responses skip on a public clone because recordings are not published), offline replay of recorded Qloo responses.
+- Spec-driven: seven spec files, 32 tests (verdict rules, the two recorded cases end to end, LLM wiring and JSON extraction, launch-plan selection against a Qloo mock, Qloo rate limiting, the scout's fallback, personal-data scrub; the 5 that replay recorded Qloo responses skip on a public clone because recordings are not published), offline replay of recorded Qloo responses.
 
 ### Responsible use
 The agent decides about places, never people. E-mails and phone numbers typed by users are removed before any model or search call. Customer-identity labels that touch protected attributes are filtered out of the audience panel. In the launch plan no place is excluded for who its customers are. Thin-data areas get "No data" rather than a guess, and we document that this favours data-rich areas. It is not for housing, employment or credit decisions. It says what it cannot see.

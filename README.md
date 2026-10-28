@@ -6,6 +6,8 @@
 
 A small-business owner is about to sign a lease. Abro Aquí shows them, with reasons, what the data says about **this concept** at **this street address** before they spend 50,000–200,000 € finding out: how much the area likes it, how much of it is already there, and a better block nearby if there is one.
 
+Two questions, same rules: **"should I open my idea here?"** (a concept and an address) and **"I have premises: what fits?"** (an address; 14 kinds of business ranked, from restaurants to hair salons; see [`specs/07-explore.md`](specs/07-explore.md)). The owner picks the area around the address: 500 m, 1 km (default), 1.5 km or 2 km.
+
 Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
 
 - **A verdict**: Not here, Hard, Promising, or No data. The exact rule that produced it is one click away.
@@ -94,12 +96,12 @@ git clone https://github.com/mktaisales-glitch/abro-aqui && cd abro-aqui
 npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
-npm test                  # 31 tests: verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
+npm test                  # 32 tests: verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
                           # 5 of them replay the two Barcelona cases
                           # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (26 run)
 ```
 
-Deploy: `render.yaml` (Render blueprint) or the `Dockerfile`. API: `POST /api/analyze {concept, address, lang, without_qloo}`, `POST /api/chat {id, question}`, `POST /api/scout {id, lang}`, `POST /api/launch {id, lang, at}`, `POST /api/compare {id, address}`, `GET /api/health`.
+Deploy: `render.yaml` (Render blueprint) or the `Dockerfile`. API: `POST /api/analyze {concept, address, lang, without_qloo}`, `POST /api/chat {id, question}`, `POST /api/scout {id, lang}`, `POST /api/launch {id, lang, at}`, `POST /api/explore {address, radius}`, `POST /api/compare {id, address}`, `GET /api/health`. `radius` is 500, 1000 (default), 1500 or 2000.
 
 Offline replay: `OFFLINE=1` serves only recorded responses (`scripts/plan.js` lists every missing call, `scripts/load.js` loads recordings), which is how the tests run without network. Locally (SQLite cache), if a live call fails the server falls back to recordings when they exist; the public demo has no recordings (Qloo responses are not published), so a failed call shows up as an error in "How I know".
 
@@ -121,7 +123,7 @@ Abro Aquí decides about a **place**, never about a **person**. E-mails and phon
 ## Layout
 
 ```
-specs/       spec-driven: 01 verdict (v2 after review) · 02 tools · 03 models and agents · 04 launch plan · 05 safe use · 06 UI
+specs/       spec-driven: 01 verdict (v2 after review) · 02 tools · 03 models and agents · 04 launch plan · 05 safe use · 06 UI · 07 what fits here + analysed area
 src/         http.js (cache, trace) · qloo.js · tools.js · verdict.js · llm.js · agent.js (analysis, chat, scout) · launch.js · i18n.js · safe.js · server.js
 public/      one-page UI (Leaflet and fonts self-hosted, no build step)
 tests/       verdict rules; launch plan against Qloo and Token Factory mocks; end-to-end pipeline on recorded data (local only)
