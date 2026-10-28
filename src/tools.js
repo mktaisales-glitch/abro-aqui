@@ -117,6 +117,16 @@ export function catalanStreet(address) {
   return street + s.slice(i);
 }
 
+/** Only the named Barcelona streets (not the generic Avenida→Avinguda), city not required: for suggestions. */
+export function catalanNamedStreet(q) {
+  const s = String(q ?? "");
+  for (const [re, to] of CAT) {
+    if (/^(Avinguda|Carrer|Passeig|Plaça|Ronda de)$/.test(to)) break;
+    if (re.test(s)) return s.replace(re, to);
+  }
+  return null;
+}
+
 /** Coordinates the visitor picked from the suggestions: used as they are, with the label they saw. Null if invalid. */
 export function geoFromCoords(coords, label) {
   const lat = Number(coords?.lat), lon = Number(coords?.lon);
@@ -137,8 +147,11 @@ export async function suggestPlaces(q, lang = "en", trace) {
   const query = String(q ?? "").trim().slice(0, 120);
   if (query.length < 4) return [];
   // Photon speaks en/de/fr; for Spanish the local names (default) read best
-  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5${lang === "en" ? "&lang=en" : ""}`;
-  const ph = await getJSON(url, { headers: UA, source: "osm", trace });
+  const url = (q) => `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5${lang === "en" ? "&lang=en" : ""}`;
+  // a Barcelona street typed in Spanish ("Avenida del Paralelo 4") is also looked up by its Catalan name, first
+  const alias = catalanNamedStreet(query);
+  const lists = await Promise.all([alias, query].filter(Boolean).map((q) => getJSON(url(q), { headers: UA, source: "osm", trace }).catch(() => null)));
+  const ph = { features: lists.flatMap((l) => l?.features ?? []) };
   const seen = new Set();
   return (ph?.features ?? []).map((f) => ({ ...photonLabel(f.properties), lat: f.geometry?.coordinates?.[1], lon: f.geometry?.coordinates?.[0] }))
     .filter((x) => Number.isFinite(x.lat) && Number.isFinite(x.lon) && x.label && !seen.has(x.label + x.country) && seen.add(x.label + x.country))

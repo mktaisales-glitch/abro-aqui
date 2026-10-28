@@ -25,3 +25,10 @@ test("scout numbers must come from the tools: sentences with invented numbers ar
   assert.equal(r.text, "Move 393 m east: demand 0,97 and 3 rivals within 700 m.");
   assert.equal(r.dropped, 1);
 });
+
+test("Barcelona streets typed in Spanish are also suggested by their Catalan name", async () => {
+  const { catalanNamedStreet } = await import("../src/tools.js");
+  assert.equal(catalanNamedStreet("Avenida del Paralelo 4"), "Avinguda del Paral·lel 4");
+  assert.equal(catalanNamedStreet("Paseo de Gracia 10"), "Passeig de Gràcia 10");
+  assert.equal(catalanNamedStreet("Calle Mayor 3"), null, "generic street words are not translated without a city");
+});

@@ -388,6 +388,8 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
       const steps = r.calls.map((c) => stepOut(c, lang));
       const words = { "AMBER-GREEN": es ? "Prometedor" : "Promising", AMBER: es ? "Difícil" : "Hard", RED: es ? "Aquí no" : "Not here", UNKNOWN: es ? "Sin datos" : "No data" };
       let text = String(r.text ?? "").replace(/\*\*|__|^#+\s*/gm, "").replace(/^\s*[-*]\s+/gm, "").trim();
+      // the model sometimes prints its plan instead of an answer: never show that to the owner
+      if (/thinking process|^\s*(?:okay|ok|alright|let me|let's|first,|step 1)\b|`(?:analyse_address|zone_profile|candidate_spots)`/i.test(text)) throw new Error("the model wrote its reasoning instead of an answer");
       text = text.replace(/\b(?:AMBER-GREEN|AMBER‑GREEN|AMBER|UNKNOWN)\b/g, (m) => `«${words[m.replace("‑", "-")]}»`)
         .replace(/((?:verdict|veredicto|sale|comes out|is)\s*:?\s*)RED\b/gi, (_m, pre) => `${pre}«${words.RED}»`);
       text = plainVerdictWords(text, lang);
