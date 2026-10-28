@@ -380,7 +380,7 @@ export async function scout({ ctx, lang = "en" }) {
   delete tools.verify_business;
   const goal = `Goal: decide whether there is a better place within about 800 m to open "${ctx.concept}" near ${ctx.address}. The address comes out ${ctx.verdict.level} with ${ctx.verdict.offer?.c700} rival${ctx.verdict.offer?.c700===1?"":"s"} within 700 m and taste rank ${ctx.heatmap.demand}.
 You choose which tools to call, in which order and how many times: compare up to three candidate blocks with analyse_address (pass "lat, lon"), and use zone_profile to say what the recommended block is like.
-Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at most 4 short sentences: the block you recommend (with its distance, verdict, taste rank and rivals) or staying put, and why. The tools return verdict codes; write them as: RED = ${es ? "Aquí no" : "Not here"}, AMBER = ${es ? "Difícil" : "Hard"}, AMBER-GREEN = ${es ? "Prometedor" : "Promising"}, UNKNOWN = ${es ? "Sin datos" : "No data"}.`;
+Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at most 4 short sentences: the block you recommend (with its distance, verdict, taste rank and rivals) or staying put, and why. Name a street only if it appears in the "address" a tool returned; otherwise describe the block by its distance. The tools return verdict codes; write them as: RED = ${es ? "Aquí no" : "Not here"}, AMBER = ${es ? "Difícil" : "Hard"}, AMBER-GREEN = ${es ? "Prometedor" : "Promising"}, UNKNOWN = ${es ? "Sin datos" : "No data"}.`;
 
   if (llmEnabled) {
     try {
@@ -396,7 +396,9 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
       if (es) text = text.replace(/taste[‑ -]rank/gi, "gusto");
       // every number in the answer must come from a tool result or the analysis; sentences with others are dropped
       const checked = groundNumbers(text, [ctx.verdict, ctx.heatmap?.demand, ctx.heatmap?.best, ...r.calls.map((c) => c.result)]);
-      if (!checked.text) throw new Error("the answer had no sentence whose numbers came from the tools");
+      const streets = groundStreets(checked.text, [ctx.address, ...r.calls.map((c) => c.result)]);
+      checked.text = streets.text; checked.dropped += streets.dropped;
+      if (!checked.text) throw new Error("the answer had no sentence whose numbers and streets came from the tools");
       text = checked.text;
       if (checked.dropped) trace.add({ source: "check", url: `scout: ${checked.dropped} sentence(s) dropped (numbers not in the tool results)`, ms: 0, cached: false });
       return { mode: "model", model: r.model, text, steps, trace: trace.entries };
@@ -440,6 +442,19 @@ export function groundNumbers(text, sources) {
   };
   const sentences = String(text).split(/(?<=[.!?])\s+/);
   const kept = sentences.filter((sn) => (sn.match(/\d+(?:[.,]\d+)?/g) ?? []).every(ok));
+  return { text: kept.join(" ").trim(), dropped: sentences.length - kept.length };
+}
+
+/**
+ * Street names in the answer must appear in a tool result or the analysed address: the model likes to place a
+ * block "between Balmes and Tuset" when it is in Poblenou. A sentence that names an unknown street is dropped.
+ */
+export function groundStreets(text, sources) {
+  const fold = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const corpus = fold(JSON.stringify(sources));
+  const RE = /\b(?:calle|carrer|c\/|avenida|avinguda|avda\.?|av\.|rambla|paseo|passeig|plaza|pla[çc]a|ronda|travessera|street|avenue|road|boulevard|rue|via|v[íi]a)\s+(?:(?:de|del|dels|de la|de les|d'|of the|of)\s*)?([A-ZÁÉÍÓÚÀÈÒÇÑÜ][\wÀ-ÿ'·-]+)/g;
+  const sentences = String(text).split(/(?<=[.!?])\s+/);
+  const kept = sentences.filter((sn) => [...sn.matchAll(RE)].every((m) => corpus.includes(fold(m[1]))));
   return { text: kept.join(" ").trim(), dropped: sentences.length - kept.length };
 }
 

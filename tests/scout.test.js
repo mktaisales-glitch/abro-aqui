@@ -32,3 +32,11 @@ test("Barcelona streets typed in Spanish are also suggested by their Catalan nam
   assert.equal(catalanNamedStreet("Paseo de Gracia 10"), "Passeig de Gràcia 10");
   assert.equal(catalanNamedStreet("Calle Mayor 3"), null, "generic street words are not translated without a city");
 });
+
+test("scout answers that name a street missing from the tool results lose that sentence", async () => {
+  const { groundStreets } = await import("../src/agent.js");
+  const r = groundStreets("Recomiendo la zona entre calle Balmes y calle Tuset. Sigue en la Rambla del Poblenou.", ["Rambla del Poblenou 100, Barcelona", { address: "Carrer de Pujades, Poblenou" }]);
+  assert.equal(r.text, "Sigue en la Rambla del Poblenou.");
+  assert.equal(r.dropped, 1);
+  assert.equal(groundStreets("Mira el Carrer de Pujades, a 300 m.", [{ address: "Carrer de Pujades" }]).dropped, 0);
+});
