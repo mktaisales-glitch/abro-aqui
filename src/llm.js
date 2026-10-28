@@ -14,14 +14,17 @@ const key = process.env.NEBIUS_API_KEY?.trim();
 export const llmEnabled = !!key;
 const client = llmEnabled ? new OpenAI({ baseURL: process.env.NEBIUS_BASE_URL || "https://api.tokenfactory.nebius.com/v1/", apiKey: key, timeout: Number(process.env.LLM_TIMEOUT_MS) || 25000, maxRetries: 0 }) : null;
 
+// Models sometimes return list items as small objects ({point, detail}); they are flattened to text, and long lists cut.
+const text = (x) => (typeof x === "string" ? x : x && typeof x === "object" ? Object.values(x).filter((v) => typeof v === "string" || typeof v === "number").join(": ") : String(x ?? ""));
+const strList = (min, max) => z.array(z.any()).transform((a) => a.map(text).filter(Boolean).slice(0, max)).pipe(z.array(z.string()).min(min));
 export const ReportSchema = z.object({
-  headline: z.string().max(200),
-  why: z.array(z.string()).min(2).max(5),
-  gap: z.array(z.string()).max(4).default([]),
-  audience: z.array(z.string()).max(5).default([]),
-  actions: z.array(z.string()).min(2).max(4),
+  headline: z.string().max(240),
+  why: strList(2, 5),
+  gap: strList(0, 4).default([]),
+  audience: strList(0, 5).default([]),
+  actions: strList(2, 4),
   partners: z.array(z.object({ name: z.string(), reason: z.string(), verified: z.boolean().nullable().optional(), source: z.string().nullable().optional() })).max(3).default([]),
-  unknowns: z.array(z.string()).length(3),
+  unknowns: strList(3, 3),
 });
 
 // Hard daily cap on LLM calls: the demo can never spend more than the credits allow, and one visitor cannot use

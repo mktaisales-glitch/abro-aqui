@@ -9,7 +9,7 @@ import { explore } from "./explore.js";
 
 const app = express();
 app.disable("x-powered-by");
-app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1)); // Render: one reverse proxy in front, so req.ip is the client
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 3)); // Render (checked in its logs): client → Cloudflare → Render balancer → app
 // Security headers: everything is self-hosted except the OpenStreetMap tiles and the Nominatim lookups the page makes
 app.use((_req, res, next) => {
   res.set({
