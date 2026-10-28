@@ -6,7 +6,7 @@
 
 ![Live: ramen at 200 Schermerhorn Street, Brooklyn comes out Promising](docs/live-promising-brooklyn.jpg)
 
-For restaurants, bars and cafés. An owner is about to sign a lease. Open Here shows them, with reasons, what the data says about **this concept** at **this street address** before they spend 50,000–200,000 € finding out: how much the area likes it, how much of it is already there, and a better block nearby if there is one.
+For restaurants, bars and cafés. An owner is about to sign a lease. Open Here shows them, with reasons, what the data says about **this concept** at **this street address** before they commit the money: opening a ~100 m² restaurant in Barcelona's Eixample takes at least 400,000 € ([Ara, 23 Sep 2025](https://es.ara.cat/comer/odisea-financiera-burocratica-abrir-restaurante-nuevo-comienza-400-000-euros_1_5505805.html)): how much the area likes it, how much of it is already there, and a better block nearby if there is one.
 
 Two questions, same rules: **"should I open my idea here?"** (a concept and an address) and **"I have premises: which food business fits?"** (an address; 15 restaurant, bar and café concepts ranked; see [`specs/07-explore.md`](specs/07-explore.md)). The owner picks the area around the address: 500 m, 1 km (default), 1.5 km or 2 km.
 
@@ -99,7 +99,7 @@ git clone https://github.com/mktaisales-glitch/abro-aqui && cd abro-aqui
 npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
-npm test                  # 38 tests: HTTP layer and security headers, PDF report, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
+npm test                  # 39 tests: HTTP layer and security headers, PDF report, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
                           # 6 of them replay the recorded Barcelona cases
                           # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (32 run)
 ```

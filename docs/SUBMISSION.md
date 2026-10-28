@@ -3,9 +3,10 @@
 ## Common fields
 
 - **Name:** Open Here — should I open my restaurant here?
-- **Tagline (≤ 200 chars):** Locality intelligence for the small shop owner. Tell it a business and a street address: it reads what the area likes and what it already has before you sign a lease.
+- **Tagline (≤ 200 chars):** Should I open my restaurant here? Tell it your idea and a street address: it reads what the area likes and what it already has, finds a better block nearby, and gives you a PDF report before you sign.
 - **Demo:** https://abro-aqui.onrender.com (free plan: the first visit after a quiet spell can take up to a minute)
 - **Repo:** https://github.com/mktaisales-glitch/abro-aqui (MIT)
+- **Video (YouTube, public, 2:18):** _paste link_
 - **Built with:** Qloo Insights API, NVIDIA Nemotron (Nano, Lightning, Super), Nebius Token Factory, Tavily, Node.js, Express, Leaflet, OpenStreetMap, SQLite, zod
 
 ---
@@ -30,11 +31,12 @@ You type a concept ("seafood restaurant", "gofres y helados", "ramen") and an ad
 - **A "what if…?" chat**: "What if I ignore Puertecillo?", "What if I move 300 m?". It calls the tools again and recomputes.
 - **"Without Qloo"**: the same question answered by the LLM alone, so you can see what it invents.
 - **"How I know"**: every Qloo, geocoding, Tavily and model call behind the report, failed ones included.
+- **A downloadable PDF report**: the address, the verdict and the rule behind it, the three key facts, a drawn taste map, the competitors, what the data cannot see, and the agent's answer and opening plan when they were run. Built from the analysis already in memory, no extra API calls.
 
 Live on the public demo: **ramen at 200 Schermerhorn Street, Brooklyn** comes out **Promising** (taste rank 0.92, one rival within 700 m: "People here really want ramen but almost no one serves it"), **ramen at Carrer de Sants 100, Barcelona** comes out **Not here** (0.57). On the two real Barcelona cases: the seafood restaurant at Paral·lel 40 gets **Hard**. The area loves seafood (0.93), but it is already full of it: Puertecillo (4.4★) is 26 m away, 7 seafood restaurants within 700 m, 13 of the 50 most popular places nearby serve seafood. A busy block in Poble-sec, 750 m away, likes it even more, with 4 rivals within 700 m instead of 7. The waffle-and-ice-cream shop at Gran Via 400 also gets **Hard**: 7 ice-cream shops within 700 m; and the report says plainly that Qloo has no waffle data there, instead of inventing a gap.
 
 ### Who pays
-Two buyers, same verdict: the owner about to sign (one report before a lease that will cost 50,000–200,000 €), and the commercial real-estate agency that lists dozens of premises a month and can attach a verdict, a better block nearby and a launch plan to every listing (which is the recurring use). Prices we will test: 49 € / $49 per report, 199 €/month per agency. Not validated with customers yet.
+Two buyers, same verdict: the owner about to sign (one report before an opening that, for ~100 m² in Barcelona's Eixample, takes at least 400,000 €, per Ara, 23 Sep 2025), and the commercial real-estate agency that lists dozens of premises a month and can attach a verdict, a better block nearby and a launch plan to every listing (which is the recurring use). Prices we will test: 49 € / $49 per report, 199 €/month per agency. Not validated with customers yet.
 
 ### How we built it (what makes it Qloo-powered)
 - `/v2/tags` resolves each part of the concept into a **genre tag** (the heat map only answers to `genre:place:restaurant:*`) and a **category or specialty-dish tag** (competitors). Candidates are scored by word overlap, so "seafood restaurant" does not resolve to "seafood donburi". If a tag returns no data and is not used within 5 km, we fall back to the next candidate.
@@ -43,7 +45,7 @@ Two buyers, same verdict: the owner about to sign (one report before a lease tha
 - Seeded with the entity ids of the best-rated rivals (`signal.interests.entities`), the insights for `urn:entity:artist`, `urn:entity:brand` and `urn:entity:place` (600 m) build the launch plan: cross-domain taste from the customers of the places that already win on that street.
 - Without tags, within 500 m, it gives the 50 most popular places, whose cuisine, category, customer-identity and time-of-day tags become the area profile and the share of places that already serve the concept.
 - The verdict is deterministic and specified in `specs/01-verdict.md`, which documents how we corrected our first reading of the heat map. The LLM explains; it never decides.
-- Spec-driven: eight spec files, 38 tests (HTTP layer and security headers, the PDF report, verdict rules, the two recorded cases end to end, LLM wiring and JSON extraction, launch-plan selection against a Qloo mock, Qloo rate limiting, the scout's fallback, personal-data scrub; the 6 that replay recorded Qloo responses skip on a public clone because recordings are not published), offline replay of recorded Qloo responses.
+- Spec-driven: eight spec files, 39 tests (HTTP layer and security headers, the PDF report, verdict rules, the two recorded cases end to end, LLM wiring and JSON extraction, launch-plan selection against a Qloo mock, Qloo rate limiting, the scout's fallback, personal-data scrub; the 6 that replay recorded Qloo responses skip on a public clone because recordings are not published), offline replay of recorded Qloo responses.
 
 ### Responsible use
 The agent decides about places, never people. E-mails and phone numbers typed by users are removed before any model or search call. Customer-identity labels that touch protected attributes are filtered out of the audience panel. In the launch plan no place is excluded for who its customers are. Thin-data areas get "No data" rather than a guess, and we document that this favours data-rich areas. It is not for housing, employment or credit decisions. It says what it cannot see.
