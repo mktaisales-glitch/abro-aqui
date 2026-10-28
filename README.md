@@ -14,6 +14,8 @@ Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
 - **The area**: among the 50 most popular places within 500 m, what they serve, who goes and when.
 - **What to do**: positioning, opening hours and where to move.
 - **What Qloo cannot see**: foot traffic, rent and income. The owner answers these three, and only then does "Promising" become a green light.
+- **Second opinion agent**: one goal ("find a better spot and partners"); Nemotron 3.5 Lightning plans the steps with the tools and the page shows each step with its time.
+- **Launch plan, "where do I announce it?"**: learned from the customers of the best-rated rivals nearby, through Qloo's taste graph: music for the opening, brands to ask for sampling, neighbours to team up with (not competitors, checked on the web) and the poster zones on the map, with a 4-week plan. The model chooses among Qloo's candidates; code drops any name it invents ([`specs/04-launch.md`](specs/04-launch.md)).
 - **"What if…?" chat**: "What if I ignore Puertecillo?", "What about Carrer de Blai?". The agent calls the tools again and recomputes the verdict.
 - **"Without Qloo"**: the same question answered by the language model alone, so you can see what it makes up.
 - **"How I know"**: every Qloo, geocoding and Tavily call behind the report (failed ones too) and every model call with its time, without the key.
@@ -31,6 +33,7 @@ The verdict is computed from Qloo signals. Without them, a language model guesse
 | `GET /v2/insights?filter.type=urn:entity:place&filter.location=…&filter.location.radius=700&filter.tags=<category or dish tag>` | direct competitors: name, `business_rating`, `price_level`, coordinates, `is_closed` |
 | `GET /v2/insights?filter.type=urn:entity:place&filter.location=…&filter.location.radius=500&take=50` | the 50 most popular places nearby; their cuisine, category, customer-identity and time-of-day tags make the area profile |
 | `GET /v2/insights?…&filter.location.radius=5000&take=1` | checks whether a tag is actually used nearby before trusting an empty competitor list |
+| `GET /v2/insights?filter.type=urn:entity:artist` / `urn:entity:brand` / `urn:entity:place` with `signal.interests.entities=<best-rated rivals>` | launch plan: what the customers of the places that already win here also like (music, brands, nearby non-competing places) |
 
 Everything Qloo returns is aggregated and about places. The key stays on the server, and responses are cached for 24 hours.
 
@@ -65,7 +68,7 @@ Three models, one OpenAI-compatible endpoint (`https://api.tokenfactory.nebius.c
 | --- | --- | --- |
 | Turn a free-text concept in any language into English parts Qloo can match ("gofres y helados" → `["waffles","ice cream"]`) | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`, JSON mode | tiny, cheap, 1.5 s |
 | "What if…?" chat with **tool calling**: `nearby_competitors`, `analyse_address`, `zone_profile`, `verify_business` | `nvidia/Nemotron-3_5-Lightning` | 0.7 s per tool decision in our tests; a question can trigger several calls |
-| Write the report from the structured signals, as JSON validated with zod (with one repair round) | `nvidia/nemotron-3-super-120b-a12b` | better grounded prose over a large context |
+| Write the report from the structured signals, and choose the launch plan among Qloo's candidates, as JSON validated with zod (with one repair round) | `nvidia/nemotron-3-super-120b-a12b` | better grounded prose over a large context |
 
 No agent framework: the tool loop is a short function in `src/llm.js`. A daily cap on model calls (`LLM_DAILY_CAP`, repair rounds included) and a 25 s timeout per call keep the public demo within its credits. Without `NEBIUS_API_KEY` the app runs in template mode (plain-language report in English or Spanish): the Qloo analysis and the verdict still work.
 

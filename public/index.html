@@ -108,6 +108,13 @@ h3{font-size:13px;font-weight:600;margin:0 0 6px;color:var(--ink-2)}
 .steps2 code{font-size:12px;background:rgba(0,0,0,.05);padding:1px 5px;border-radius:4px}
 .steps2 .ms{color:#777;font-size:12px;white-space:nowrap}
 .scouttext{font-weight:600;margin:12px 0 0}
+.launch{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px;margin-top:12px}
+.launch h3{margin:0 0 4px}
+.launch ul{margin:0;padding-left:18px;font-size:13.5px}
+.launch li{margin-bottom:4px}
+.launch .ok{font-weight:600;color:#1e5c36}
+.weeks{margin:12px 0 0;padding-left:18px;font-size:13.5px}
+@media (max-width:640px){.launch{grid-template-columns:1fr}}
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .msg{padding:9px 12px;border-radius:12px;font-size:14px;white-space:pre-wrap;max-width:92%}
 .msg.me{justify-self:end;background:var(--ink);color:#fff;border-bottom-right-radius:4px}
@@ -210,6 +217,21 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
         <p id="scouttext" class="scouttext"></p>
       </section>
 
+      <section class="s" id="launchbox">
+        <h2 data-i="launchh">Plan the opening: where to announce it</h2>
+        <p class="note" style="margin:0 0 10px" data-i="launchhelp">Learned from the customers of the best-rated places that already serve your idea nearby: the music they listen to, the brands they like, the neighbours they also visit (not competitors), and the busiest blocks where the area likes your idea most.</p>
+        <button type="button" class="scoutgo" id="launchgo" data-i="launchgo">Plan my opening</button>
+        <p id="launchhead" class="scouttext"></p>
+        <div class="launch" id="launch" hidden>
+          <div><h3 data-i="lmusic">Music for the opening</h3><ul id="lmusic"></ul></div>
+          <div><h3 data-i="lco">Neighbours to team up with</h3><ul id="lco"></ul></div>
+          <div><h3 data-i="lbrands">Brands to ask for sampling</h3><ul id="lbrands"></ul></div>
+          <div><h3 data-i="lposters">Posters and flyers</h3><ul id="lposters"></ul></div>
+        </div>
+        <ol class="weeks" id="lweeks"></ol>
+        <p class="note" id="lby"></p>
+      </section>
+
       <section class="s">
         <h2 data-i="chat">Ask “what if…?”</h2>
         <div class="chips" id="chips"></div>
@@ -248,7 +270,7 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script>
-const ES={lead:"Dile un negocio y una dirección. Lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",concept:"Negocio",address:"Dirección o «lat, lon»",go:"¿Abro aquí?",rule:"Por qué este color",numbers:"Lo que dice la zona",gap:"Nadie cerca ofrece",who:"Quién va",when:"Cuándo",serves:"Qué sirven",whyh:"Por qué",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",chat:"Pregunta «¿y si…?»",ask:"Preguntar",how:"Cómo lo sé",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",legend:"Cuánto le gusta a la zona",low:"poco",high:"mucho",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo",scouth:"Segunda opinión: deja que el agente mire alrededor",scouthelp:"Un objetivo y el agente decide los pasos: revisa las manzanas cercanas con las mismas reglas, busca locales complementarios y verifica socios en la web.",scoutgo:"Búscame un sitio mejor y socios"};
+const ES={lead:"Dile un negocio y una dirección. Lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",concept:"Negocio",address:"Dirección o «lat, lon»",go:"¿Abro aquí?",rule:"Por qué este color",numbers:"Lo que dice la zona",gap:"Nadie cerca ofrece",who:"Quién va",when:"Cuándo",serves:"Qué sirven",whyh:"Por qué",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",chat:"Pregunta «¿y si…?»",ask:"Preguntar",how:"Cómo lo sé",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",legend:"Cuánto le gusta a la zona",low:"poco",high:"mucho",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo",scouth:"Segunda opinión: deja que el agente mire alrededor",scouthelp:"Un objetivo y el agente decide los pasos: revisa las manzanas cercanas con las mismas reglas, busca locales complementarios y verifica socios en la web.",scoutgo:"Búscame un sitio mejor y socios",launchh:"Planifica la apertura: dónde anunciarla",launchhelp:"Aprendido de los clientes de los locales mejor valorados que ya sirven tu idea cerca: la música que escuchan, las marcas que les gustan, los vecinos que también visitan (no competidores) y las manzanas con más vida donde más gusta tu idea.",launchgo:"Planifica mi apertura",lmusic:"Música para la inauguración",lco:"Vecinos con los que aliarte",lbrands:"Marcas para pedir degustación",lposters:"Carteles y flyers"};
 const VERD={en:{RED:"Not here","AMBER":"Hard","AMBER-GREEN":"Promising",UNKNOWN:"No data"},es:{RED:"Aquí no","AMBER":"Difícil","AMBER-GREEN":"Prometedor",UNKNOWN:"Sin datos"}};
 const EXAMPLES=[["seafood restaurant","Avinguda del Paral·lel 40, Barcelona","Seafood · Paral·lel 40"],["waffles and ice cream","Gran Via de les Corts Catalanes 400, Barcelona","Waffles · Gran Via 400"],["specialty coffee","200 Bedford Avenue, Brooklyn, New York","Coffee · Bedford Ave"]];
 const STEPS={en:["Finding the address","Matching your idea to Qloo","Reading taste, offer and competitors","Writing the verdict"],es:["Buscando la dirección","Traduciendo tu idea a Qloo","Leyendo gusto, oferta y competencia","Escribiendo el veredicto"]};
@@ -327,7 +349,7 @@ function render(d){
   $("#actions").innerHTML=rep.actions.map(x=>`<li>${esc(x)}</li>`).join("")+`<li class="note" style="list-style:none;margin-top:6px">${T("Information to help you decide, not financial, legal or real-estate advice. Check foot traffic, rent and licences before you sign.","Información para ayudarte a decidir, no asesoramiento financiero, legal ni inmobiliario. Comprueba tráfico, alquiler y licencias antes de firmar.")}</li>`;
   $("#partnersbox").hidden=!rep.partners.length;$("#partners").innerHTML=rep.partners.map(x=>`<li><b>${esc(x.name)}</b>${x.verified?` <span class="ok" title="${esc(x.source||"")}">✓ ${T("found on the web","encontrado en la web")}</span>`:""}: ${esc(x.reason)}</li>`).join("");
   $("#unknowns").innerHTML=rep.unknowns.map((u,k)=>`<label>${esc(u)}<input data-u="${k}" placeholder="${T("your answer","tu respuesta")}"></label>`).join("");
-  $("#unkres").textContent="";$("#scoutsteps").innerHTML="";$("#scouttext").textContent="";document.querySelectorAll("#scoutbox p.note:not([data-i])").forEach(x=>x.remove());
+  $("#unkres").textContent="";$("#launch").hidden=true;$("#launchhead").textContent="";$("#lweeks").innerHTML="";$("#lby").textContent="";if(window.launchLayer)launchLayer.remove();$("#scoutsteps").innerHTML="";$("#scouttext").textContent="";document.querySelectorAll("#scoutbox p.note:not([data-i])").forEach(x=>x.remove());
   $("#unknowns").oninput=()=>{const all=[...document.querySelectorAll("[data-u]")].every(i=>i.value.trim());$("#unkres").textContent=all?(v.level==="AMBER-GREEN"?T("With these three checked, this is your green.","Con estas tres comprobadas, este es tu verde."):T("Noted. The data still says "+VERD.en[v.level].toLowerCase()+": your answers do not change the taste of the area.","Anotado. Los datos siguen diciendo «"+VERD.es[v.level].toLowerCase()+"»: tus respuestas no cambian el gusto de la zona.")):""};
   const chips=lang==="es"?["¿Y si ignoro al competidor más cercano?","Analiza el mejor punto cercano (círculo verde)","¿Qué socios me sugieres?","¿A qué hora debería abrir?"]:["What if I ignore the closest competitor?","Analyse the better spot nearby (green ring)","Which partners would you suggest?","What hours should I open?"];
   $("#chips").innerHTML=chips.map(c=>`<button type="button">${c}</button>`).join("");
@@ -358,6 +380,26 @@ $("#scoutgo").onclick=async()=>{
     const by=document.createElement("p");by.className="note";by.textContent=d.mode==="model"?T(`Planned by ${d.model} on Nebius Token Factory.`,`Planificado por ${d.model} en Nebius Token Factory.`):T("Scripted steps (no model configured).","Pasos fijos (sin modelo configurado).");$("#scoutsteps").after(by);
     if(d.trace?.length)$("#trace").insertAdjacentHTML("beforeend",d.trace.map(t=>`<tr><td>${t.source} · ${T("agent","agente")}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join(""));
   }catch(err){$("#scouttext").textContent=err.message}
+  finally{b.disabled=false}
+};
+
+$("#launchgo").onclick=async()=>{
+  if(!cur)return;const b=$("#launchgo");b.disabled=true;$("#launch").hidden=true;$("#lweeks").innerHTML="";$("#lby").textContent="";$("#launchhead").textContent=T("Reading what their customers also like…","Leyendo qué más les gusta a sus clientes…");
+  try{const r=await fetch("/api/launch",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:cur.id,lang})});const d=await r.json();if(!r.ok)throw new Error(d.error);
+    const p=d.plan,c=d.candidates,li=(n,t)=>`<li><b>${esc(n)}</b>${t?": "+esc(t):""}</li>`;
+    $("#launchhead").textContent=p.headline;
+    $("#lmusic").innerHTML=p.music.map(x=>li(x.name,x.why)).join("")||`<li>${T("No artist data here.","Sin datos de artistas aquí.")}</li>`;
+    $("#lco").innerHTML=p.co_promo.map(x=>{const n=c.neighbours.find(y=>y.name===x.name);return`<li><b>${esc(x.name)}</b>${n?.verified?` <span class="ok" title="${esc(n.source||"")}">✓ ${T("found on the web","encontrado en la web")}</span>`:""}${n?.distance_m!=null?` · ${n.distance_m} m`:""}: ${esc(x.idea)}</li>`}).join("")||`<li>${T("No complementary place found nearby.","No hay locales complementarios cerca.")}</li>`;
+    $("#lbrands").innerHTML=p.brands.map(x=>li(x.name,x.idea)).join("")||`<li>–</li>`;
+    $("#lposters").innerHTML=p.posters.map((x,k)=>`<li><b>${T("Zone","Zona")} ${k+1}</b> (${T("purple squares","cuadros morados")}): ${esc(x.why)}</li>`).join("")||`<li>–</li>`;
+    $("#lweeks").innerHTML=p.weeks.map(w=>`<li>${esc(w)}</li>`).join("");
+    $("#launch").hidden=false;
+    $("#lby").textContent=(c.signal==="rivals"?T(`Taste signal: the customers of ${c.seeds.map(s=>s.name).join(", ")}.`,`Señal de gusto: los clientes de ${c.seeds.map(s=>s.name).join(", ")}.`):T("Taste signal: the concept itself (no rated rival to learn from).","Señal de gusto: el propio concepto (no hay rival valorado del que aprender)."))+" "+(d.meta.model==="template"?T("Choices made by fixed rules (no model).","Elegido con reglas fijas (sin modelo)."):T(`Chosen and written by ${d.meta.model} on Nebius Token Factory; names are kept only if they came from Qloo.`,`Elegido y redactado por ${d.meta.model} en Nebius Token Factory; solo se mantienen nombres que vienen de Qloo.`))+` · ${d.total_ms} ms`;
+    if(window.launchLayer)launchLayer.remove();window.launchLayer=L.layerGroup().addTo(map);
+    c.posters.forEach((z,k)=>L.rectangle([[z.lat-.0009,z.lon-.0009],[z.lat+.0009,z.lon+.0009]],{color:"#6B3FA0",weight:2,fillColor:"#6B3FA0",fillOpacity:.25}).bindTooltip(`${T("Posters","Carteles")} ${k+1}`).addTo(launchLayer));
+    c.neighbours.forEach(n=>n.lat&&L.circleMarker([n.lat,n.lon],{radius:5,color:"#6B3FA0",weight:2,fillColor:"#fff",fillOpacity:1}).bindTooltip(`${esc(n.name)}${n.kind?" · "+esc(n.kind):""}`).addTo(launchLayer));
+    if(d.trace?.length)$("#trace").insertAdjacentHTML("beforeend",d.trace.map(t=>`<tr><td>${t.source} · ${T("launch","apertura")}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join(""));
+  }catch(err){$("#launchhead").textContent=err.message}
   finally{b.disabled=false}
 };
 

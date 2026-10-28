@@ -24,6 +24,16 @@ export async function geocode(address, trace) {
   return { lat: +hit.lat, lon: +hit.lon, display_name: hit.display_name };
 }
 
+/** Street name for a point (OpenStreetMap, cached): "Carrer de Blai, Poble-sec". Null if not found. */
+export async function streetAt({ lat, lon }, trace) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&zoom=17&lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`;
+  const r = await getJSON(url, { headers: { "User-Agent": "abro-aqui/0.1 (+https://github.com/mktaisales-glitch/abro-aqui)" }, source: "osm", trace });
+  const a = r?.address ?? {};
+  const road = a.road ?? a.pedestrian ?? a.square ?? null;
+  const area = a.neighbourhood ?? a.quarter ?? a.suburb ?? null;
+  return road ? [road, area].filter(Boolean).join(", ") : area;
+}
+
 // ---------- concept → Qloo tags ----------
 
 const STOP = new Set(["and", "y", "i", "e", "with", "con", "de", "the", "a", "shop", "store", "bar", "restaurant", "place", "specialty", "artisan", "premium", "local", "new"]);
@@ -127,6 +137,7 @@ function placeOut(e, lat, lon) {
   const g = e.location ?? {};
   return {
     name: e.name,
+    id: e.entity_id ?? null,
     rating: e.properties?.business_rating != null ? Math.round(e.properties.business_rating * 10) / 10 : null,
     price_level: e.properties?.price_level ?? null,
     address: e.properties?.address ?? null,

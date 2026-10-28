@@ -15,6 +15,8 @@ export function startMock(port = 3199) {
         message = last.role === "tool" ? { role: "assistant", content: "Ignoring it, 6 competitors remain; the verdict does not change." } : { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "nearby_competitors", arguments: JSON.stringify({ radius_m: 700, exclude_names: ["Puertecillo"] }) } }] };
       } else if (sys.startsWith("Split a business concept")) {
         message = { role: "assistant", content: JSON.stringify({ parts: ["seafood restaurant"] }) };
+      } else if (sys.includes("planning the opening")) {
+        message = { role: "assistant", content: JSON.stringify({ headline: "Learned from the customers of Puertecillo.", music: [{ name: "Vetusta Morla", why: "playlist" }, { name: "Invented Band", why: "x" }], co_promo: [{ name: "Teatre Apolo", idea: "ticket stub = free tapa" }], brands: [], weeks: ["a", "b", "c", "d"] }) };
       } else {
         message = { role: "assistant", content: JSON.stringify({ headline: "The area does not ask for seafood (affinity 0.29).", why: ["affinity 0.29", "13 of 50 serve seafood"], gap: [], audience: ["Locals: 23 of 50"], actions: ["Look 635 m away", "Open evenings"], partners: [{ name: "Sala Apolo", reason: "evening crowd" }], unknowns: ["Foot traffic?", "Rent?", "Income?"] }) };
       }

@@ -4,6 +4,7 @@ import path from "node:path";
 import { analyze, chat, compare, scout } from "./agent.js";
 import { llmEnabled, MODELS, llmUsage } from "./llm.js";
 import { scrubPII } from "./safe.js";
+import { launchPlan } from "./launch.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -17,7 +18,7 @@ app.use("/vendor/fonts", express.static(path.resolve("node_modules/@fontsource/m
 
 // --- demo protection: N analyses per IP per day (in memory)
 const quota = new Map();
-const LIMITS = { analyze: Number(process.env.DAILY_LIMIT) || 30, compare: 30, chat: 60, scout: 20 };
+const LIMITS = { analyze: Number(process.env.DAILY_LIMIT) || 30, compare: 30, chat: 60, scout: 20, launch: 20 };
 function allow(ip, kind = "analyze") {
   const k = `${kind}|${ip}|${new Date().toISOString().slice(0, 10)}`;
   const n = (quota.get(k) ?? 0) + 1;
@@ -91,6 +92,20 @@ app.post("/api/scout", async (req, res) => {
   if (!allow(ipOf(req), "scout")) return res.status(429).json({ error: "Daily scouting limit reached on this demo." });
   try {
     res.json(await scout({ ctx: s.ctx, lang: lang === "es" ? "es" : "en" }));
+  } catch (e) {
+    res.status(500).json({ error: String(e.message).slice(0, 300) });
+  }
+});
+
+app.post("/api/launch", async (req, res) => {
+  const { id, lang = "en", at } = req.body ?? {};
+  const s = sessions.get(id);
+  if (!s) return res.status(404).json({ error: "Run the analysis again: the launch plan uses the last one and it expired." });
+  if (!allow(ipOf(req), "launch")) return res.status(429).json({ error: "Daily launch-plan limit reached on this demo." });
+  const best = s.ctx.heatmap?.best;
+  const spot = at === "best" && best ? { lat: best.lat, lon: best.lon } : undefined;
+  try {
+    res.json(await launchPlan({ ctx: s.ctx, lang: lang === "es" ? "es" : "en", at: spot }));
   } catch (e) {
     res.status(500).json({ error: String(e.message).slice(0, 300) });
   }

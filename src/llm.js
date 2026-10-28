@@ -99,6 +99,27 @@ export async function writeReportWithoutQloo({ concept, address }, lang = "en") 
   return chatJSON({ model: MODELS.writer, system, user: `Concept: ${concept}\nAddress: ${address}`, schema: ReportSchema, maxTokens: 1200 });
 }
 
+export const LaunchSchema = z.object({
+  headline: z.string().max(240),
+  music: z.array(z.object({ name: z.string(), why: z.string().max(240) })).max(3),
+  co_promo: z.array(z.object({ name: z.string(), idea: z.string().max(240) })).max(3),
+  brands: z.array(z.object({ name: z.string(), idea: z.string().max(240) })).max(3),
+  weeks: z.array(z.string().max(240)).length(4),
+});
+
+const LAUNCH_SYSTEM = `You are "Abro Aquí", planning the opening of a small business. You receive candidates from Qloo's taste graph, learned from the customers of the best-rated places that already serve the concept nearby (seeds), or from the concept itself if there are no seeds: artists (music), brands, and nearby places that are NOT competitors (neighbours, with kind, distance and whether they were found on the web).
+Choose, do not invent: every name you return must be copied exactly from the candidates. Prefer neighbours that were verified and are close; skip a brand or artist that obviously clashes with the concept or is a direct competitor; for music prefer artists that suit a small venue playlist.
+Respond in {lang}, plain words for a shop owner. Return JSON:
+headline: one sentence saying whose customers the plan is learned from (name the seeds) and the idea of the launch;
+music: up to 3 {name, why} (how to use it: opening playlist, small live set, a night themed on it);
+co_promo: up to 3 {name, idea} (a concrete joint action with that neighbour, citing its kind and distance);
+brands: up to 3 {name, idea} (sampling, product, a co-branded item);
+weeks: exactly 4 short steps: week -2, week -1, opening week, week +1 (the last one: measure which channel brought people).`;
+
+export async function writeLaunch(input, lang = "en") {
+  return chatJSON({ model: MODELS.writer, system: LAUNCH_SYSTEM.replace("{lang}", lang === "es" ? "Spanish" : "English"), user: JSON.stringify(input), schema: LaunchSchema, maxTokens: 1200 });
+}
+
 /** Template report when the LLM is unavailable: the Qloo demo must survive an LLM outage. Plain words, EN or ES. */
 export function templateReport(sig, lang = "en") {
   const es = lang === "es";
