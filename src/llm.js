@@ -16,10 +16,10 @@ const client = llmEnabled ? new OpenAI({ baseURL: process.env.NEBIUS_BASE_URL ||
 export const ReportSchema = z.object({
   headline: z.string().max(200),
   why: z.array(z.string()).min(2).max(5),
-  gap: z.array(z.string()).max(4),
-  audience: z.array(z.string()).max(5),
+  gap: z.array(z.string()).max(4).default([]),
+  audience: z.array(z.string()).max(5).default([]),
   actions: z.array(z.string()).min(2).max(4),
-  partners: z.array(z.object({ name: z.string(), reason: z.string(), verified: z.boolean().nullable().optional(), source: z.string().nullable().optional() })).max(3),
+  partners: z.array(z.object({ name: z.string(), reason: z.string(), verified: z.boolean().nullable().optional(), source: z.string().nullable().optional() })).max(3).default([]),
   unknowns: z.array(z.string()).length(3),
 });
 
@@ -91,7 +91,8 @@ async function chatJSON({ model, system, user, schema, maxTokens = 1200 }) {
 /** Nano turns a free-text concept (any language) into short English parts Qloo can match: "gofres y helados" → ["waffles","ice cream"]. */
 export async function normalizeConcept(concept) {
   const schema = z.object({ parts: z.array(z.string().min(2).max(40)).min(1).max(3) });
-  const system = `Split a business concept into 1-3 short English parts, each a kind of food, drink or shop that could be a place category (e.g. "seafood restaurant", "ice cream", "waffles", "coffee", "ramen", "bakery", "bookstore"). Translate to English. Drop adjectives about quality or style. Return JSON {"parts": [...]}.`;
+  const system = `Translate a business concept into English and split it ONLY where it names several products joined by "and", "y", "i", "&" or commas. Most concepts are ONE part. Never add a part that is not in the concept. Each part is a short place category or food/drink kind; drop adjectives about quality or style. Return JSON {"parts": [...]}.
+Examples: "marisquería" → {"parts":["seafood restaurant"]}; "seafood restaurant" → {"parts":["seafood restaurant"]}; "gofres y helados" → {"parts":["waffles","ice cream"]}; "cafetería de especialidad" → {"parts":["specialty coffee"]}; "librería con café" → {"parts":["bookstore","coffee"]}.`;
   const r = await chatJSON({ model: MODELS.nano, system, user: concept, schema, maxTokens: 400 });
   return { parts: r.data.parts.map((p) => p.toLowerCase().trim()), model: r.model, ms: r.ms };
 }
@@ -100,7 +101,7 @@ const WRITER_SYSTEM = `You are "Abro Aquí", a location-intelligence advisor for
 Rules: never change the verdict; never invent a business, rating or number that is not in the signals; never claim to predict success; refer to people only as "the area" or the customer identities listed. If demand.not_measured_for is not empty, say plainly that taste was only measured for demand.measured_for.
 Signals: verdict (level, rule_fired, adjustments, offer: rivals within 400 m / 700 m and share of popular places that already serve it); demand (rank = Qloo affinity_rank around the address 0-1, how much the area likes the concept compared with a wide reference; vs_surroundings = rank inside the 1.5 km circle); best_alternative (a nearby busy block the same rules rate better, with distance_m and its nearest rivals; null if none); competitors_within_700m; supply_by_part; already_served_by; gap; price_gap (direct rivals within 700 m by price level 1-3 = €/€€/€€€, with the best-rated one; open = no rival there rated 4.5+); area_profile (what the popular places serve, kind, who goes, when).
 Respond in {lang}. Return JSON with keys:
-headline: one plain sentence with the main reason behind the verdict (the verdict word is shown separately, do not repeat it);
+headline: one plain sentence with the main reason behind the verdict (the verdict word is shown separately: never write it, and never write colour words like red, amber or green);
 why: 2-5 bullets, each citing a number or a name from the signals;
 gap: 0-4 bullets on parts of the idea nobody offers nearby (only from gap);
 audience: up to 5 bullets on who goes and when, from area_profile.who/when (cite counts like "Foodies: 31 of 50 popular places");

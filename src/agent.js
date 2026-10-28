@@ -97,9 +97,10 @@ export async function signalsAt({ geo, resolved }, trace, { withBest = true } = 
     const wide = dedupeByName((await Promise.all(tags.map((tag) => T.rivalsAround({ lat: geo.lat, lon: geo.lon, tag }, trace).catch(() => [])))).flat());
     const better = bestSpot(geo, heat, dedupeByName([...wide, ...competitors]).filter((r) => r.lat != null), v);
     for (const b of better.slice(0, 4)) {
-      const n = await T.placesNear({ lat: b.lat, lon: b.lon }, trace).catch(() => 0);
+      // a failed count is unknown, not zero: keep the block rather than lose the better spot to a rate limit
+      const n = await T.placesNear({ lat: b.lat, lon: b.lon }, trace).catch(() => null);
       b.places_200m = n;
-      if (n >= MIN_PLACES) { best = b; break; }
+      if (n == null || n >= MIN_PLACES) { best = b; break; }
     }
     candidates = better.filter((b) => b.places_200m == null || b.places_200m >= MIN_PLACES).slice(0, 5);
   }
@@ -118,7 +119,8 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
   if (llmEnabled) {
     try {
       const n = await normalizeConcept(concept);
-      parts = n.parts;
+      // the model may not add parts the concept does not name: never more parts than the concept's own separators allow
+      parts = n.parts.slice(0, Math.max(T.conceptParts(concept).length, /\bcon\b|\bwith\b/i.test(concept) ? 2 : 1));
       llm.push({ task: "concept → English parts", model: n.model, ms: n.ms });
     } catch (e) {
       llm.push({ task: "concept → English parts", model: "failed → word split", ms: 0, error: String(e.message).slice(0, 120) });

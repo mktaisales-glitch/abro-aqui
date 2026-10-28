@@ -13,7 +13,7 @@ export function startMock(port = 0) {
       if (b.tools) {
         const last = b.messages.at(-1);
         message = last.role === "tool" ? { role: "assistant", content: "Ignoring it, 6 competitors remain; the verdict does not change." } : { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "nearby_competitors", arguments: JSON.stringify({ radius_m: 700, exclude_names: ["Puertecillo"] }) } }] };
-      } else if (sys.startsWith("Split a business concept")) {
+      } else if (sys.startsWith("Translate a business concept")) {
         message = { role: "assistant", content: JSON.stringify({ parts: ["seafood restaurant"] }) };
       } else if (sys.includes("planning the opening")) {
         message = { role: "assistant", content: JSON.stringify({ headline: "Learned from the customers of Puertecillo.", music: [{ name: "Vetusta Morla", why: "playlist" }, { name: "Invented Band", why: "x" }], co_promo: [{ name: "Teatre Apolo", idea: "ticket stub = free tapa" }], brands: [], weeks: ["Call Bar Inventado", "b", "c", "d"] }) };

@@ -33,6 +33,12 @@ export function putCache(url, json, pinned = false) {
 
 export const misses = new Set();
 
+/** Is a fresh response for this URL already cached? (callers skip their rate limiting for cache hits) */
+export function isCached(url) {
+  const hit = getStmt.get(url);
+  return !!hit && (hit.t === PINNED || Date.now() - hit.t < TTL_MS);
+}
+
 export class CacheMiss extends Error {
   constructor(url) {
     super(`cache miss (offline): ${url}`);

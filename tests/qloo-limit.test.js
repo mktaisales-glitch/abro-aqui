@@ -1,4 +1,4 @@
-// The Qloo client never has more than 4 calls in flight and retries a 429.
+// The Qloo client never has more than 3 calls in flight and retries a 429.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
@@ -19,10 +19,10 @@ before(async () => {
 });
 after(() => server.close());
 
-test("at most 4 Qloo calls in flight; a 429 is retried", async () => {
+test("at most 3 Qloo calls in flight; a 429 is retried", async () => {
   const { qloo } = await import("../src/qloo.js");
   await Promise.all(Array.from({ length: 12 }, (_, i) => qloo("/v2/insights", { i })));
-  assert.ok(peak <= 4, `peak ${peak}`);
+  assert.ok(peak <= 3, `peak ${peak}`);
   const r = await qloo("/v2/insights", { q: "flaky" });
   assert.deepEqual(r, { results: {} });
   assert.equal(n429, 1);
