@@ -12,7 +12,7 @@ Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
 - **The area**: among the 50 most popular places within 500 m, what they serve, who goes and when.
 - **What to do**: positioning, opening hours and where to move.
 - **What Qloo cannot see**: foot traffic, rent and income. The owner answers these three, and only then does "Promising" become a green light.
-- **Second opinion agent**: one goal ("find a better spot and partners"); Nemotron 3.5 Lightning plans the steps with the tools and the page shows each step with its time.
+- **Second opinion agent**: one goal ("find me a better spot"); Nemotron 3.5 Lightning chooses which blocks to re-analyse with the same rules and recommends moving or staying; the page lists each step with its time.
 - **Launch plan, "where do I announce it?"**: learned from the customers of the best-rated rivals nearby, through Qloo's taste graph: music for the opening, brands to ask for sampling, neighbours to team up with (not competitors, checked on the web) and the poster zones on the map, with a 4-week plan. The model chooses among Qloo's candidates; code drops any name it invents ([`specs/04-launch.md`](specs/04-launch.md)).
 - **"What if…?" chat**: "What if I ignore Puertecillo?", "What about Carrer de Blai?". The agent calls the tools again and recomputes the verdict.
 - **"Without Qloo"**: the same question answered by the language model alone, so you can see what it makes up.

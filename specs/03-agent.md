@@ -14,7 +14,7 @@ Three NVIDIA Nemotron models on Nebius Token Factory, through the OpenAI SDK (`b
 
 ## Second-opinion agent (`scout`)
 
-Lightning receives only a goal (a better spot within ~800 m and up to 3 partners that exist) and the tools; it chooses which tools to call, in which order and how many times (max 10 rounds). The partners shown under the answer come from `verify_business` results with `exists: true`, not from the model's prose. The steps are listed after the run with think time and tool time. If the model fails or is not configured, a fixed sequence of the same tools runs and the page says so.
+Lightning receives only a goal (is there a better spot within ~800 m?) and the tools (`candidate_spots`, `analyse_address`, `nearby_competitors`, `zone_profile`); it chooses which to call, in which order and how many times (max 10 rounds), and answers in plain text. Partners are not its job: they come from the launch plan, where Qloo proposes them and Tavily checks them (in a live test the model named seafood restaurants as "partners", so we moved that decision out of the free-text agent). The steps are listed after the run with think time and tool time. If the model fails or is not configured, a fixed sequence of the same tools runs and the page says so.
 
 ## Launch plan
 

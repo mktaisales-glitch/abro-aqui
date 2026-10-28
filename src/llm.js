@@ -130,7 +130,7 @@ Choose, do not invent: every name you return must be copied exactly from the can
 Respond in {lang}, plain words for a shop owner. Return JSON:
 music: up to 3 {name, why} (how to use it: the opening playlist, a local act in that style, a night themed on it; never suggest booking the artist);
 co_promo: up to 3 {name, idea} (a concrete joint action that fits that neighbour's kind, citing kind and distance: a theatre or music venue → a pre-show offer for ticket holders and opening early on show nights; a hotel → a card at reception; a bar → sending customers to each other at different hours);
-brands: up to 3 {name, idea} (sampling, product, a co-branded item).
+brands: up to 3 {name, idea} (sampling, product, a co-branded item); only brands with a plausible link to a small food, drink or neighbourhood business (drinks, food, local lifestyle); skip software, fashion or anything a small shop could not realistically approach. Ideas are one or two plain sentences a shop owner can act on; never start with numbers or affinity scores.
 The headline, the poster zones and the week-by-week plan are written by code from your choices; do not write them.`;
 
 export async function writeLaunch(input, lang = "en") {

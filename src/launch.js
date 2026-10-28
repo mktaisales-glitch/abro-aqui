@@ -132,7 +132,7 @@ export function composeFixed(plan, c, ctx, lang = "en") {
     return { where: z.street ?? `${z.lat.toFixed(4)}, ${z.lon.toFixed(4)}`, why: L(`${z.street ? `${z.street}, ` : ""}${z.distance_m} m away: taste rank ${z.demand.toFixed(2)}, among the ${top} % busiest blocks around`, `${z.street ? `${z.street}, ` : ""}a ${z.distance_m} m: gusto ${z.demand.toFixed(2).replace(".", ",")}, entre el ${top} % de manzanas con más actividad`) };
   });
   const nb = plan.co_promo.map((x) => x.name), mu = plan.music.map((x) => x.name), br = plan.brands.map((x) => x.name);
-  const streets = c.posters.map((z) => z.street).filter(Boolean);
+  const streets = c.posters.map((z) => z.street?.split(",")[0]).filter(Boolean);
   const w2 = [nb.length && L(`agree a joint action with ${list(nb, es)}`, `cerrar una acción conjunta con ${list(nb, es)}`), mu.length && L(`build the opening playlist around ${list(mu, es)} and look for a local act in that style`, `armar la playlist de la inauguración alrededor de ${list(mu, es)} y buscar un grupo local de ese estilo`)].filter(Boolean);
   const w1 = [posters.length && L(`posters and flyers on ${streets.length ? list(streets, es) : "the purple zones on the map"}`, `carteles y flyers en ${streets.length ? list(streets, es) : "las zonas moradas del mapa"}`), br.length && L(`ask ${list(br, es)} for product or sampling`, `pedir producto o degustación a ${list(br, es)}`)].filter(Boolean);
   const w0 = [L("opening night", "noche de inauguración"), mu.length && L("with the playlist", "con la playlist"), br.length && L(`and the ${br[0]} sampling`, `y la degustación de ${br[0]}`), nb.length && L(`; joint offer with ${nb[0]}`, `; oferta conjunta con ${nb[0]}`)].filter(Boolean).join(" ").replace(" ;", ";");
