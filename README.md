@@ -1,7 +1,5 @@
 # Abro Aquí: *should I open here?*
 
-![Abro Aquí: seafood restaurant at Av. del Paral·lel 40, Barcelona](docs/screenshot-paralel.png)
-
 A small-business owner is about to sign a lease. Abro Aquí shows them, with reasons, what the data says about **this concept** at **this street address** before they spend 50,000–200,000 € finding out: how much the area likes it, how much of it is already there, and a better block nearby if there is one.
 
 Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
