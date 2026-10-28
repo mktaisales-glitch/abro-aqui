@@ -33,39 +33,57 @@ function spend() {
 }
 export const llmUsage = () => ({ day: usage.day, calls: usage.n, cap: CAP });
 
+// Nemotron 3 Nano / Super reason before answering by default; for short JSON jobs we turn thinking off
+// (chat_template_kwargs, passed through by Token Factory). If the endpoint rejects the parameter, we retry without it.
+let thinkingKwargs = true;
+async function complete(params) {
+  if (thinkingKwargs) {
+    try {
+      return await client.chat.completions.create({ ...params, chat_template_kwargs: { enable_thinking: false } });
+    } catch (e) {
+      if (e?.status !== 400) throw e;
+      thinkingKwargs = false;
+    }
+  }
+  return client.chat.completions.create(params);
+}
+
+/** The JSON object in a model reply: strips <think> blocks and code fences; falls back to reasoning_content. */
+export function extractJSON(msg) {
+  const raw = [msg?.content, msg?.reasoning_content].filter((x) => typeof x === "string" && x.trim()).join("\n");
+  const text = raw.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/```(?:json)?/g, "");
+  const start = text.indexOf("{"), end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) throw new Error(`no JSON in the reply (${raw.slice(0, 120).replace(/\s+/g, " ") || "empty"})`);
+  return JSON.parse(text.slice(start, end + 1));
+}
+
 async function chatJSON({ model, system, user, schema, maxTokens = 1200 }) {
   const t0 = Date.now();
   spend();
-  const res = await client.chat.completions.create({
-    model,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    temperature: 0.3,
-    max_tokens: maxTokens,
-    response_format: { type: "json_object" },
-  });
-  const text = res.choices[0].message.content ?? "{}";
+  const base = { model, temperature: 0.3, max_tokens: maxTokens, response_format: { type: "json_object" } };
+  const res = await complete({ ...base, messages: [{ role: "system", content: system }, { role: "user", content: user }] });
+  const msg = res.choices[0].message;
   let parsed;
   try {
-    parsed = schema.parse(JSON.parse(text));
+    parsed = schema.parse(extractJSON(msg));
   } catch (e) {
     // one repair round (counts against the daily cap too)
     spend();
-    const fix = await client.chat.completions.create({
-      model,
+    const fix = await complete({
+      ...base,
+      temperature: 0,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
-        { role: "assistant", content: text },
-        { role: "user", content: `That JSON failed validation: ${String(e.message).slice(0, 400)}. Return only corrected JSON.` },
+        { role: "assistant", content: msg.content ?? "" },
+        { role: "user", content: `That reply failed validation: ${String(e.message).slice(0, 400)}. Return only the corrected JSON object with every required key.` },
       ],
-      temperature: 0,
-      max_tokens: maxTokens,
-      response_format: { type: "json_object" },
     });
-    parsed = schema.parse(JSON.parse(fix.choices[0].message.content ?? "{}"));
+    try {
+      parsed = schema.parse(extractJSON(fix.choices[0].message));
+    } catch (e2) {
+      throw new Error(`${String(e2.message).slice(0, 160)} [finish: ${fix.choices[0].finish_reason}; first reply finish: ${res.choices[0].finish_reason}]`);
+    }
   }
   return { data: parsed, ms: Date.now() - t0, model, usage: res.usage };
 }
@@ -74,7 +92,7 @@ async function chatJSON({ model, system, user, schema, maxTokens = 1200 }) {
 export async function normalizeConcept(concept) {
   const schema = z.object({ parts: z.array(z.string().min(2).max(40)).min(1).max(3) });
   const system = `Split a business concept into 1-3 short English parts, each a kind of food, drink or shop that could be a place category (e.g. "seafood restaurant", "ice cream", "waffles", "coffee", "ramen", "bakery", "bookstore"). Translate to English. Drop adjectives about quality or style. Return JSON {"parts": [...]}.`;
-  const r = await chatJSON({ model: MODELS.nano, system, user: concept, schema, maxTokens: 150 });
+  const r = await chatJSON({ model: MODELS.nano, system, user: concept, schema, maxTokens: 400 });
   return { parts: r.data.parts.map((p) => p.toLowerCase().trim()), model: r.model, ms: r.ms };
 }
 
@@ -91,13 +109,13 @@ partners: up to 3 objects {name, reason} chosen ONLY from places named in area_p
 unknowns: exactly 3 questions about foot traffic, rent and household income.`;
 
 export async function writeReport(signals, lang = "en") {
-  return chatJSON({ model: MODELS.writer, system: WRITER_SYSTEM.replace("{lang}", lang === "es" ? "Spanish" : "English"), user: JSON.stringify(signals), schema: ReportSchema, maxTokens: 1400 });
+  return chatJSON({ model: MODELS.writer, system: WRITER_SYSTEM.replace("{lang}", lang === "es" ? "Spanish" : "English"), user: JSON.stringify(signals), schema: ReportSchema, maxTokens: 2500 });
 }
 
 /** "Without Qloo": same writer, no signals. Shows what the LLM invents on its own. */
 export async function writeReportWithoutQloo({ concept, address }, lang = "en") {
   const system = `You are a location consultant. The owner asks whether to open a business. You have NO data tools; answer from general knowledge only. Respond in ${lang === "es" ? "Spanish" : "English"}. Return JSON with keys headline, why (2-5), gap (0-4), audience (0-5), actions (2-4), partners (0-3 objects {name, reason}), unknowns (exactly 3).`;
-  return chatJSON({ model: MODELS.writer, system, user: `Concept: ${concept}\nAddress: ${address}`, schema: ReportSchema, maxTokens: 1200 });
+  return chatJSON({ model: MODELS.writer, system, user: `Concept: ${concept}\nAddress: ${address}`, schema: ReportSchema, maxTokens: 2500 });
 }
 
 export const LaunchSchema = z.object({
@@ -115,7 +133,7 @@ brands: up to 3 {name, idea} (sampling, product, a co-branded item).
 The headline, the poster zones and the week-by-week plan are written by code from your choices; do not write them.`;
 
 export async function writeLaunch(input, lang = "en") {
-  return chatJSON({ model: MODELS.writer, system: LAUNCH_SYSTEM.replace("{lang}", lang === "es" ? "Spanish" : "English"), user: JSON.stringify(input), schema: LaunchSchema, maxTokens: 1200 });
+  return chatJSON({ model: MODELS.writer, system: LAUNCH_SYSTEM.replace("{lang}", lang === "es" ? "Spanish" : "English"), user: JSON.stringify(input), schema: LaunchSchema, maxTokens: 2000 });
 }
 
 /** Template report when the LLM is unavailable: the Qloo demo must survive an LLM outage. Plain words, EN or ES. */

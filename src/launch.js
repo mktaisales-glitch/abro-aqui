@@ -104,7 +104,7 @@ export async function launchCandidates(ctx, trace, { at } = {}) {
   const isRestaurant = ctx.resolved.some((p) => /restaurant/.test(`${p.part} ${p.heatmap_tag ?? ""} ${p.competitor_tag ?? ""}`));
   const tagIds = ctx.resolved.flatMap((p) => [p.competitor_tag, p.heatmap_tag, ...(p.comp_candidates ?? [])]);
   const rivalNames = (ctx.competitors ?? []).map((c) => c.name);
-  const neighbours = pickNeighbours(places, { ...spot, rivalNames, tagIds, words, excludeKinds: isRestaurant ? /restaurant|steakhouse|bistro|diner|eatery/i : null });
+  const neighbours = pickNeighbours(places, { ...spot, rivalNames, tagIds, words, excludeKinds: isRestaurant ? /restaurant|steakhouse|bistro|diner|eatery|pizza|takeout|take-out|burger|tapas|grill|kitchen|sushi|taco|kebab|food/i : null });
   const rivalSet = new Set(rivalNames.map((n) => n.toLowerCase()));
   return {
     spot,

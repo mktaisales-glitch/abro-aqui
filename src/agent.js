@@ -280,9 +280,15 @@ export async function scout({ ctx, lang = "en" }) {
   };
   const city = ctx.address.split(",").map((x) => x.trim()).find((x) => /barcelona|new york|brooklyn|london|san francisco|madrid/i.test(x)) ?? "";
   const es = lang === "es";
+  // a competitor is never a launch partner: the check refuses it before searching the web
+  const rivals = (ctx.competitors ?? []).map((c) => c.name.toLowerCase());
+  const isRival = (n) => rivals.some((r) => r.includes(String(n).toLowerCase()) || String(n).toLowerCase().includes(r));
+  const verify = tools.verify_business.run;
+  tools.verify_business = { ...tools.verify_business, run: async (a) => (isRival(a.name) ? { exists: false, note: "direct competitor: not a partner" } : verify(a)) };
   const goal = `Goal: decide whether there is a better place within about 800 m to open "${ctx.concept}" near ${ctx.address} (verdict there: ${ctx.verdict.level}, ${ctx.verdict.offer?.c700} rivals within 700 m), and find up to 3 complementary launch partners that really exist (city: "${city}").
 You choose which tools to call, in which order and how many times. A partner may only be named after verify_business confirmed it (exists: true). Prefer a spot whose verdict is better than the address's; if none is, say to stay or compare the trade-offs.
-Then answer in ${es ? "Spanish" : "English"} in at most 5 short sentences: the spot you recommend (or staying put) with its verdict and numbers, and the confirmed partners. Verdict levels: RED = Not here, AMBER = Hard, AMBER-GREEN = Promising.`;
+Partners must complement the concept, never compete with it: these direct competitors are never partners: ${(ctx.competitors ?? []).slice(0, 10).map((c) => c.name).join(", ") || "none"}.
+Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at most 5 short sentences: the spot you recommend (or staying put) with its verdict and numbers, and the confirmed partners. Use the verdict words Not here (RED), Hard (AMBER), Promising (AMBER-GREEN); the address is ${({ RED: "Not here", AMBER: "Hard", "AMBER-GREEN": "Promising", UNKNOWN: "No data" })[ctx.verdict.level]}.`;
 
   if (llmEnabled) {
     try {
@@ -338,6 +344,7 @@ function stepOut({ name, args, result, ms, round, think_ms }, lang = "en") {
   else if (name === "candidate_spots") summary = L(`${r.candidates?.length ?? 0} candidate blocks (computed during the analysis)`, `${r.candidates?.length ?? 0} manzanas candidatas (calculadas en el análisis)`);
   else if (name === "analyse_address") summary = L(`${V[r.verdict] ?? r.verdict} · demand ${r.demand?.toFixed?.(2) ?? "–"} · ${r.competitors} rivals within 700 m`, `${V[r.verdict] ?? r.verdict} · gusto ${r.demand?.toFixed?.(2).replace(".", ",") ?? "–"} · ${r.competitors} rivales a 700 m`);
   else if (name === "zone_profile") summary = L(`${r.places} places · `, `${r.places} locales · `) + (r.places_named ?? []).slice(0, 3).map((p) => p.name).join(", ");
+  else if (name === "verify_business" && r.note === "direct competitor: not a partner") summary = L("refused: a direct competitor is not a partner", "rechazado: un competidor directo no es un socio");
   else if (name === "verify_business") summary = r.exists === true ? L(`found: ${r.title ?? r.url}`, `encontrado: ${r.title ?? r.url}`) : r.exists === false ? L("not found on the web", "no aparece en la web") : r.note ?? L("not checked", "sin comprobar");
   else if (name === "nearby_competitors") summary = L(`${r.competitors?.length ?? 0} rivals → ${V[r.verdict] ?? r.verdict}`, `${r.competitors?.length ?? 0} rivales → ${V[r.verdict] ?? r.verdict}`);
   else summary = JSON.stringify(r).slice(0, 120);
