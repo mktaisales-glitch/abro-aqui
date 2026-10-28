@@ -149,7 +149,8 @@ export async function suggestPlaces(q, lang = "en", trace) {
   // Photon speaks en/de/fr; for Spanish the local names (default) read best
   const url = (q) => `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5${lang === "en" ? "&lang=en" : ""}`;
   // a Barcelona street typed in Spanish ("Avenida del Paralelo 4") is also looked up by its Catalan name, first
-  const alias = catalanNamedStreet(query);
+  const named = catalanNamedStreet(query);
+  const alias = named && !/barcelona/i.test(named) ? `${named}, Barcelona` : named;
   const lists = await Promise.all([alias, query].filter(Boolean).map((q) => getJSON(url(q), { headers: UA, source: "osm", trace }).catch(() => null)));
   const ph = { features: lists.flatMap((l) => l?.features ?? []) };
   const seen = new Set();
