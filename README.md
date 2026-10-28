@@ -97,7 +97,7 @@ npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
 npm test                  # 32 tests: verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
-                          # 5 of them replay the two Barcelona cases
+                          # 6 of them replay the recorded Barcelona cases
                           # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (26 run)
 ```
 
