@@ -58,3 +58,10 @@ test("keepKnown drops anything the model invents", async () => {
   assert.equal(p.brands.length, 0);
 });
 
+
+test("co-promotion ideas fit the kind of neighbour", async () => {
+  const { coPromoIdea } = await import("../src/launch.js");
+  assert.match(coPromoIdea({ kind: "Performing arts theater", distance_m: 120 }), /pre-show offer/);
+  assert.match(coPromoIdea({ kind: "Hotel", distance_m: 80 }, "es"), /recepción/);
+  assert.match(coPromoIdea({ kind: null, distance_m: 50 }), /swap flyers/);
+});

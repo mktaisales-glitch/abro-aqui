@@ -79,7 +79,7 @@ git clone https://github.com/mktaisales-glitch/abro-aqui && cd abro-aqui
 npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
-npm test                  # 21 tests: verdict rules, launch plan (Qloo and model mocks), PII scrub; 4 more replay the two Barcelona cases
+npm test                  # 22 tests: verdict rules, launch plan (Qloo and model mocks), PII scrub; 4 more replay the two Barcelona cases
                           # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone
 ```
 

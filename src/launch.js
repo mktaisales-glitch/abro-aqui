@@ -146,12 +146,25 @@ export function composeFixed(plan, c, ctx, lang = "en") {
   return { headline, posters, weeks };
 }
 
+/** A concrete joint action by kind of neighbour (theatre → pre-show offer, hotel → reception card…). */
+export function coPromoIdea(p, lang = "en") {
+  const L = (en, sp) => (lang === "es" ? sp : en);
+  const k = String(p.kind ?? "").toLowerCase();
+  const at = L(`${p.kind ?? "neighbour"}, ${p.distance_m ?? "?"} m away`, `${p.kind ?? "vecino"} a ${p.distance_m ?? "?"} m`);
+  if (/theat|cinema|concert|music|venue|auditorium|opera/.test(k)) return L(`${at}: a pre-show offer for anyone who shows a ticket, and open early on show nights`, `${at}: oferta antes de la función para quien enseñe la entrada, y abrir antes los días de función`);
+  if (/hotel|hostel|guest/.test(k)) return L(`${at}: a recommendation card at reception and a welcome offer for their guests`, `${at}: una tarjeta de recomendación en recepción y una oferta de bienvenida para sus huéspedes`);
+  if (/bar|pub|club|cocktail|wine/.test(k)) return L(`${at}: send your late customers there and ask them to send you their early crowd; a shared flyer`, `${at}: enviarles tus clientes de última hora y que te manden su público de primera hora; un flyer compartido`);
+  if (/gym|fitness|yoga|sport/.test(k)) return L(`${at}: a post-workout offer for their members`, `${at}: una oferta para sus socios después de entrenar`);
+  if (/book|gallery|museum|record|art/.test(k)) return L(`${at}: a joint evening event in the opening week`, `${at}: un evento conjunto de tarde la semana de apertura`);
+  return L(`${at}, same audience, does not compete: swap flyers or a joint discount in the opening week`, `${at}, mismo público y no compite: intercambiar flyers o un descuento conjunto la semana de apertura`);
+}
+
 /** Template choices when the model is not available: same candidates, fixed choices. */
 export function templateLaunch(c, ctx, lang = "en") {
   const L = (en, sp) => (lang === "es" ? sp : en);
   return {
     music: c.music.slice(0, 3).map((m) => ({ name: m.name, why: L("the same audience listens to it: build the opening playlist around it and look for a local act in that style", "el mismo público lo escucha: arma la playlist de la inauguración a su alrededor y busca un grupo local de ese estilo") })),
-    co_promo: c.neighbours.slice(0, 3).map((p) => ({ name: p.name, idea: L(`${p.kind ?? "neighbour"} ${p.distance_m ?? "?"} m away, same audience, does not compete: swap flyers or a joint discount in the opening week`, `${p.kind ?? "vecino"} a ${p.distance_m ?? "?"} m, mismo público y no compite: intercambiar flyers o un descuento conjunto la semana de apertura`) })),
+    co_promo: c.neighbours.slice(0, 3).map((p) => ({ name: p.name, idea: coPromoIdea(p, lang) })),
     brands: c.brands.slice(0, 2).map((b) => ({ name: b.name, idea: L("ask for product or sampling for the opening night: their fans overlap with yours", "pedir producto o degustación para la noche de apertura: sus fans se solapan con los tuyos") })),
   };
 }
