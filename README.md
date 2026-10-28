@@ -79,8 +79,9 @@ git clone https://github.com/mktaisales-glitch/abro-aqui && cd abro-aqui
 npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
-npm test                  # 24 tests: verdict rules, launch plan (Qloo and model mocks), PII scrub; 4 more replay the two Barcelona cases
-                          # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone
+npm test                  # 28 tests: verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
+                          # 5 of them replay the two Barcelona cases
+                          # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (23 run)
 ```
 
 Deploy: `render.yaml` (Render blueprint) or the `Dockerfile`. API: `POST /api/analyze {concept, address, lang, without_qloo}`, `POST /api/chat {id, question}`, `POST /api/scout {id, lang}`, `POST /api/launch {id, lang, at}`, `POST /api/compare {id, address}`, `GET /api/health`.

@@ -214,13 +214,13 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
         <p class="note" style="margin:0 0 10px" data-i="scouthelp">One goal, and the agent plans the steps: it compares the blocks nearby with the same rules and tells you whether to move or stay, and why.</p>
         <button type="button" class="scoutgo" id="scoutgo" data-i="scoutgo">Find me a better spot</button>
         <ol class="steps2" id="scoutsteps"></ol>
-        <p id="scouttext" class="scouttext"></p><ul class="plain" id="scoutpartners"></ul><p class="note" id="scoutby"></p>
+        <p id="scouttext" class="scouttext"></p><p class="note" id="scoutby"></p>
       </section>
 
       <section class="s" id="launchbox">
         <h2 data-i="launchh">Plan the opening: where to announce it</h2>
         <p class="note" style="margin:0 0 10px" data-i="launchhelp">Learned from the customers of the best-rated places that already serve your idea nearby: the music they listen to, the brands they like, the neighbours they also visit (not competitors), and the busiest blocks where the area likes your idea most.</p>
-        <button type="button" class="scoutgo" id="launchgo" data-i="launchgo">Plan my opening</button>
+        <button type="button" class="scoutgo" id="launchgo" data-i="launchgo">Plan my opening</button> <label class="note" id="launchatbox" hidden style="margin-left:8px"><input type="checkbox" id="launchat"> <span id="launchatlbl"></span></label>
         <p id="launchhead" class="scouttext"></p>
         <div class="launch" id="launch" hidden>
           <div><h3 data-i="lmusic">Music for the opening</h3><ul id="lmusic"></ul></div>
@@ -262,7 +262,7 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
     <div class="empty" id="empty"><p data-i="emptymap">Pick a street. The map shows how much the area likes your idea, block by block.</p></div>
     <div class="legend" id="legend" hidden>
       <div data-i="legend">How much the area likes it (Qloo taste rank)</div>
-      <div class="ramp"></div><div class="ends"><span>0.6</span><span>1.0</span></div>
+      <div class="ramp"></div><div class="ends"><span id="legendlo">0.6</span><span id="legendhi">1.0</span></div>
       <div class="keys"><span><i style="background:#000;border-radius:2px"></i><span data-i="kaddr">your address</span></span><span><i style="border:2px dashed #3E9B5F;border-radius:50%"></i><span data-i="kbest">better spot nearby</span></span><span><i style="background:#fff;border:2px solid #000;border-radius:50%"></i><span data-i="kcomp">direct competitor</span></span></div>
     </div>
   </div>
@@ -351,13 +351,14 @@ function render(d,keep=false){
   $("#partnersbox").hidden=!rep.partners.length;$("#partners").innerHTML=rep.partners.map(x=>`<li><b>${esc(x.name)}</b>${x.verified?` <span class="ok" title="${esc(x.source||"")}">✓ ${T("found on the web","encontrado en la web")}</span>`:""}: ${esc(x.reason)}</li>`).join("");
   $("#unknowns").innerHTML=rep.unknowns.map((u,k)=>`<label>${esc(u)}<input data-u="${k}" placeholder="${T("your answer","tu respuesta")}"></label>`).join("");
   $("#unkres").textContent="";
-  if(!keep){$("#launch").hidden=true;$("#launchhead").textContent="";$("#lweeks").innerHTML="";$("#lby").textContent="";if(window.launchLayer)launchLayer.remove();$("#scoutsteps").innerHTML="";$("#scouttext").textContent="";$("#scoutpartners").innerHTML="";$("#scoutby").textContent=""}
+  $("#launchatbox").hidden=!d.heatmap.best;$("#launchatlbl").textContent=d.heatmap.best?T(`at the better spot (${d.heatmap.best.distance_m} m away)`,`en el mejor punto (a ${d.heatmap.best.distance_m} m)`):"";
+  if(!keep){$("#launchat").checked=false;$("#launch").hidden=true;$("#launchhead").textContent="";$("#lweeks").innerHTML="";$("#lby").textContent="";if(window.launchLayer)launchLayer.remove();$("#scoutsteps").innerHTML="";$("#scouttext").textContent="";$("#scoutby").textContent=""}
   $("#langnote").hidden=!d.lang||d.lang===lang;$("#langnote").innerHTML=d.lang&&d.lang!==lang?`${T("This report was written in Spanish.","Este informe se escribió en inglés.")} <button type="button" id="relang">${T("Write it in English","Escríbelo en español")}</button>`:"";if($("#relang"))$("#relang").onclick=()=>$("#ask").requestSubmit();
   $("#unknowns").oninput=()=>{const all=[...document.querySelectorAll("[data-u]")].every(i=>i.value.trim());$("#unkres").textContent=all?(v.level==="AMBER-GREEN"?T("With these three answered, the call is yours: the data side says Promising. Compare rent with the sales you expect before signing.","Con estas tres respondidas, la decisión es tuya: los datos dicen «Prometedor». Compara el alquiler con las ventas que esperas antes de firmar."):T("Noted. The data still says "+VERD.en[v.level].toLowerCase()+": your answers do not change the taste of the area.","Anotado. Los datos siguen diciendo «"+VERD.es[v.level].toLowerCase()+"»: tus respuestas no cambian el gusto de la zona.")):""};
   const chips=lang==="es"?["¿Y si ignoro al competidor más cercano?","Analiza el mejor punto cercano (círculo verde)","¿Qué socios me sugieres?","¿A qué hora debería abrir?"]:["What if I ignore the closest competitor?","Analyse the better spot nearby (green ring)","Which partners would you suggest?","What hours should I open?"];
   $("#chips").innerHTML=chips.map(c=>`<button type="button">${c}</button>`).join("");
   $("#chips").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("#q").value=b.textContent;$("#qf").requestSubmit()});
-  $("#trace").innerHTML=d.trace.map(t=>`<tr><td>${t.source}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.recorded?T("recorded","grabado"):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join("")+(d.llm||[]).map(l=>`<tr><td>nebius</td><td class="u">${esc(l.model)} · ${esc(l.task)}</td><td class="n">${l.ms} ms</td></tr>`).join("");
+  $("#trace").innerHTML=d.trace.map(t=>`<tr><td>${t.source}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.note?esc(t.note):t.recorded?T("recorded","grabado"):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join("")+(d.llm||[]).map(l=>`<tr><td>nebius</td><td class="u">${esc(l.model)} · ${esc(l.task)}</td><td class="n">${l.ms} ms</td></tr>`).join("");
   const wq=d.without_qloo;
   $("#vs").innerHTML=`<div><h3>${T("With Qloo","Con Qloo")}</h3><ul class="plain">${comps.slice(0,5).map(c=>`<li>${esc(c.name)}, ${c.rating??"–"} ★, ${c.distance_m} m</li>`).join("")||"<li>–</li>"}</ul></div><div><h3>${T("Language model alone","Solo el modelo")}</h3>${wq?`<p style="margin:0 0 6px;font-weight:600">${esc(wq.headline)}</p><ul class="plain">${wq.why.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<p class="note">${T("Runs when the Nebius key is configured.","Se ejecuta cuando la clave de Nebius está configurada.")}</p>`}</div>`;
   drawMap(d);
@@ -366,8 +367,9 @@ function render(d,keep=false){
 function heatColor(a){const stops=[[0,[253,227,207]],[.35,[247,163,92]],[.6,[239,117,31]],[.8,[212,66,27]],[1,[122,30,8]]];for(let i=1;i<stops.length;i++)if(a<=stops[i][0]){const[a0,c0]=stops[i-1],[a1,c1]=stops[i],t=(a-a0)/(a1-a0);return`rgb(${c0.map((c,k)=>Math.round(c+(c1[k]-c)*t)).join(",")})`}return"rgb(122,30,8)"}
 function drawMap(d){
   if(layer)layer.remove();layer=L.layerGroup().addTo(map);
-  const h=.0007;
-  d.heatmap.cells.forEach(c=>L.rectangle([[c.lat-h,c.lon-h],[c.lat+h,c.lon+h]],{stroke:false,fillColor:heatColor(Math.max(0,Math.min(1,(c.affinity_rank-.6)/.4))),fillOpacity:.42}).bindTooltip(`${T("taste rank","gusto")} ${n2(c.affinity_rank)} · ${T("beats","supera al")} ${Math.round(c.affinity*100)} % ${T("of the circle","del círculo")} · ${T("activity","actividad")} ${Math.round(c.popularity*100)} %`).addTo(layer));
+  const h=.0007,ranks=d.heatmap.cells.map(c=>c.affinity_rank).filter(x=>x!=null).sort((a,b)=>a-b),lo=ranks[Math.floor(ranks.length*.05)]??.6,hi=ranks.at(-1)??1,span=Math.max(.02,hi-lo);
+  $("#legendlo").textContent=n2(lo);$("#legendhi").textContent=n2(hi);
+  d.heatmap.cells.forEach(c=>L.rectangle([[c.lat-h,c.lon-h],[c.lat+h,c.lon+h]],{stroke:false,fillColor:heatColor(Math.max(0,Math.min(1,(c.affinity_rank-lo)/span))),fillOpacity:.42}).bindTooltip(`${T("taste rank","gusto")} ${n2(c.affinity_rank)} · ${T("beats","supera al")} ${Math.round(c.affinity*100)} % ${T("of the circle","del círculo")} · ${T("activity","actividad")} ${Math.round(c.popularity*100)} %`).addTo(layer));
   d.competitors.forEach(c=>c.lat&&L.circleMarker([c.lat,c.lon],{radius:5,color:"#000",weight:2,fillColor:"#fff",fillOpacity:1}).bindTooltip(`${esc(c.name)} · ${c.rating??"–"} ★`).addTo(layer));
   if(d.heatmap.best)L.circle([d.heatmap.best.lat,d.heatmap.best.lon],{radius:110,color:"#3E9B5F",weight:3,dashArray:"6 5",fill:false}).bindTooltip(T("Better spot under the same rules","Mejor punto con las mismas reglas")).addTo(layer);
   L.marker([d.geo.lat,d.geo.lon],{icon:L.divIcon({className:"",html:'<div class="pin"></div>',iconSize:[16,16],iconAnchor:[8,8]}),keyboard:false}).bindTooltip(esc(short(d.address))).addTo(layer);
@@ -380,17 +382,16 @@ $("#scoutgo").onclick=async()=>{
     const args=a=>Object.entries(a||{}).map(([k,v])=>`${k}: ${typeof v==="number"?(+v).toFixed(4).replace(/0+$/,"").replace(/\.$/,""):v}`).join(", ");
     $("#scoutsteps").innerHTML=d.steps.map(st=>`<li><div><code>${esc(st.tool)}</code> <span class="note">${esc(args(st.args))}</span><br>${esc(st.summary)}</div><span class="ms">${st.think_ms!=null?T("think ","piensa ")+st.think_ms+" ms · ":""}${st.ms} ms</span></li>`).join("");
     $("#scouttext").textContent=d.text;
-    $("#scoutpartners").innerHTML=(d.partners||[]).map(p=>`<li><b>${esc(p.name)}</b> <span class="ok" title="${esc(p.source||"")}">✓ ${T("confirmed on the web by the agent","confirmado en la web por el agente")}</span></li>`).join("");
     $("#scoutby").textContent=(d.mode==="model"?T(`Steps chosen by ${d.model} on Nebius Token Factory (${d.steps.length} tool calls), listed after the run.`,`Pasos elegidos por ${d.model} en Nebius Token Factory (${d.steps.length} llamadas a herramientas), listados al terminar.`):d.model.includes("failed")?T("The model did not answer: fixed steps instead.","El modelo no respondió: pasos fijos en su lugar."):T("Fixed steps (no model configured).","Pasos fijos (sin modelo configurado)."));
     document.querySelectorAll("#trace tr.x-scout").forEach(x=>x.remove());
-    if(d.trace?.length)$("#trace").insertAdjacentHTML("beforeend",d.trace.map(t=>`<tr class="x-scout"><td>${t.source} · ${T("agent","agente")}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join(""));
+    if(d.trace?.length)$("#trace").insertAdjacentHTML("beforeend",d.trace.map(t=>`<tr class="x-scout"><td>${t.source} · ${T("agent","agente")}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.note?esc(t.note):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join(""));
   }catch(err){$("#scouttext").textContent=err.message}
   finally{b.disabled=false}
 };
 
 $("#launchgo").onclick=async()=>{
   if(!cur)return;const b=$("#launchgo");b.disabled=true;$("#launch").hidden=true;$("#lweeks").innerHTML="";$("#lby").textContent="";$("#launchhead").textContent=T("Reading what their customers also like…","Leyendo qué más les gusta a sus clientes…");
-  try{const r=await fetch("/api/launch",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:cur.id,lang})});const d=await r.json();if(!r.ok)throw new Error(d.error);
+  try{const r=await fetch("/api/launch",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:cur.id,lang,at:$("#launchat").checked?"best":undefined})});const d=await r.json();if(!r.ok)throw new Error(d.error);
     const p=d.plan,c=d.candidates,li=(n,t)=>`<li><b>${esc(n)}</b>${t?": "+esc(t):""}</li>`;
     $("#launchhead").textContent=p.headline;
     $("#lmusic").innerHTML=p.music.map(x=>li(x.name,x.why)).join("")||`<li>${T("No artist data here.","Sin datos de artistas aquí.")}</li>`;
@@ -405,7 +406,7 @@ $("#launchgo").onclick=async()=>{
     c.neighbours.forEach(n=>n.lat&&L.circleMarker([n.lat,n.lon],{radius:5,color:"#6B3FA0",weight:2,fillColor:"#fff",fillOpacity:1}).bindTooltip(`${esc(n.name)}${n.kind?" · "+esc(n.kind):""}`).addTo(launchLayer));
     document.querySelectorAll("#trace tr.x-launch").forEach(x=>x.remove());
     if(d.meta.error)$("#trace").insertAdjacentHTML("beforeend",`<tr class="x-launch"><td>nebius · ${T("launch","apertura")}</td><td class="u">${esc(d.meta.model)}</td><td class="n">${esc(d.meta.error)}</td></tr>`);
-    if(d.trace?.length)$("#trace").insertAdjacentHTML("beforeend",d.trace.map(t=>`<tr class="x-launch"><td>${t.source} · ${T("launch","apertura")}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join(""));
+    if(d.trace?.length)$("#trace").insertAdjacentHTML("beforeend",d.trace.map(t=>`<tr class="x-launch"><td>${t.source} · ${T("launch","apertura")}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.note?esc(t.note):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join(""));
   }catch(err){$("#launchhead").textContent=err.message}
   finally{b.disabled=false}
 };

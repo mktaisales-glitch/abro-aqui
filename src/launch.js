@@ -4,7 +4,7 @@
 // places that are not competitors (co-promotion). Poster zones come from the concept's own heat map.
 import { qloo, point } from "./qloo.js";
 import { makeTrace } from "./http.js";
-import { haversine, verifyBusiness, streetAt, singular } from "./tools.js";
+import { haversine, verifyBusiness, streetAt, singular, placesNear } from "./tools.js";
 import { llmEnabled, writeLaunch } from "./llm.js";
 import { esPart } from "./i18n.js";
 
@@ -80,9 +80,34 @@ export function posterZones(cells, { lat, lon }, { n = 3, gap = 300, maxDist = 7
   return picked.map(({ lat, lon, distance_m, affinity_rank, popularity, score }) => ({ lat, lon, distance_m, demand: affinity_rank, activity: popularity, score }));
 }
 
-const entOut = (e) => ({ name: e.name, affinity: e.query?.affinity != null ? Math.round(e.query.affinity * 1000) / 1000 : null, kind: (e.tags ?? []).find((t) => /genre/.test(t.type ?? ""))?.name ?? null });
+const entOut = (e) => ({ name: e.name, affinity: e.query?.affinity != null ? Math.round(e.query.affinity * 1000) / 1000 : null, kind: (e.tags ?? []).find((t) => /genre|category/.test(t.type ?? ""))?.name ?? null, tags: (e.tags ?? []).slice(0, 8).map((t) => t.name) });
 
-/** Candidates from Qloo: 3 calls in parallel (well under the rate limit). */
+// Brands a small food, drink or neighbourhood business cannot realistically approach for sampling or a co-branded item.
+const NOT_FOR_SAMPLING = /fashion|apparel|clothing|footwear|shoe|jewel|cosmetic|beauty|skincare|software|app\b|technology|tech\b|electronics|marketplace|travel|airline|bank|insurance|automotive|car\b|telecom|furniture/i;
+const RESTAURANT_BRAND = /restaurant|fast food|burger|pizza|chain|food delivery/i;
+/** Brands worth asking: not a rival, not a restaurant chain for a restaurant, not a category a shop cannot approach. */
+export function pickBrands(brands, { rivalNames = [], isRestaurant = false, max = 10 } = {}) {
+  const rivals = new Set(rivalNames.map((n) => n.toLowerCase()));
+  return brands.filter((b) => {
+    if (rivals.has(String(b.name).toLowerCase())) return false;
+    const text = (b.tags ?? []).join(" ");
+    if (NOT_FOR_SAMPLING.test(text)) return false;
+    if (isRestaurant && RESTAURANT_BRAND.test(text)) return false;
+    return true;
+  }).slice(0, max);
+}
+
+/** Qloo category tags for venues that bring an audience at fixed times (theatres, concert halls, live music). */
+async function venueTags(trace) {
+  const out = [];
+  for (const q of ["theater", "concert hall", "live music venue"]) {
+    const d = await qloo("/v2/tags", { "filter.query": q, "filter.tag.types": "urn:tag:category:place", take: 3 }, trace).catch(() => null);
+    for (const t of d?.results?.tags ?? []) if (/theat|concert|music|venue|auditorium/i.test(t.id) && !out.includes(t.id)) out.push(t.id);
+  }
+  return out.slice(0, 5);
+}
+
+/** Candidates from Qloo: artists, brands, nearby places and nearby venues (the client limits concurrency). */
 export async function launchCandidates(ctx, trace, { at } = {}) {
   const spot = at ?? { lat: ctx.geo.lat, lon: ctx.geo.lon };
   const main = ctx.resolved.find((p) => p.heatmap_tag) ?? ctx.resolved[0];
@@ -93,27 +118,31 @@ export async function launchCandidates(ctx, trace, { at } = {}) {
   const get = (type, extra = {}, take = 10) =>
     sig ? qloo("/v2/insights", { "filter.type": type, ...sig, ...extra, take }, trace).then((d) => d?.results?.entities ?? []).catch((e) => { trace.add({ source: "qloo", url: `launch:${type}`, ms: 0, cached: false, error: String(e.message).slice(0, 80) }); return []; }) : Promise.resolve([]);
 
-  const [artists, brands, places] = await Promise.all([
+  const [artists, brands, places, vtags] = await Promise.all([
     get("urn:entity:artist"),
     get("urn:entity:brand", {}, 15),
     get("urn:entity:place", { "filter.location": point(spot.lat, spot.lon), "filter.location.radius": 600 }, 40),
+    venueTags(trace),
   ]);
+  // theatres and music venues nearby, asked for explicitly: they bring a crowd at fixed times (pre-show offers)
+  const venues = vtags.length ? await get("urn:entity:place", { "filter.location": point(spot.lat, spot.lon), "filter.location.radius": 600, "filter.tags": vtags.join(",") }, 10) : [];
 
   const words = ctx.resolved.flatMap((p) => p.part.split(" ")).filter((w) => w.length > 3 && !/restaurant|shop|store|place|house/.test(w)).map(singular);
   // a restaurant's neighbours to team up with are not other restaurants (they compete for the same meal)
   const isRestaurant = ctx.resolved.some((p) => /restaurant/.test(`${p.part} ${p.heatmap_tag ?? ""} ${p.competitor_tag ?? ""}`));
   const tagIds = ctx.resolved.flatMap((p) => [p.competitor_tag, p.heatmap_tag, ...(p.comp_candidates ?? [])]);
   const rivalNames = (ctx.competitors ?? []).map((c) => c.name);
-  const neighbours = pickNeighbours(places, { ...spot, rivalNames, tagIds, words, excludeKinds: isRestaurant ? /restaurant|steakhouse|bistro|diner|eatery|pizza|takeout|take-out|burger|tapas|grill|kitchen|sushi|taco|kebab|food/i : null });
-  const rivalSet = new Set(rivalNames.map((n) => n.toLowerCase()));
+  const opts = { ...spot, rivalNames, tagIds, words, excludeKinds: isRestaurant ? /restaurant|steakhouse|bistro|diner|eatery|pizza|takeout|take-out|burger|tapas|grill|kitchen|sushi|taco|kebab|food/i : null };
+  const venueList = pickNeighbours(venues, { ...opts, max: 2 });
+  const neighbours = [...venueList, ...pickNeighbours(places, opts).filter((p) => !venueList.some((v) => v.name === p.name))].slice(0, 6);
   return {
     spot,
     seeds: seeds.map(({ name, rating, distance_m }) => ({ name, rating, distance_m })),
     signal: seeds.length ? "rivals" : sig ? "concept" : "none",
     music: artists.slice(0, 8).map(entOut),
-    brands: brands.filter((b) => !rivalSet.has(b.name.toLowerCase())).slice(0, 10).map(entOut),
+    brands: pickBrands(brands.map(entOut), { rivalNames, isRestaurant }),
     neighbours,
-    posters: posterZones(ctx.heatmap?.cells ?? [], spot),
+    posters: posterZones(ctx.heatmap?.cells ?? [], spot, { n: 5 }),
   };
 }
 
@@ -124,9 +153,11 @@ export function composeFixed(plan, c, ctx, lang = "en") {
   const es = lang === "es";
   const L = (en, sp) => (es ? sp : en);
   const seeds = c.seeds.map((s) => s.name);
-  const headline = seeds.length
+  const away = c.spot ? haversine(ctx.geo.lat, ctx.geo.lon, c.spot.lat, c.spot.lon) : 0;
+  const where = away > 50 ? L(`For the better spot, ${away} m away: `, `Para el mejor punto, a ${away} m: `) : "";
+  const headline = where + (seeds.length
     ? L(`Learned from what the customers of ${list(seeds, es)} (the best-rated rivals nearby) also like.`, `Aprendido de lo que también les gusta a los clientes de ${list(seeds, es)} (los rivales mejor valorados cerca).`)
-    : L(`Learned from what people who like ${ctx.concept} around here also like (no rated rival to learn from).`, `Aprendido de lo que también le gusta a quien disfruta de «${ctx.resolved.map((p) => esPart(p.part)).join(" y ")}» por aquí (no hay rival valorado del que aprender).`);
+    : L(`Learned from what people who like ${ctx.concept} around here also like (no rated rival to learn from).`, `Aprendido de lo que también le gusta a quien disfruta de «${ctx.resolved.map((p) => esPart(p.part)).join(" y ")}» por aquí (no hay rival valorado del que aprender).`));
   const posters = c.posters.map((z) => {
     const top = Math.max(1, Math.round((1 - z.activity) * 100));
     return { where: z.street ?? `${z.lat.toFixed(4)}, ${z.lon.toFixed(4)}`, why: L(`${z.street ? `${z.street}, ` : ""}${z.distance_m} m away: taste rank ${z.demand.toFixed(2)}, among the ${top} % busiest blocks around`, `${z.street ? `${z.street}, ` : ""}a ${z.distance_m} m: gusto ${z.demand.toFixed(2).replace(".", ",")}, entre el ${top} % de manzanas con más actividad`) };
@@ -187,6 +218,9 @@ export async function launchPlan({ ctx, lang = "en", at }) {
   const city = cityOf(ctx.address);
   // street names for the poster zones (OpenStreetMap allows ~1 request per second; cached)
   const streetsP = (async () => {
+    // a poster zone must be a street with places on it (not an alley or a promenade): ≥ 10 places within 150 m
+    const dens = await Promise.all(c.posters.map((z) => placesNear({ lat: z.lat, lon: z.lon, radius: 150 }, trace).catch(() => null)));
+    c.posters = c.posters.filter((z, i) => dens[i] == null || dens[i] >= 10).slice(0, 3);
     for (const z of c.posters) {
       z.street = await streetAt(z, trace).catch(() => null);
       if (!process.env.OFFLINE && !trace.entries.at(-1)?.cached) await new Promise((r) => setTimeout(r, 1100));

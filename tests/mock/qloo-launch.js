@@ -22,6 +22,7 @@ export function startQlooMock(port = 0) {
         ent("Dental Clinic X", { tags: [{ id: "urn:tag:category:place:dentist", name: "Dentist", type: "urn:tag:category:place" }], location: { lat: 41.375, lon: 2.169 } }),
         ent("Pride Bar", { tags: [{ id: "urn:tag:category:place:bar", name: "Bar", type: "urn:tag:category:place" }, { id: "urn:tag:customer_identity:qloo:lgbtq_friendly", name: "LGBTQ+ friendly", type: "urn:tag:customer_identity:qloo" }], location: { lat: 41.3745, lon: 2.1700 } }),
       ];
+    if (type === "urn:entity:place" && u.searchParams.get("filter.location.radius") === "150") entities = Array.from({ length: 12 }, (_, i) => ({ name: `P${i}` }));
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify({ results: { entities } }));
   });

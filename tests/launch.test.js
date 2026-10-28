@@ -42,7 +42,7 @@ test("launch plan: neighbours exclude rivals, same-concept places, closed places
   assert.equal(r.plan.posters.length, 3);
   assert.ok(r.plan.co_promo.every((p) => names.includes(p.name)));
   assert.match(r.plan.headline, /Marisqueria B/);
-  const calls = seen.filter((q) => q["filter.type"]);
+  const calls = seen.filter((q) => q["filter.type"] && q["filter.location.radius"] !== "150");
   assert.equal(calls.length, 3);
   assert.ok(calls.every((q) => !q["signal.location"]), "no location signal: at street level it pulls generic luxury brands");
   assert.ok(calls.every((q) => q["signal.interests.entities"] === "id-b,id-puertecillo"));
@@ -64,4 +64,11 @@ test("co-promotion ideas fit the kind of neighbour", async () => {
   assert.match(coPromoIdea({ kind: "Performing arts theater", distance_m: 120 }), /pre-show offer/);
   assert.match(coPromoIdea({ kind: "Hotel", distance_m: 80 }, "es"), /recepción/);
   assert.match(coPromoIdea({ kind: null, distance_m: 50 }), /swap flyers/);
+});
+
+test("brands: no rivals, no restaurant chains for a restaurant, nothing a shop cannot approach", async () => {
+  const { pickBrands } = await import("../src/launch.js");
+  const b = [{ name: "Estrella Damm", tags: ["Beer"] }, { name: "Scalpers", tags: ["Fashion"] }, { name: "Goiko", tags: ["Burger restaurant"] }, { name: "Wallapop", tags: ["Software"] }, { name: "Unknown Co", tags: [] }];
+  assert.deepEqual(pickBrands(b, { isRestaurant: true }).map((x) => x.name), ["Estrella Damm", "Unknown Co"]);
+  assert.deepEqual(pickBrands(b, { rivalNames: ["estrella damm"] }).map((x) => x.name), ["Goiko", "Unknown Co"]);
 });

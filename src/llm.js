@@ -34,27 +34,62 @@ function spend() {
 export const llmUsage = () => ({ day: usage.day, calls: usage.n, cap: CAP });
 
 // Nemotron 3 Nano / Super reason before answering by default; for short JSON jobs we turn thinking off
-// (chat_template_kwargs, passed through by Token Factory). If the endpoint rejects the parameter, we retry without it.
+// (chat_template_kwargs, passed through by Token Factory). Only if the endpoint rejects that parameter do we drop it.
 let thinkingKwargs = true;
 async function complete(params) {
   if (thinkingKwargs) {
     try {
       return await client.chat.completions.create({ ...params, chat_template_kwargs: { enable_thinking: false } });
     } catch (e) {
-      if (e?.status !== 400) throw e;
+      if (e?.status !== 400 || !/chat_template_kwargs|enable_thinking|unrecognized|unexpected|extra/i.test(String(e?.message))) throw e;
       thinkingKwargs = false;
+      spend(); // the retry is a second model call
     }
   }
   return client.chat.completions.create(params);
 }
 
-/** The JSON object in a model reply: strips <think> blocks and code fences; falls back to reasoning_content. */
-export function extractJSON(msg) {
-  const raw = [msg?.content, msg?.reasoning_content].filter((x) => typeof x === "string" && x.trim()).join("\n");
-  const text = raw.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/```(?:json)?/g, "");
-  const start = text.indexOf("{"), end = text.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new Error(`no JSON in the reply (${raw.slice(0, 120).replace(/\s+/g, " ") || "empty"})`);
-  return JSON.parse(text.slice(start, end + 1));
+/** Text after the last </think> (templates often open <think> inside the prompt, so only the closing tag shows). */
+export const afterThink = (t) => { const s = String(t ?? ""); const i = s.lastIndexOf("</think>"); return (i >= 0 ? s.slice(i + 8) : s).replace(/<think>[\s\S]*$/, "").trim(); };
+
+/** Every balanced {...} object in a text, in order. */
+function objectsIn(text) {
+  const out = [];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== "{") continue;
+    let depth = 0, inStr = false, esc = false;
+    for (let j = i; j < text.length; j++) {
+      const ch = text[j];
+      if (inStr) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false; continue; }
+      if (ch === '"') inStr = true;
+      else if (ch === "{") depth++;
+      else if (ch === "}" && --depth === 0) {
+        try { out.push(JSON.parse(text.slice(i, j + 1))); i = j; } catch {}
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The JSON object in a model reply. Tries the answer (after any </think>, without code fences) first and the
+ * reasoning only as a last resort; with a schema, returns the first object that passes it.
+ */
+export function extractJSON(msg, schema) {
+  const sources = [afterThink(msg?.content), msg?.reasoning_content].filter((x) => typeof x === "string" && x.trim()).map((x) => x.replace(/```(?:json)?/g, ""));
+  for (const src of sources) {
+    for (const o of objectsIn(src)) {
+      if (!schema) return o;
+      const r = schema.safeParse(o);
+      if (r.success) return r.data;
+    }
+  }
+  const raw = [msg?.content, msg?.reasoning_content].filter(Boolean).join(" ");
+  if (!sources.length || !sources.some((s) => objectsIn(s).length)) throw new Error(`no JSON in the reply (${raw.slice(0, 120).replace(/\s+/g, " ") || "empty"})`);
+  // objects were found but none passes the schema: report the first one's problems
+  const first = objectsIn(sources[0])[0] ?? objectsIn(sources.at(-1))[0];
+  return schema.parse(first);
 }
 
 async function chatJSON({ model, system, user, schema, maxTokens = 1200 }) {
@@ -65,7 +100,7 @@ async function chatJSON({ model, system, user, schema, maxTokens = 1200 }) {
   const msg = res.choices[0].message;
   let parsed;
   try {
-    parsed = schema.parse(extractJSON(msg));
+    parsed = extractJSON(msg, schema);
   } catch (e) {
     // one repair round (counts against the daily cap too)
     spend();
@@ -80,7 +115,7 @@ async function chatJSON({ model, system, user, schema, maxTokens = 1200 }) {
       ],
     });
     try {
-      parsed = schema.parse(extractJSON(fix.choices[0].message));
+      parsed = extractJSON(fix.choices[0].message, schema);
     } catch (e2) {
       throw new Error(`${String(e2.message).slice(0, 160)} [finish: ${fix.choices[0].finish_reason}; first reply finish: ${res.choices[0].finish_reason}]`);
     }
@@ -167,7 +202,7 @@ export function templateReport(sig, lang = "en") {
   const crowded = pg?.levels.filter((l) => !l.open) ?? [];
   const priceAction = pg && openL.length && crowded.length
     ? L(`Price position: ${crowded.map((l) => `${EUR(l.level)} is taken (${l.best.name} ${l.best.rating}★)`).join(", ")}; nobody rated 4.5+ at ${openL.map((l) => `${EUR(l.level)}${l.rivals ? ` (best: ${l.best?.name ?? "–"} ${l.best?.rating ?? ""}★)` : " (no rival)"}`).join(", ")}. Aim there.`,
-        `Posición de precio: ${crowded.map((l) => `${EUR(l.level)} está cogido (${l.best.name} ${String(l.best.rating).replace(".", ",")}★)`).join(", ")}; nadie con 4,5+ en ${openL.map((l) => `${EUR(l.level)}${l.rivals ? ` (el mejor: ${l.best?.name ?? "–"} ${String(l.best?.rating ?? "").replace(".", ",")}★)` : " (sin rival)"}`).join(", ")}. Apunta ahí.`)
+        `Posición de precio: ${crowded.map((l) => `${EUR(l.level)} está cogido (${l.best.name} ${String(l.best.rating).replace(".", ",")}★)`).join(", ")}; nadie con 4,5+ en ${openL.map((l) => `${EUR(l.level)}${l.rivals ? ` (el mejor: ${l.best?.name ?? "–"} ${String(l.best?.rating ?? "").replace(".", ",")}★)` : " (sin rival)"}`).join(", ")}. Vale la pena estudiarlo si tus costes encajan en ese precio.`)
     : null;
   const share = sig.already_served_by.filter((x) => x.places > 0).map((x) => L(`${x.places} of the ${x.of} most popular places within 500 m already serve ${x.part}.`, `${x.places} de los ${x.of} locales más populares a 500 m ya ${x.places === 1 ? "sirve" : "sirven"} ${esPart(x.part)}.`));
   const b = sig.best_alternative;
@@ -185,7 +220,7 @@ export function templateReport(sig, lang = "en") {
 }
 
 /** Chat with tools (Lightning). tools: {name: {description, parameters, run}} */
-export async function chatWithTools({ messages, tools, maxRounds = 8, maxTokens = 900 }) {
+export async function chatWithTools({ messages, tools, maxRounds = 8, maxTokens = 900, lang = "en" }) {
   const toolDefs = Object.entries(tools).map(([name, t]) => ({ type: "function", function: { name, description: t.description, parameters: t.parameters } }));
   const calls = [];
   for (let i = 0; i < maxRounds; i++) {
@@ -195,7 +230,11 @@ export async function chatWithTools({ messages, tools, maxRounds = 8, maxTokens 
     const think_ms = Date.now() - t0;
     const msg = res.choices[0].message;
     messages.push(msg);
-    if (!msg.tool_calls?.length) return { text: msg.content ?? "", calls, model: MODELS.fast };
+    if (!msg.tool_calls?.length) {
+      const text = afterThink(msg.content);
+      if (!text) throw new Error("the model returned an empty answer");
+      return { text, calls, model: MODELS.fast };
+    }
     for (const call of msg.tool_calls) {
       let args = {};
       try { args = JSON.parse(call.function.arguments || "{}"); } catch {}
@@ -210,5 +249,5 @@ export async function chatWithTools({ messages, tools, maxRounds = 8, maxTokens 
       messages.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result).slice(0, 6000) });
     }
   }
-  return { text: "Stopped after too many tool rounds.", calls, model: MODELS.fast };
+  throw new Error(lang === "es" ? "el modelo no terminó en las rondas permitidas" : "the model did not finish within the allowed rounds");
 }

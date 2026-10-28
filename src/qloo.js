@@ -11,7 +11,7 @@ export function qlooUrl(path, params = {}) {
 }
 
 // The hackathon key allows only a few calls at once: at most MAX_PARALLEL in flight, and a 429 is retried
-// with backoff (0.8 s, 1.6 s, 3.2 s) before it becomes an error.
+// with backoff (1 s, 2 s, 4 s) before it becomes an error.
 const MAX_PARALLEL = Number(process.env.QLOO_PARALLEL) || 3;
 const MIN_GAP_MS = Number(process.env.QLOO_GAP_MS ?? 120); // spacing between call starts
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -27,19 +27,30 @@ async function acquire() {
 }
 const release = () => { const next = queue.shift(); if (next) next(); else active--; };
 
-export async function qloo(path, params, trace) {
+const inflight = new Map(); // the same URL requested twice at once goes to Qloo once
+
+export function qloo(path, params, trace) {
   const url = qlooUrl(path, params);
   if (isCached(url) || process.env.OFFLINE) return getJSON(url, { headers: { "X-Api-Key": KEY }, source: "qloo", trace });
+  if (inflight.has(url)) return inflight.get(url);
+  const p = limited(url, trace).finally(() => inflight.delete(url));
+  inflight.set(url, p);
+  return p;
+}
+
+async function limited(url, trace) {
   for (let attempt = 0; ; attempt++) {
+    // a 429 that will be retried is noted as such, not shown as a failure in "How I know"
+    const t = trace && { add: (e) => trace.add(e.error === "HTTP 429" && attempt < 3 ? { ...e, error: undefined, note: "rate-limited, retried" } : e) };
     await acquire();
     try {
-      return await getJSON(url, { headers: { "X-Api-Key": KEY }, source: "qloo", trace });
+      return await getJSON(url, { headers: { "X-Api-Key": KEY }, source: "qloo", trace: t });
     } catch (e) {
       if (!/ 429:/.test(e.message) || attempt >= 3) throw e;
     } finally {
       release();
     }
-    await sleep(800 * 2 ** attempt);
+    await sleep(1000 * 2 ** attempt);
   }
 }
 

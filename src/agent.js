@@ -96,13 +96,16 @@ export async function signalsAt({ geo, resolved }, trace, { withBest = true } = 
     const tags = [...new Set(resolved.map((p) => p.competitor_tag).filter(Boolean))];
     const wide = dedupeByName((await Promise.all(tags.map((tag) => T.rivalsAround({ lat: geo.lat, lon: geo.lon, tag }, trace).catch(() => [])))).flat());
     const better = bestSpot(geo, heat, dedupeByName([...wide, ...competitors]).filter((r) => r.lat != null), v);
+    let unknown = null;
     for (const b of better.slice(0, 4)) {
-      // a failed count is unknown, not zero: keep the block rather than lose the better spot to a rate limit
+      // a failed count is unknown, not zero: use an unchecked block only if none is confirmed
       const n = await T.placesNear({ lat: b.lat, lon: b.lon }, trace).catch(() => null);
       b.places_200m = n;
-      if (n == null || n >= MIN_PLACES) { best = b; break; }
+      if (n == null) { unknown ??= b; continue; }
+      if (n >= MIN_PLACES && !best) best = b; // keep counting the others: the scout compares them
     }
-    candidates = better.filter((b) => b.places_200m == null || b.places_200m >= MIN_PLACES).slice(0, 5);
+    if (!best && unknown) best = { ...unknown, density_unchecked: true };
+    candidates = better.filter((b) => b.places_200m >= MIN_PLACES || (best && b.lat === best.lat && b.lon === best.lon)).slice(0, 5);
   }
   heat.best = best;
   return { heat, competitors, supply_by_part, share, profile, verdict: v, gap, main, measured, unmeasured, candidates };
@@ -120,7 +123,11 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
     try {
       const n = await normalizeConcept(concept);
       // the model may not add parts the concept does not name: never more parts than the concept's own separators allow
-      parts = n.parts.slice(0, Math.max(T.conceptParts(concept).length, /\bcon\b|\bwith\b/i.test(concept) ? 2 : 1));
+      const allowed = Math.max(T.conceptParts(concept).length, /\b(con|with|amb)\b/i.test(concept) ? 2 : 1);
+      // too many parts: a single word split in pieces ("seafood","restaurant") is joined back; otherwise keep the first ones
+      parts = n.parts.length <= allowed ? n.parts
+        : allowed === 1 && n.parts.length <= 3 && n.parts.every((p) => !p.includes(" ")) ? [n.parts.join(" ")]
+        : n.parts.slice(0, allowed);
       llm.push({ task: "concept → English parts", model: n.model, ms: n.ms });
     } catch (e) {
       llm.push({ task: "concept → English parts", model: "failed → word split", ms: 0, error: String(e.message).slice(0, 120) });
@@ -235,7 +242,11 @@ export function chatTools(ctx, trace) {
     verify_business: {
       description: "Check on the live web whether a business exists before proposing it as a partner.",
       parameters: { type: "object", properties: { name: { type: "string" }, city: { type: "string" } }, required: ["name", "city"] },
-      run: ({ name, city }) => T.verifyBusiness({ name, city }, trace),
+      run: ({ name, city }) => {
+        const n = String(name).toLowerCase();
+        if ((ctx.competitors ?? []).some((c) => { const r = c.name.toLowerCase(); return r.includes(n) || n.includes(r); })) return { exists: false, note: "direct competitor: not a partner" };
+        return T.verifyBusiness({ name, city }, trace);
+      },
     },
   };
 }
@@ -261,13 +272,17 @@ export async function chat({ ctx, history, question, lang = "en" }) {
 Current analysis: ${JSON.stringify({ concept: ctx.concept, address: ctx.address, verdict: { level: ctx.verdict.level, rule: ctx.verdict.rule_fired, adjustments: ctx.verdict.adjustments }, demand_rank: ctx.heatmap.demand, offer: ctx.verdict.offer, best_alternative: ctx.heatmap.best, competitors: ctx.competitors.slice(0, 8).map(({ name, rating, distance_m }) => ({ name, rating, distance_m })), supply_by_part: ctx.supply_by_part, area: ctx.profile })}`;
   const messages = [{ role: "system", content: system }, ...history, { role: "user", content: question }];
   const trace = makeTrace();
-  const r = await chatWithTools({ messages, tools: chatTools(ctx, trace) });
-  return { ...r, trace: trace.entries };
+  try {
+    const r = await chatWithTools({ messages, tools: chatTools(ctx, trace), lang });
+    return { ...r, trace: trace.entries };
+  } catch (e) {
+    return { text: lang === "es" ? `El modelo no ha podido responder ahora (${String(e.message).slice(0, 80)}). El análisis de arriba sigue siendo válido; prueba de nuevo en un momento.` : `The model could not answer right now (${String(e.message).slice(0, 80)}). The analysis above still stands; try again in a moment.`, calls: [], trace: trace.entries, error: true };
+  }
 }
 
 /**
  * "Second opinion" agent: one goal, the model plans the steps. Nemotron 3.5 Lightning decides which blocks to
- * check, analyses them with the same rules, looks for complementary places there and verifies partners with Tavily.
+ * check and analyses them with the same rules; launch partners are not its job (see launch.js).
  * Without the LLM, a scripted version of the same steps runs so the demo still shows the work.
  */
 export async function scout({ ctx, lang = "en" }) {
@@ -284,13 +299,13 @@ export async function scout({ ctx, lang = "en" }) {
   const es = lang === "es";
   // the scout looks for the spot; launch partners come from the launch plan (Qloo taste graph + Tavily)
   delete tools.verify_business;
-  const goal = `Goal: decide whether there is a better place within about 800 m to open "${ctx.concept}" near ${ctx.address}. The address comes out ${({ RED: "Not here", AMBER: "Hard", "AMBER-GREEN": "Promising", UNKNOWN: "No data" })[ctx.verdict.level]} with ${ctx.verdict.offer?.c700} rivals within 700 m and taste rank ${ctx.heatmap.demand}.
+  const goal = `Goal: decide whether there is a better place within about 800 m to open "${ctx.concept}" near ${ctx.address}. The address comes out ${ctx.verdict.level} with ${ctx.verdict.offer?.c700} rivals within 700 m and taste rank ${ctx.heatmap.demand}.
 You choose which tools to call, in which order and how many times: compare up to three candidate blocks with analyse_address (pass "lat, lon"), and use zone_profile to say what the recommended block is like.
-Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at most 4 short sentences: the block you recommend (with its distance, verdict, taste rank and rivals) or staying put, and why. Use the verdict words Not here, Hard, Promising, No data.`;
+Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at most 4 short sentences: the block you recommend (with its distance, verdict, taste rank and rivals) or staying put, and why. The tools return verdict codes; write them as: RED = ${es ? "Aquí no" : "Not here"}, AMBER = ${es ? "Difícil" : "Hard"}, AMBER-GREEN = ${es ? "Prometedor" : "Promising"}, UNKNOWN = ${es ? "Sin datos" : "No data"}.`;
 
   if (llmEnabled) {
     try {
-      const r = await chatWithTools({ messages: [{ role: "system", content: "You are the scouting agent of Abro Aquí. Plan your own steps with the tools; never invent numbers or businesses." }, { role: "user", content: goal }], tools, maxRounds: 10, maxTokens: 700 });
+      const r = await chatWithTools({ messages: [{ role: "system", content: "You are the scouting agent of Abro Aquí. Plan your own steps with the tools; never invent numbers or businesses." }, { role: "user", content: goal }], tools, maxRounds: 10, maxTokens: 700, lang });
       const steps = r.calls.map((c) => stepOut(c, lang));
       const text = String(r.text ?? "").replace(/\*\*|__|^#+\s*/gm, "").replace(/^\s*[-*]\s+/gm, "").trim();
       return { mode: "model", model: r.model, text, steps, trace: trace.entries };
@@ -316,8 +331,7 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
   const riv = chosen && !chosen.error ? chosen.competitors : top?.rivals_700m;
   const text = !top
     ? (es ? "Ninguna manzana con vida a menos de 800 m sale mejor con las mismas reglas: la dirección es tan buena como lo que hay alrededor." : "No busy block within 800 m scores better under the same rules: the address is as good as anything around it.")
-    : (es ? `Recomiendo mirar ${top.distance_m} m más allá (${top.lat.toFixed(4)}, ${top.lon.toFixed(4)}): sale «${lvl}» con ${riv} rivales a 700 m frente a ${ctx.verdict.offer?.c700} aquí.` : `Look ${top.distance_m} m away (${top.lat.toFixed(4)}, ${top.lon.toFixed(4)}): it comes out ${lvl} with ${riv} rivals within 700 m against ${ctx.verdict.offer?.c700} here.`) +
-      (verified.length ? (es ? ` Socios verificados en la web: ${verified.join(", ")}.` : ` Partners verified on the web: ${verified.join(", ")}.`) : (es ? " Los socios no se han podido verificar en este modo." : " Partners could not be verified in this mode."));
+    : (es ? `Recomiendo mirar ${top.distance_m} m más allá (${top.lat.toFixed(4)}, ${top.lon.toFixed(4)}): sale «${lvl}» con ${riv} rivales a 700 m frente a ${ctx.verdict.offer?.c700} aquí.` : `Look ${top.distance_m} m away (${top.lat.toFixed(4)}, ${top.lon.toFixed(4)}): it comes out ${lvl} with ${riv} rivals within 700 m against ${ctx.verdict.offer?.c700} here.`);
   return { mode: "scripted", model: llmEnabled ? "scripted (model failed)" : "scripted (no LLM)", text, steps, trace: trace.entries };
 }
 
