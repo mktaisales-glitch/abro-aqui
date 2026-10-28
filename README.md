@@ -1,10 +1,12 @@
-# Abro Aquí: *should I open my restaurant here?*
+# Open Here: *should I open my restaurant here?*
 
 **Live demo: https://abro-aqui.onrender.com** (free hosting: the first visit after a quiet spell can take up to a minute)
 
+*(The repo and the URL keep the project's first, Spanish name: "abro aquí" = "I open here".)*
+
 ![Live: ramen at 200 Schermerhorn Street, Brooklyn comes out Promising](docs/live-promising-brooklyn.jpg)
 
-For restaurants, bars and cafés. An owner is about to sign a lease. Abro Aquí shows them, with reasons, what the data says about **this concept** at **this street address** before they spend 50,000–200,000 € finding out: how much the area likes it, how much of it is already there, and a better block nearby if there is one.
+For restaurants, bars and cafés. An owner is about to sign a lease. Open Here shows them, with reasons, what the data says about **this concept** at **this street address** before they spend 50,000–200,000 € finding out: how much the area likes it, how much of it is already there, and a better block nearby if there is one.
 
 Two questions, same rules: **"should I open my idea here?"** (a concept and an address) and **"I have premises: which food business fits?"** (an address; 15 restaurant, bar and café concepts ranked; see [`specs/07-explore.md`](specs/07-explore.md)). The owner picks the area around the address: 500 m, 1 km (default), 1.5 km or 2 km.
 
@@ -120,7 +122,7 @@ Keys stay on the server (Qloo's travels in a header, never in a URL, so "How I k
 
 ## Responsible use
 
-Abro Aquí decides about a **place**, never about a **person**. E-mails and phone numbers typed into the app are removed before any model or search call (`src/safe.js`, tested). Affinities are described as "the area", never as "the people who live here". Some customer-identity labels that touch protected attributes (religion, ethnicity, sexuality, disability, age groups) are filtered out of the audience panel. In the launch plan a neighbour is never excluded for who its customers are; only settings where a commercial promotion is out of place (clinics, schools, funeral homes, police) are skipped. It must not be used for housing, employment or credit decisions. See [`specs/05-safe-use.md`](specs/05-safe-use.md).
+Open Here decides about a **place**, never about a **person**. E-mails and phone numbers typed into the app are removed before any model or search call (`src/safe.js`, tested). Affinities are described as "the area", never as "the people who live here". Some customer-identity labels that touch protected attributes (religion, ethnicity, sexuality, disability, age groups) are filtered out of the audience panel. In the launch plan a neighbour is never excluded for who its customers are; only settings where a commercial promotion is out of place (clinics, schools, funeral homes, police) are skipped. It must not be used for housing, employment or credit decisions. See [`specs/05-safe-use.md`](specs/05-safe-use.md).
 
 **Coverage bias.** Qloo knows more about busy, central, touristic areas than about quiet or lower-income ones. Thin areas get **No data** rather than a verdict, which is honest, but it means the tool is most useful where data already exists; we say so instead of filling the gap with guesses.
 

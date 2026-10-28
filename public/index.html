@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Abro Aquí — should I open my restaurant here?</title>
+<title>Open Here — should I open my restaurant here?</title>
 <meta name="description" content="Tell it a business and a street address. It reads the taste and the offer of the area with Qloo and tells you, with reasons, whether to open there.">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <style>
@@ -186,7 +186,7 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
 <div class="app">
   <div class="col">
     <div class="top">
-      <div class="logo">ABRO <b>AQUÍ</b></div>
+      <div class="logo">OPEN <b>HERE</b></div>
       <div class="lang" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="es" aria-pressed="false">ES</button></div>
     </div>
     <div class="pad">
@@ -383,7 +383,7 @@ function render(d,keep=false){
   const tw=x=>x==null?T("no data","sin datos"):x>=.9?T("Very high","Muy alto"):x>=.85?T("High","Alto"):x>=.75?T("Medium","Medio"):T("Low","Bajo");
   const of0=v.offer||{c400:0,c700:0},b0=d.heatmap.best;
   $("#facts").innerHTML=`<div><b>${tw(d.heatmap.demand)}</b><span>${T("how much the area likes it","cuánto le gusta a la zona")} (${n2(d.heatmap.demand)})</span></div><div><b>${of0.c700}</b><span>${T(`direct rivals within 700 m (${of0.c400} within 400 m)`,`rivales directos a 700 m (${of0.c400} a 400 m)`)}</span></div><div><b>${b0?b0.distance_m+" m":"—"}</b><span>${b0?T("to a better spot (green ring)","hasta un sitio mejor (círculo verde)"):T("no better block nearby","ninguna manzana mejor cerca")}</span></div>`;
-  $("#scope").hidden=!d.outside_scope;$("#scope").textContent=d.outside_scope?T("Abro Aquí is built for restaurants, bars and cafés. Qloo knows little about this kind of business, so read this result with care.","Abro Aquí está pensado para restaurantes, bares y cafeterías. Qloo sabe poco de este tipo de negocio, así que lee este resultado con cautela."):"";
+  $("#scope").hidden=!d.outside_scope;$("#scope").textContent=d.outside_scope?T("Open Here is built for restaurants, bars and cafés. Qloo knows little about this kind of business, so read this result with care.","Open Here está pensado para restaurantes, bares y cafeterías. Qloo sabe poco de este tipo de negocio, así que lee este resultado con cautela."):"";
   $("#adjust").innerHTML=(lang==="es"&&v.adjustments_es?v.adjustments_es:v.adjustments).map(a=>`<p>${esc(a)}</p>`).join("");
   const hm=d.heatmap,bc=hm.best,of=v.offer||{c400:0,c700:0},part=esc(d.measured?.[0]??d.resolved.find(p=>p.heatmap_tag)?.part);
   const beats=hm.local!=null?Math.round(hm.local*100):null;const rad=d.radius||1000,radEn=rad>=1000?`${rad/1000} km`:`${rad} m`,radEs=radEn.replace(".",",");

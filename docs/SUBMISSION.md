@@ -2,7 +2,7 @@
 
 ## Common fields
 
-- **Name:** Abro Aquí: should I open here?
+- **Name:** Open Here — should I open my restaurant here?
 - **Tagline (≤ 200 chars):** Locality intelligence for the small shop owner. Tell it a business and a street address: it reads what the area likes and what it already has before you sign a lease.
 - **Demo:** https://abro-aqui.onrender.com (free plan: the first visit after a quiet spell can take up to a minute)
 - **Repo:** https://github.com/mktaisales-glitch/abro-aqui (MIT)

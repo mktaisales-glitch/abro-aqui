@@ -201,7 +201,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
 
   const noQloo = await noQlooP;
 
-  // Abro Aquí is for food and drink; Qloo's place data elsewhere is thin, so say so
+  // Open Here is for food and drink; Qloo's place data elsewhere is thin, so say so
   const scopeTags = resolved.map((p) => `${p.heatmap_tag ?? ""} ${p.competitor_tag ?? ""}`).join(" ");
   const outside_scope = !/restaurant|bar\b|_bar|pub|cafe|coffee|bakery|ice_cream|dessert|tea|wine|cocktail|brewery|food|pizza|ramen|sushi|burger|taco|brunch|deli|bistro|juice/.test(scopeTags);
   return {
@@ -300,7 +300,7 @@ export async function compare({ ctx, address }) {
 
 export async function chat({ ctx, history, question, lang = "en" }) {
   if (!llmEnabled) return { text: lang === "es" ? "El chat necesita el modelo (NEBIUS_API_KEY). El análisis de arriba funciona igualmente." : "The chat needs the LLM (NEBIUS_API_KEY). The analysis above still works.", calls: [] };
-  const system = `You are "Abro Aquí", answering follow-up questions about a location analysis for a small-business owner. When the question changes the inputs (another radius, ignoring a competitor, another address) call a tool and answer from its result. Keep answers to 2–4 short sentences, cite the numbers, never invent businesses. Verdict levels: RED / AMBER / AMBER-GREEN / UNKNOWN; there is no GREEN until the owner confirms foot traffic, rent and income. Answer in ${lang === "es" ? "Spanish" : "English"}.
+  const system = `You are "Open Here", answering follow-up questions about a location analysis for a small-business owner. When the question changes the inputs (another radius, ignoring a competitor, another address) call a tool and answer from its result. Keep answers to 2–4 short sentences, cite the numbers, never invent businesses. Verdict levels: RED / AMBER / AMBER-GREEN / UNKNOWN; there is no GREEN until the owner confirms foot traffic, rent and income. Answer in ${lang === "es" ? "Spanish" : "English"}.
 
 Current analysis: ${JSON.stringify({ concept: ctx.concept, address: ctx.address, verdict: { level: ctx.verdict.level, rule: ctx.verdict.rule_fired, adjustments: ctx.verdict.adjustments }, demand_rank: ctx.heatmap.demand, offer: ctx.verdict.offer, best_alternative: ctx.heatmap.best, competitors: ctx.competitors.slice(0, 8).map(({ name, rating, distance_m }) => ({ name, rating, distance_m })), supply_by_part: ctx.supply_by_part, area: ctx.profile })}`;
   const messages = [{ role: "system", content: system }, ...history, { role: "user", content: question }];
@@ -339,7 +339,7 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
 
   if (llmEnabled) {
     try {
-      const r = await chatWithTools({ messages: [{ role: "system", content: "You are the scouting agent of Abro Aquí. Plan your own steps with the tools; never invent numbers or businesses." }, { role: "user", content: goal }], tools, maxRounds: 7, maxTokens: 700, lang, maxCalls: 6 });
+      const r = await chatWithTools({ messages: [{ role: "system", content: "You are the scouting agent of Open Here. Plan your own steps with the tools; never invent numbers or businesses." }, { role: "user", content: goal }], tools, maxRounds: 7, maxTokens: 700, lang, maxCalls: 6 });
       const steps = r.calls.map((c) => stepOut(c, lang));
       const words = { "AMBER-GREEN": es ? "Prometedor" : "Promising", AMBER: es ? "Difícil" : "Hard", RED: es ? "Aquí no" : "Not here", UNKNOWN: es ? "Sin datos" : "No data" };
       let text = String(r.text ?? "").replace(/\*\*|__|^#+\s*/gm, "").replace(/^\s*[-*]\s+/gm, "").trim();

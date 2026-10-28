@@ -199,4 +199,4 @@ app.use((err, _req, res, _next) => {
 process.on("unhandledRejection", (e) => console.error("[unhandledRejection]", e));
 
 const port = Number(process.env.PORT) || 3000;
-app.listen(port, () => console.log(`Abro Aquí on :${port} — LLM ${llmEnabled ? `on (${MODELS.nano} / ${MODELS.fast} / ${MODELS.writer})` : "OFF (template mode)"}${process.env.OFFLINE === "1" ? " — OFFLINE replay" : ""}`));
+app.listen(port, () => console.log(`Open Here on :${port} — LLM ${llmEnabled ? `on (${MODELS.nano} / ${MODELS.fast} / ${MODELS.writer})` : "OFF (template mode)"}${process.env.OFFLINE === "1" ? " — OFFLINE replay" : ""}`));

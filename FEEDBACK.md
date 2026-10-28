@@ -1,6 +1,6 @@
 # Feedback
 
-Written while building Abro Aquí (26–30 October 2026). Everything below happened to us; nothing is hypothetical.
+Written while building Open Here (26–30 October 2026). Everything below happened to us; nothing is hypothetical.
 
 ## Nebius Token Factory + NVIDIA Nemotron
 
