@@ -53,7 +53,7 @@ const OK = /[\u0000-ÿıŒœˆ˜ -⁯€™−]/;
 const SWAP = { "★": "*", "→": "->", "≥": ">=", "≤": "<=" };
 export function safeText(s) {
   // thin and no-break spaces (the app writes "590\u202Fm") are missing from the fonts: plain space
-  return [...String(s ?? "").replace(/[\u00a0\u2000-\u200b\u202f\u205f]/g, " ")].map((ch) => (OK.test(ch) ? ch : SWAP[ch] ?? (ch.normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^\u0000-ÿ]/g, "") || ""))).join("");
+  return [...String(s ?? "").replace(/[\u00a0\u2000-\u200b\u202f\u205f]/g, " ").replace(/[\u2010-\u2012]/g, "-")].map((ch) => (OK.test(ch) ? ch : SWAP[ch] ?? (ch.normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^\u0000-ÿ]/g, "") || ""))).join("");
 }
 /** Why the better spot is better, said exactly (stored by the analysis; recomputed for older sessions). */
 function bestWhy(best, ctx, L) {
