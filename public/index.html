@@ -139,7 +139,23 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
 #map{position:absolute;inset:0}
 .osm-tiles{filter:grayscale(1) contrast(.9) brightness(1.06)}
 .legend{position:absolute;left:14px;bottom:14px;z-index:500;background:#fff;border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 1px 0 var(--line),0 0 0 1px var(--line)}
-.legend .ramp{height:8px;width:160px;border-radius:4px;background:linear-gradient(90deg,#fde3cf,#f7a35c,#EF751F,#D4421B,#7a1e08);margin:4px 0 2px}
+.legend .classes{display:grid;gap:3px;margin:6px 0 2px}
+.legend .classes span{display:flex;align-items:center;gap:6px}
+.legend .classes i{width:14px;height:10px;border-radius:2px;margin:0}
+.legend .ttl{font-weight:600;max-width:220px}
+.modes{display:flex;gap:6px;margin-bottom:10px}
+.modes button{flex:1;border:1px solid var(--line);background:var(--paper);border-radius:var(--r);padding:8px 10px;font-size:13px;font-weight:600;cursor:pointer}
+.modes button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.field select{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--paper)}
+.fit{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+.fit td,.fit th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.fit th{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.fit .n{text-align:right;white-space:nowrap}
+.chip{display:inline-block;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700;white-space:nowrap}
+.chip.AMBER-GREEN{background:#e3f2e8;color:#1e5c36}.chip.AMBER{background:#fdf0dc;color:#8a5a00}.chip.RED{background:#fbe3dc;color:#9b2c12}.chip.UNKNOWN{background:#eee;color:#555}
+.fit button{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:3px 8px;font-size:12px;cursor:pointer}
+.youlbl{background:var(--ink);color:#fff;border:0;font-weight:700}
+.bestlbl{background:#3E9B5F;color:#fff;border:0;font-weight:700}
 .legend .ends{display:flex;justify-content:space-between;color:var(--ink-3)}
 .legend .keys{display:grid;gap:3px;margin-top:6px}
 .legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px}
@@ -160,14 +176,22 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
     </div>
     <div class="pad">
       <p class="lead" data-i="lead">Tell it a business and a street address. It reads what the area likes and what it already has, and tells you whether to open there.</p>
+      <div class="modes" role="group"><button type="button" id="m-one" aria-pressed="true" data-i="mone">Should I open my idea here?</button><button type="button" id="m-fit" aria-pressed="false" data-i="mfit">I have premises: what fits?</button></div>
       <form class="ask" id="ask">
-        <label class="field"><span data-i="concept">Business</span><input id="concept" required autocomplete="off" placeholder="seafood restaurant"></label>
+        <label class="field" id="conceptf"><span data-i="concept">Business</span><input id="concept" required autocomplete="off" placeholder="seafood restaurant, hair salon, bakery…"></label>
         <label class="field"><span data-i="address">Street address or “lat, lon”</span><input id="address" required autocomplete="off" placeholder="Avinguda del Paral·lel 40, Barcelona"></label>
+        <label class="field"><span data-i="radius">Area around the address</span><select id="radius"><option value="500">500 m</option><option value="1000" selected>1 km</option><option value="1500">1.5 km</option><option value="2000">2 km</option></select></label>
         <button class="go" id="go" type="submit" data-i="go">Should I open here?</button>
       </form>
       <div class="examples" id="examples" aria-label="Examples"></div>
       <ol class="steps" id="steps" hidden></ol>
       <div class="err" id="err" hidden role="alert"></div>
+      <div id="fitbox" hidden>
+        <h2 id="fith" style="margin:16px 0 4px"></h2>
+        <p class="note" id="fithelp" style="margin:0"></p>
+        <table class="fit" id="fit"></table>
+        <p class="note" id="fitnote"></p>
+      </div>
     </div>
 
     <div id="result" hidden>
@@ -262,21 +286,22 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
     <div id="map" role="img" aria-label="Taste heat map around the address"></div>
     <div class="empty" id="empty"><p data-i="emptymap">Pick a street. The map shows how much the area likes your idea, block by block.</p></div>
     <div class="legend" id="legend" hidden>
-      <div data-i="legend">How much the area likes it (Qloo taste rank)</div>
-      <div class="ramp"></div><div class="ends"><span id="legendlo">0.6</span><span id="legendhi">1.0</span></div>
-      <div class="keys"><span><i style="background:#000;border-radius:2px"></i><span data-i="kaddr">your address</span></span><span><i style="border:2px dashed #3E9B5F;border-radius:50%"></i><span data-i="kbest">better spot nearby</span></span><span><i style="background:#fff;border:2px solid #000;border-radius:50%"></i><span data-i="kcomp">direct competitor</span></span></div>
+      <div class="ttl" id="legendttl">Where the area likes it most</div>
+      <div class="classes" id="legendcls"></div>
+      <div class="ends" style="font-size:11px"><span id="legendrange"></span></div>
+      <div class="keys"><span><i style="background:#000;border-radius:2px"></i><span data-i="kaddr">your address</span></span><span><i style="border:2px dashed #3E9B5F;border-radius:50%"></i><span data-i="kbest">better spot nearby</span></span><span><i style="background:#fff;border:2.5px solid #C0392B;border-radius:50%"></i><span data-i="kcomp">direct competitor (hover for name)</span></span><span><i style="border:1.5px dashed #555;border-radius:50%"></i><span id="kradius">area analysed</span></span></div>
     </div>
   </div>
 </div>
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script>
-const ES={lead:"Dile un negocio y una dirección. Lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",concept:"Negocio",address:"Dirección o «lat, lon»",go:"¿Abro aquí?",rule:"Por qué este color",numbers:"Lo que dice la zona",gap:"Nadie cerca ofrece",who:"Quién va",when:"Cuándo",serves:"Qué sirven",whyh:"Por qué",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",chat:"Pregunta «¿y si…?»",ask:"Preguntar",how:"Cómo lo sé",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",legend:"Cuánto le gusta a la zona (gusto de Qloo)",low:"poco",high:"mucho",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo",scouth:"Segunda opinión: deja que el agente mire alrededor",scouthelp:"Un objetivo y el agente decide los pasos: compara las manzanas cercanas con las mismas reglas y te dice si moverte o quedarte, y por qué.",scoutgo:"Búscame un sitio mejor",launchh:"Planifica la apertura: dónde anunciarla",launchhelp:"Aprendido de los clientes de los locales mejor valorados que ya sirven tu idea cerca: la música que escuchan, las marcas que les gustan, los vecinos que también visitan (no competidores) y las manzanas con más vida donde más gusta tu idea.",launchgo:"Planifica mi apertura",lmusic:"Música para la inauguración",lco:"Vecinos con los que aliarte",lbrands:"Marcas para pedir degustación",lposters:"Carteles y flyers"};
+const ES={lead:"Dile un negocio y una dirección. Lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",concept:"Negocio",address:"Dirección o «lat, lon»",go:"¿Abro aquí?",rule:"Por qué este color",numbers:"Lo que dice la zona",gap:"Nadie cerca ofrece",who:"Quién va",when:"Cuándo",serves:"Qué sirven",whyh:"Por qué",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",chat:"Pregunta «¿y si…?»",ask:"Preguntar",how:"Cómo lo sé",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",legend:"Cuánto le gusta a la zona (gusto de Qloo)",low:"poco",high:"mucho",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo (pasa el ratón para ver el nombre)",scouth:"Segunda opinión: deja que el agente mire alrededor",scouthelp:"Un objetivo y el agente decide los pasos: compara las manzanas cercanas con las mismas reglas y te dice si moverte o quedarte, y por qué.",scoutgo:"Búscame un sitio mejor",launchh:"Planifica la apertura: dónde anunciarla",launchhelp:"Aprendido de los clientes de los locales mejor valorados que ya sirven tu idea cerca: la música que escuchan, las marcas que les gustan, los vecinos que también visitan (no competidores) y las manzanas con más vida donde más gusta tu idea.",launchgo:"Planifica mi apertura",lmusic:"Música para la inauguración",lco:"Vecinos con los que aliarte",lbrands:"Marcas para pedir degustación",lposters:"Carteles y flyers",mone:"¿Abro mi idea aquí?",mfit:"Tengo un local: ¿qué encaja?",radius:"Zona alrededor de la dirección"};
 const VERD={en:{RED:"Not here","AMBER":"Hard","AMBER-GREEN":"Promising",UNKNOWN:"No data"},es:{RED:"Aquí no","AMBER":"Difícil","AMBER-GREEN":"Prometedor",UNKNOWN:"Sin datos"}};
 const EXAMPLES=[["ramen","200 Schermerhorn Street, Brooklyn, New York","Ramen · Boerum Hill, NYC"],["seafood restaurant","Avinguda del Paral·lel 40, Barcelona","Seafood · Paral·lel 40"],["waffles and ice cream","41.37903, 2.15478","Waffles · Gran Via 400"],["ramen","Carrer de Sants 100, Barcelona","Ramen · Sants"]];
 const STEPS={en:["Finding the address","Matching your idea to Qloo","Reading taste, offer and competitors","Writing the verdict"],es:["Buscando la dirección","Traduciendo tu idea a Qloo","Leyendo gusto, oferta y competencia","Escribiendo el veredicto"]};
 const $=s=>document.querySelector(s);
-let lang="en",cur=null,map=null,layer=null;
+let lang="en",cur=null,map=null,layer=null,mode="one";
 const T=(en,es)=>lang==="es"?es:en;
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const short=a=>String(a).split(",").slice(0,3).join(",").trim();
@@ -287,6 +312,7 @@ function applyLang(){
   document.documentElement.lang=lang;
   document.querySelectorAll("[data-i]").forEach(el=>el.textContent=lang==="es"&&ES[el.dataset.i]?ES[el.dataset.i]:el.dataset.en);
   document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lang===lang));
+  if(typeof setMode==="function")setMode(mode);
   if(cur)render(cur,true);
 }
 document.querySelectorAll(".lang button").forEach(b=>b.onclick=()=>{lang=b.dataset.lang;try{localStorage.setItem("abro-lang",lang)}catch(e){}applyLang()});
@@ -303,15 +329,18 @@ initMap();
 
 function steps(i){const s=STEPS[lang];$("#steps").innerHTML=s.map((t,k)=>`<li class="${k<i?"done":k===i?"now":""}">${t}</li>`).join("")}
 
+function setMode(m){mode=m;$("#m-one").setAttribute("aria-pressed",m==="one");$("#m-fit").setAttribute("aria-pressed",m==="fit");$("#conceptf").hidden=m==="fit";$("#concept").required=m==="one";$("#go").textContent=m==="fit"?T("What fits here?","¿Qué encaja aquí?"):T("Should I open here?","¿Abro aquí?")}
+$("#m-one").onclick=()=>setMode("one");$("#m-fit").onclick=()=>setMode("fit");
 $("#ask").onsubmit=async e=>{
   e.preventDefault();
+  if(mode==="fit")return runFit();
   const concept=$("#concept").value.trim(),address=$("#address").value.trim();
   $("#err").hidden=true;$("#go").disabled=true;$("#steps").hidden=false;let i=0;steps(0);
   const tick=setInterval(()=>{i=Math.min(i+1,3);steps(i)},2500);
   try{
-    const r=await fetch("/api/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({concept,address,lang,without_qloo:true})});
+    const r=await fetch("/api/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({concept,address,lang,without_qloo:true,radius:+$("#radius").value})});
     const d=await r.json();if(!r.ok)throw new Error(d.error||("Error "+r.status));
-    d.lang=d.lang||lang;cur=d;document.body.classList.add("has-result");render(d);$("#log").innerHTML="";
+    d.lang=d.lang||lang;cur=d;document.body.classList.add("has-result");$("#fitbox").hidden=true;render(d);$("#log").innerHTML="";
     $("#vbox").classList.remove("in");void $("#vbox").offsetWidth;$("#vbox").classList.add("in");
     if(matchMedia("(max-width:900px)").matches)$("#vbox").scrollIntoView({behavior:"smooth",block:"start"});else $(".col").scrollTo({top:0});
   }catch(err){$("#err").textContent=err.message;$("#err").hidden=false}
@@ -366,15 +395,27 @@ function render(d,keep=false){
 }
 
 function heatColor(a){const stops=[[0,[253,227,207]],[.35,[247,163,92]],[.6,[239,117,31]],[.8,[212,66,27]],[1,[122,30,8]]];for(let i=1;i<stops.length;i++)if(a<=stops[i][0]){const[a0,c0]=stops[i-1],[a1,c1]=stops[i],t=(a-a0)/(a1-a0);return`rgb(${c0.map((c,k)=>Math.round(c+(c1[k]-c)*t)).join(",")})`}return"rgb(122,30,8)"}
-function drawMap(d){
+const CLS=["#7a1e08","#D4421B","#EF751F","#f7c9a1","#fdf1e6"],CLSOP=[.62,.55,.45,.28,.12];
+function radiusLabel(r){return r>=1000?`${(r/1000).toLocaleString(lang)} km`:`${r} m`}
+function baseLayers(d){
   if(layer)layer.remove();layer=L.layerGroup().addTo(map);
-  const h=.0007,ranks=d.heatmap.cells.map(c=>c.affinity_rank).filter(x=>x!=null).sort((a,b)=>a-b),lo=ranks[Math.floor(ranks.length*.05)]??.6,hi=ranks.at(-1)??1,span=Math.max(.02,hi-lo);
-  $("#legendlo").textContent=n2(lo);$("#legendhi").textContent=n2(hi);
-  d.heatmap.cells.forEach(c=>L.rectangle([[c.lat-h,c.lon-h],[c.lat+h,c.lon+h]],{stroke:false,fillColor:heatColor(Math.max(0,Math.min(1,(c.affinity_rank-lo)/span))),fillOpacity:.42}).bindTooltip(`${T("taste rank","gusto")} ${n2(c.affinity_rank)} · ${T("beats","supera al")} ${Math.round(c.affinity*100)} % ${T("of the circle","del círculo")} · ${T("activity","actividad")} ${Math.round(c.popularity*100)} %`).addTo(layer));
-  d.competitors.forEach(c=>c.lat&&L.circleMarker([c.lat,c.lon],{radius:5,color:"#000",weight:2,fillColor:"#fff",fillOpacity:1}).bindTooltip(`${esc(c.name)} · ${c.rating??"–"} ★`).addTo(layer));
-  if(d.heatmap.best)L.circle([d.heatmap.best.lat,d.heatmap.best.lon],{radius:110,color:"#3E9B5F",weight:3,dashArray:"6 5",fill:false}).bindTooltip(T("Better spot under the same rules","Mejor punto con las mismas reglas")).addTo(layer);
-  L.marker([d.geo.lat,d.geo.lon],{icon:L.divIcon({className:"",html:'<div class="pin"></div>',iconSize:[16,16],iconAnchor:[8,8]}),keyboard:false}).bindTooltip(esc(short(d.address))).addTo(layer);
-  map.invalidateSize();map.setView([d.geo.lat,d.geo.lon],15);
+  const r=d.radius||1500,circle=L.circle([d.geo.lat,d.geo.lon],{radius:r,color:"#555",weight:1.5,dashArray:"5 6",fill:false,interactive:false}).addTo(layer);
+  $("#kradius").textContent=T(`area analysed (${radiusLabel(r)})`,`zona analizada (${radiusLabel(r)})`);
+  L.marker([d.geo.lat,d.geo.lon],{icon:L.divIcon({className:"",html:'<div class="pin"></div>',iconSize:[16,16],iconAnchor:[8,8]}),keyboard:false,zIndexOffset:1000}).bindTooltip(T("Your address","Tu dirección"),{permanent:true,direction:"top",offset:[0,-8],className:"youlbl"}).addTo(layer);
+  map.invalidateSize();map.fitBounds(circle.getBounds(),{padding:[12,12]});
+}
+function drawMap(d){
+  baseLayers(d);
+  // five classes by where each block stands inside this circle: easier to read than a continuous ramp
+  const cells=d.heatmap.cells.filter(c=>c.affinity_rank!=null),sorted=cells.map(c=>c.affinity_rank).sort((a,b)=>a-b),q=p=>sorted[Math.min(sorted.length-1,Math.floor(p*sorted.length))];
+  const cuts=[q(.8),q(.6),q(.4),q(.2)],cls=x=>x>=cuts[0]?0:x>=cuts[1]?1:x>=cuts[2]?2:x>=cuts[3]?3:4,h=.0007;
+  cells.forEach(c=>{const k=cls(c.affinity_rank);L.rectangle([[c.lat-h,c.lon-h],[c.lat+h,c.lon+h]],{stroke:false,fillColor:CLS[k],fillOpacity:CLSOP[k]}).bindTooltip(`${T("taste rank","gusto")} ${n2(c.affinity_rank)} · ${T(["top 20 % of this area","60–80 %","40–60 %","20–40 %","bottom 20 %"][k],["el 20 % más alto de la zona","60–80 %","40–60 %","20–40 %","el 20 % más bajo"][k])} · ${T("activity","actividad")} ${Math.round(c.popularity*100)} %`).addTo(layer)});
+  const part=d.measured?.[0]??d.concept;
+  $("#legendttl").textContent=T(`Where the area likes “${part}” most`,`Dónde gusta más «${part}»`);
+  $("#legendcls").innerHTML=[T("top 20 % of this area","el 20 % más alto"),T("next 20 %","siguiente 20 %"),T("middle","zona media"),T("lower 20 %","20 % bajo"),T("bottom 20 %","el 20 % más bajo")].map((t,k)=>`<span><i style="background:${CLS[k]};opacity:${Math.min(1,CLSOP[k]+.35)}"></i>${t}</span>`).join("");
+  $("#legendrange").textContent=sorted.length?T(`Qloo taste rank here: ${n2(sorted[0])}–${n2(sorted.at(-1))}`,`Gusto de Qloo aquí: ${n2(sorted[0])}–${n2(sorted.at(-1))}`):"";
+  d.competitors.forEach(c=>c.lat&&L.circleMarker([c.lat,c.lon],{radius:6,color:"#C0392B",weight:2.5,fillColor:"#fff",fillOpacity:1}).bindTooltip(`${esc(c.name)} · ${c.rating??"–"} ★ · ${c.distance_m} m`).addTo(layer));
+  if(d.heatmap.best){const b=d.heatmap.best;L.circle([b.lat,b.lon],{radius:110,color:"#3E9B5F",weight:3,dashArray:"6 5",fill:false}).bindTooltip(T(`Better spot · ${b.distance_m} m`,`Mejor punto · ${b.distance_m} m`),{permanent:true,direction:"top",className:"bestlbl"}).addTo(layer)}
 }
 
 $("#scoutgo").onclick=async()=>{
@@ -411,6 +452,22 @@ $("#launchgo").onclick=async()=>{
   }catch(err){$("#launchhead").textContent=err.message}
   finally{b.disabled=false}
 };
+
+const ES_CONCEPT={"seafood restaurant":"marisquería",pizza:"pizzería",ramen:"ramen",sushi:"sushi",burger:"hamburguesería","vegan restaurant":"restaurante vegano","coffee shop":"cafetería",bakery:"panadería","ice cream":"heladería","cocktail bar":"coctelería","hair salon":"peluquería",gym:"gimnasio",bookstore:"librería",supermarket:"supermercado"};
+async function runFit(){
+  const address=$("#address").value.trim();if(!address)return;
+  $("#err").hidden=true;$("#go").disabled=true;$("#result").hidden=true;$("#fitbox").hidden=false;$("#fit").innerHTML="";$("#fith").textContent=T("Checking 14 kinds of business… (about 30 s the first time)","Comprobando 14 tipos de negocio… (unos 30 s la primera vez)");$("#fithelp").textContent="";$("#fitnote").textContent="";
+  try{const r=await fetch("/api/explore",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({address,radius:+$("#radius").value,lang})});const d=await r.json();if(!r.ok)throw new Error(d.error);
+    document.body.classList.add("has-result");$("#empty").hidden=true;$("#legend").hidden=true;baseLayers(d);
+    $("#fith").textContent=T(`What fits at ${short(d.address)}`,`Qué encaja en ${short(d.address)}`);
+    $("#fithelp").textContent=T("Same rules as the full analysis, one row per kind of business: taste rank around the address and direct rivals within 700 m. Open a row for the full report, the map and the better spot.","Mismas reglas que el análisis completo, una fila por tipo de negocio: gusto alrededor de la dirección y rivales directos a 700 m. Abre una fila para el informe completo, el mapa y el mejor punto.");
+    const name=c=>lang==="es"?(ES_CONCEPT[c]??c):c;
+    $("#fit").innerHTML=`<tr><th>${T("Business","Negocio")}</th><th>${T("Verdict","Veredicto")}</th><th class="n">${T("Taste","Gusto")}</th><th class="n">${T("Rivals 700 m","Rivales 700 m")}</th><th></th></tr>`+d.rows.map((x,i)=>`<tr><td><b>${esc(name(x.concept))}</b>${x.nearest_rival?`<br><span class="note">${T("closest","más cercano")}: ${esc(x.nearest_rival.name)}, ${x.nearest_rival.distance_m} m</span>`:""}</td><td><span class="chip ${x.level}" title="${esc(lang==="es"?x.rule_es:x.rule)}">${VERD[lang][x.level]}</span></td><td class="n">${n2(x.demand)}</td><td class="n">${x.c700??"–"}</td><td><button type="button" data-k="${i}">${T("Open","Abrir")}</button></td></tr>`).join("");
+    $("#fit").querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{const x=d.rows[+b.dataset.k];setMode("one");$("#concept").value=x.concept;$("#ask").requestSubmit()});
+    $("#fitnote").textContent=T(`Qloo knows food and drink places best; for hair salons, gyms or shops its data is thinner, so read those rows with care. ${d.total_ms} ms.`,`Qloo conoce mejor los locales de comida y bebida; para peluquerías, gimnasios o tiendas sus datos son más escasos, así que lee esas filas con cautela. ${d.total_ms} ms.`);
+  }catch(err){$("#fith").textContent="";$("#err").textContent=err.message;$("#err").hidden=false}
+  finally{$("#go").disabled=false}
+}
 
 $("#qf").onsubmit=async e=>{
   e.preventDefault();const q=$("#q").value.trim();if(!q||!cur)return;$("#q").value="";

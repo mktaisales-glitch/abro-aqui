@@ -9,7 +9,7 @@ const have = fs.existsSync("fixtures/demo.sqlite");
 
 test("scripted scout answers without the model and never mentions partners", { skip: !have }, async () => {
   const { analyze, scout } = await import("../src/agent.js");
-  const ctx = await analyze({ concept: "seafood restaurant", address: "Avinguda del Paral·lel 40, Barcelona" });
+  const ctx = await analyze({ concept: "seafood restaurant", address: "Avinguda del Paral·lel 40, Barcelona", radius: 1500 });
   for (const lang of ["en", "es"]) {
     const r = await scout({ ctx, lang });
     assert.equal(r.mode, "scripted");

@@ -5,6 +5,7 @@ import { analyze, chat, compare, scout } from "./agent.js";
 import { llmEnabled, MODELS, llmUsage } from "./llm.js";
 import { scrubPII } from "./safe.js";
 import { launchPlan } from "./launch.js";
+import { explore } from "./explore.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -18,7 +19,7 @@ app.use("/vendor/fonts", express.static(path.resolve("node_modules/@fontsource/m
 
 // --- demo protection: N analyses per IP per day (in memory)
 const quota = new Map();
-const LIMITS = { analyze: Number(process.env.DAILY_LIMIT) || 30, compare: 30, chat: 60, scout: 20, launch: 20 };
+const LIMITS = { analyze: Number(process.env.DAILY_LIMIT) || 30, compare: 30, chat: 60, scout: 20, launch: 20, explore: 10 };
 function allow(ip, kind = "analyze") {
   const k = `${kind}|${ip}|${new Date().toISOString().slice(0, 10)}`;
   const n = (quota.get(k) ?? 0) + 1;
@@ -45,7 +46,7 @@ app.post("/api/analyze", async (req, res) => {
   if (!concept || !address) return res.status(400).json({ error: "Write a business concept (up to 120 characters) and a street address (up to 200)." });
   if (!allow(ipOf(req))) return res.status(429).json({ error: `You have used today's ${LIMITS.analyze} free analyses on this demo. Try again tomorrow.` });
   try {
-    const result = await analyze({ concept: scrubPII(concept), address, lang: lang === "es" ? "es" : "en", withoutQloo: !!without_qloo });
+    const result = await analyze({ concept: scrubPII(concept), address, lang: lang === "es" ? "es" : "en", withoutQloo: !!without_qloo, radius: req.body?.radius });
     const id = crypto.randomUUID();
     sessions.set(id, { t: Date.now(), ctx: result, history: [] });
     res.json({ id, ...result });
@@ -108,6 +109,17 @@ app.post("/api/launch", async (req, res) => {
     res.json(await launchPlan({ ctx: s.ctx, lang: lang === "es" ? "es" : "en", at: spot }));
   } catch (e) {
     res.status(500).json({ error: String(e.message).slice(0, 300) });
+  }
+});
+
+app.post("/api/explore", async (req, res) => {
+  const address = str(req.body?.address, 200);
+  if (!address) return res.status(400).json({ error: "Write a street address (up to 200 characters)." });
+  if (!allow(ipOf(req), "explore")) return res.status(429).json({ error: "Daily limit for \"what fits here\" reached on this demo." });
+  try {
+    res.json(await explore({ address, radius: [500, 1000, 1500, 2000].includes(Number(req.body?.radius)) ? Number(req.body.radius) : 1000 }));
+  } catch (e) {
+    res.status(e.code === "MISS" ? 503 : 500).json({ error: String(e.message).slice(0, 300) });
   }
 });
 

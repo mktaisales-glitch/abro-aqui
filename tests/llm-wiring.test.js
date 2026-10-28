@@ -12,7 +12,7 @@ test("LLM path: Nano normalises, Super writes, Lightning calls a tool in the cha
   process.env.NEBIUS_API_KEY = "test";
   process.env.NEBIUS_BASE_URL = `http://localhost:${port}/v1/`;
   const { analyze, chat } = await import("../src/agent.js?llm");
-  const r = await analyze({ concept: "marisquería", address: "Avinguda del Paral·lel 40, Barcelona", withoutQloo: true });
+  const r = await analyze({ concept: "marisquería", address: "Avinguda del Paral·lel 40, Barcelona", withoutQloo: true, radius: 1500 });
   assert.equal(r.verdict.level, "AMBER");
   assert.equal(r.report.partners[0].verified, null, "offline: partners are not checked, never marked as verified");
   assert.equal(r.report_meta.model, "nvidia/nemotron-3-super-120b-a12b");

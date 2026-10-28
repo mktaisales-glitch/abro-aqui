@@ -9,7 +9,7 @@ const have = fs.existsSync("fixtures/demo.sqlite");
 
 test("Paral·lel 40 seafood: Hard (loved and well served), Puertecillo at 26 m, a better busy block nearby", { skip: !have }, async () => {
   const { analyze } = await import("../src/agent.js");
-  const r = await analyze({ concept: "seafood restaurant", address: "Avinguda del Paral·lel 40, Barcelona" });
+  const r = await analyze({ concept: "seafood restaurant", address: "Avinguda del Paral·lel 40, Barcelona", radius: 1500 });
   assert.equal(r.verdict.level, "AMBER");
   assert.equal(r.verdict.rule_code, "well-served");
   assert.ok(r.heatmap.demand > 0.9, "the area likes seafood a lot");
@@ -24,7 +24,7 @@ test("Paral·lel 40 seafood: Hard (loved and well served), Puertecillo at 26 m, 
 
 test("Gran Via 400 waffles & ice cream: Hard on ice cream; waffles not measured, not called a gap", { skip: !have }, async () => {
   const { analyze } = await import("../src/agent.js");
-  const r = await analyze({ concept: "waffles and ice cream", address: "Gran Via de les Corts Catalanes 400, Barcelona" });
+  const r = await analyze({ concept: "waffles and ice cream", address: "Gran Via de les Corts Catalanes 400, Barcelona", radius: 1500 });
   assert.equal(r.verdict.level, "AMBER");
   assert.deepEqual(r.measured, ["ice cream"]);
   assert.deepEqual(r.unmeasured, ["waffles"]);
@@ -35,7 +35,7 @@ test("Gran Via 400 waffles & ice cream: Hard on ice cream; waffles not measured,
 
 test("Spanish template report has no English sentences", { skip: !have }, async () => {
   const { analyze } = await import("../src/agent.js");
-  const r = await analyze({ concept: "seafood restaurant", address: "Avinguda del Paral·lel 40, Barcelona", lang: "es" });
+  const r = await analyze({ concept: "seafood restaurant", address: "Avinguda del Paral·lel 40, Barcelona", lang: "es", radius: 1500 });
   assert.match(r.report.headline, /A la zona le gusta/);
   assert.match(r.report.why[0], /La zona lo quiere/);
   assert.match(r.report.unknowns[0], /Tráfico/);

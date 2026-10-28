@@ -52,16 +52,17 @@ export function offer({ competitors = [], share = null }) {
 export function verdict(i) {
   const demand = Number.isFinite(i.demand) ? i.demand : null;
   const coverage = i.coverage ?? 0;
+  const minCov = i.minCoverage ?? T.coverage; // scaled with the circle's area by the caller
   const o = offer({ competitors: i.competitors ?? [], share: i.share ?? null });
   const d2 = demand?.toFixed(2);
   const dec = (x) => String(x).replace(".", ","); // Spanish decimal comma
   let level, rule, code, es;
 
-  if (coverage < T.coverage || demand == null) {
+  if (coverage < minCov || demand == null) {
     level = "UNKNOWN";
     code = "no-data";
-    rule = `Only ${coverage} heat-map blocks around this address (minimum ${T.coverage}): not enough Qloo data to judge.`;
-    es = `Solo hay ${coverage} manzanas en el mapa de calor (mínimo ${T.coverage}): no hay datos de Qloo suficientes.`;
+    rule = `Only ${coverage} heat-map blocks around this address (minimum ${minCov}): not enough Qloo data to judge.`;
+    es = `Solo hay ${coverage} manzanas en el mapa de calor (mínimo ${minCov}): no hay datos de Qloo suficientes.`;
   } else if (demand < T.demandWeak) {
     level = "RED";
     code = "weak-demand";

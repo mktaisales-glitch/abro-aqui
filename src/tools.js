@@ -82,7 +82,7 @@ async function tagsOfType(query, type, trace, take = 10) {
 }
 
 const GENERIC_TOKENS = new Set(["shop", "store", "restaurant", "bar", "stand", "house", "place", "and"]);
-const BAD_TAG = /equipment|supplier|wholesal|manufactur|vending|machine|processing|farm|market|:hotel:|donburi/;
+const BAD_TAG = /equipment|supplier|wholesal|manufactur|vending|machine|processing|farm|(?:^|[:_])market(?:_|$)|:hotel:|donburi/;
 
 /** Score a Qloo tag id against the words of a concept part: all meaningful words must appear in the tag slug; fewer extra words is better. */
 export function scoreTag(id, part) {

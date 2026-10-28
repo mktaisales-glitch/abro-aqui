@@ -12,10 +12,10 @@ function dedupeByName(list) {
 
 /** Everything Qloo says about one concept at one point. Reused by the chat and the comparison. */
 /** Heat map with fallback: if Qloo has no cells for the best tag, try the next candidate. Fixes the chosen tag on `part`. */
-async function heatWithFallback(geo, resolved, trace) {
+async function heatWithFallback(geo, resolved, trace, radius = 1500) {
   for (const p of resolved) {
     for (const tag of p.heat_candidates?.length ? p.heat_candidates : [p.heatmap_tag].filter(Boolean)) {
-      const h = await T.heatmap({ lat: geo.lat, lon: geo.lon, tag }, trace);
+      const h = await T.heatmap({ lat: geo.lat, lon: geo.lon, radius, tag }, trace);
       if (h.coverage > 0) {
         p.heatmap_tag = tag;
         return { heat: h, main: p };
@@ -49,14 +49,14 @@ const shareOf = (share) => (share.length && share[0].of ? Math.max(...share.map(
  * Best block within 800 m that the same rules rate higher than the address (offer counted from rivals only).
  * Returns the blocks that beat the address, best first.
  */
-function bestSpot(geo, heat, rivals, here) {
+function bestSpot(geo, heat, rivals, here, { maxDist = 800, minCoverage } = {}) {
   const cand = [];
   for (const c of heat.cells) {
     const d = T.haversine(geo.lat, geo.lon, c.lat, c.lon);
-    if (d < 150 || d > 800 || c.popularity < 0.5) continue; // busy blocks only (popularity = activity, ranked in the circle) // rivals are fetched within 1.5 km, so judge blocks whose 700 m ring fits inside
+    if (d < 150 || d > maxDist || c.popularity < 0.5) continue; // busy blocks only (popularity = activity, ranked in the circle) // rivals are fetched within 1.5 km, so judge blocks whose 700 m ring fits inside
     const dm = T.demandAround(heat.cells, c.lat, c.lon, 150);
     const comps = rivals.map((r) => ({ ...r, distance_m: T.haversine(c.lat, c.lon, r.lat, r.lon) }));
-    const v = verdict({ demand: dm.demand, competitors: comps, coverage: heat.coverage });
+    const v = verdict({ demand: dm.demand, competitors: comps, coverage: heat.coverage, minCoverage });
     cand.push({ lat: c.lat, lon: c.lon, distance_m: d, level: v.level, score: v.score ?? -1, demand: dm.demand, c400: v.offer.c400, c700: v.offer.c700, offer: v.offer.level, rule: v.rule_fired,
       nearest_rivals: comps.filter((x) => x.distance_m <= 400).sort((x, y) => x.distance_m - y.distance_m).slice(0, 3).map(({ name, rating, distance_m }) => ({ name, rating, distance_m })) });
   }
@@ -68,16 +68,20 @@ function bestSpot(geo, heat, rivals, here) {
 const OFFER_RANK = { LOW: 0, MEDIUM: 1, HIGH: 2 };
 const MIN_PLACES = 15; // a block counts as a shopping street with ≥ 15 places within 200 m (parks and hillsides fail)
 
-export async function signalsAt({ geo, resolved }, trace, { withBest = true } = {}) {
+/** Minimum heat-map cells for a verdict, scaled with the circle's area (50 cells for 1.5 km). */
+export const minCoverageFor = (radius) => Math.max(10, Math.round(50 * (radius / 1500) ** 2));
+
+export async function signalsAt({ geo, resolved, radius = 1500 }, trace, { withBest = true } = {}) {
+  const minCoverage = minCoverageFor(radius);
   const [{ heat, main }, compLists, profile] = await Promise.all([
-    heatWithFallback(geo, resolved, trace),
+    heatWithFallback(geo, resolved, trace, radius),
     Promise.all(resolved.map((p) => competitorsWithFallback(geo, p, trace))),
     T.zoneProfile({ lat: geo.lat, lon: geo.lon }, trace),
   ]);
   const competitors = dedupeByName(compLists.flat());
   const supply_by_part = resolved.map((p, i) => ({ part: p.part, tag: p.competitor_tag, within_700m: p.offer_unmeasured ? null : compLists[i].length, measured: !p.offer_unmeasured }));
   const share = T.conceptShare(profile, resolved);
-  const v = verdict({ demand: heat.demand, local: heat.local, competitors, share: shareOf(share), coverage: heat.coverage });
+  const v = verdict({ demand: heat.demand, local: heat.local, competitors, share: shareOf(share), coverage: heat.coverage, minCoverage });
 
   // gap: a part with a verified tag and no rival within 700 m, while the concept has real demand here
   const gap = supply_by_part.filter((s, i) => s.within_700m === 0 && s.tag && share[i].places === 0).map((s) => s.part);
@@ -95,8 +99,8 @@ export async function signalsAt({ geo, resolved }, trace, { withBest = true } = 
   let wide = [];
   if (withBest && v.level !== "UNKNOWN") {
     const tags = [...new Set(resolved.map((p) => p.competitor_tag).filter(Boolean))];
-    wide = dedupeByName((await Promise.all(tags.map((tag) => T.rivalsAround({ lat: geo.lat, lon: geo.lon, tag }, trace).catch(() => [])))).flat());
-    const better = bestSpot(geo, heat, dedupeByName([...wide, ...competitors]).filter((r) => r.lat != null), v);
+    wide = dedupeByName((await Promise.all(tags.map((tag) => T.rivalsAround({ lat: geo.lat, lon: geo.lon, radius: Math.max(1500, radius), tag }, trace).catch(() => [])))).flat());
+    const better = bestSpot(geo, heat, dedupeByName([...wide, ...competitors]).filter((r) => r.lat != null), v, { maxDist: Math.min(800, radius), minCoverage });
     let unknown = null;
     const top4 = better.slice(0, 4);
     const counts = await Promise.all(top4.map((b) => T.placesNear({ lat: b.lat, lon: b.lon }, trace).catch(() => null)));
@@ -114,7 +118,10 @@ export async function signalsAt({ geo, resolved }, trace, { withBest = true } = 
   return { heat, competitors, supply_by_part, share, profile, verdict: v, gap, main, measured, unmeasured, candidates, wide };
 }
 
-export async function analyze({ concept, address, lang = "en", withoutQloo = false }) {
+export const RADII = [500, 1000, 1500, 2000];
+
+export async function analyze({ concept, address, lang = "en", withoutQloo = false, radius = 1000 }) {
+  radius = RADII.includes(Number(radius)) ? Number(radius) : 1000;
   const trace = makeTrace();
   const llm = [];
   const t0 = Date.now();
@@ -137,7 +144,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
     }
   }
   const resolved = await T.resolveConcept(parts, trace);
-  const s = await signalsAt({ geo, resolved }, trace);
+  const s = await signalsAt({ geo, resolved, radius }, trace);
 
   const { tag_ids, tag_names, ...profile } = s.profile;
   const signals = {
@@ -190,6 +197,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
   return {
     concept,
     lang,
+    radius,
     address: geo.display_name,
     geo,
     resolved,
@@ -224,7 +232,7 @@ export function chatTools(ctx, trace) {
       run: async ({ radius_m = 700, exclude_names = [] }) => {
         const lists = await Promise.all(resolved.map((p) => competitorsWithFallback(geo, { ...p }, trace, radius_m)));
         const kept = dedupeByName(lists.flat()).filter((c) => !exclude_names.some((n) => c.name.toLowerCase().includes(String(n).toLowerCase())));
-        const v = verdict({ demand: ctx.heatmap.demand, local: ctx.heatmap.local, competitors: kept, share: shareOf(ctx.share), coverage: ctx.heatmap.coverage });
+        const v = verdict({ demand: ctx.heatmap.demand, local: ctx.heatmap.local, competitors: kept, share: shareOf(ctx.share), coverage: ctx.heatmap.coverage, minCoverage: minCoverageFor(ctx.radius ?? 1500) });
         return { competitors: kept.slice(0, 10).map(({ name, rating, distance_m }) => ({ name, rating, distance_m })), verdict: v.level, rule: v.rule_fired, adjustments: v.adjustments };
       },
     },
@@ -233,7 +241,7 @@ export function chatTools(ctx, trace) {
       parameters: { type: "object", properties: { address: { type: "string" } }, required: ["address"] },
       run: async ({ address }) => {
         const g = await T.geocode(address, trace);
-        const s = await signalsAt({ geo: g, resolved: resolved.map((p) => ({ ...p })) }, trace, { withBest: false });
+        const s = await signalsAt({ geo: g, resolved: resolved.map((p) => ({ ...p })), radius: ctx.radius ?? 1500 }, trace, { withBest: false });
         return { address: g.display_name, lat: g.lat, lon: g.lon, verdict: s.verdict.level, rule: s.verdict.rule_fired, demand: s.heat.demand, offer: s.verdict.offer, competitors: s.competitors.length, supply_by_part: s.supply_by_part };
       },
     },
@@ -261,7 +269,7 @@ export function chatTools(ctx, trace) {
 
 export async function compare({ ctx, address }) {
   const g = await T.geocode(address);
-  const s = await signalsAt({ geo: g, resolved: ctx.resolved.map((p) => ({ ...p })) }, undefined, { withBest: false });
+  const s = await signalsAt({ geo: g, resolved: ctx.resolved.map((p) => ({ ...p })), radius: ctx.radius ?? 1500 }, undefined, { withBest: false });
   return {
     address: g.display_name,
     verdict: s.verdict,
