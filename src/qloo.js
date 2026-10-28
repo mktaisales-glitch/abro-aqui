@@ -32,7 +32,10 @@ const inflight = new Map(); // the same URL requested twice at once goes to Qloo
 export function qloo(path, params, trace) {
   const url = qlooUrl(path, params);
   if (isCached(url) || process.env.OFFLINE) return getJSON(url, { headers: { "X-Api-Key": KEY }, source: "qloo", trace });
-  if (inflight.has(url)) return inflight.get(url);
+  if (inflight.has(url)) {
+    // shared with a request already in flight: still listed in this request's "How I know"
+    return inflight.get(url).then((j) => { trace?.add({ source: "qloo", url, ms: 0, cached: true, note: "shared with a request in flight" }); return j; });
+  }
   const p = limited(url, trace).finally(() => inflight.delete(url));
   inflight.set(url, p);
   return p;

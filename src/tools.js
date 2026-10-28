@@ -17,7 +17,12 @@ export function haversine(lat1, lon1, lat2, lon2) {
 
 export async function geocode(address, trace) {
   const m = address.trim().match(/^(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)$/);
-  if (m) return { lat: +m[1], lon: +m[2], display_name: `${(+m[1]).toFixed(5)}, ${(+m[2]).toFixed(5)}` };
+  if (m) {
+    const lat = +m[1], lon = +m[2];
+    // name the place (and its country) when we can; coordinates alone otherwise
+    const r = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=17&lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`, { headers: { "User-Agent": "abro-aqui/0.1 (+https://github.com/mktaisales-glitch/abro-aqui)" }, source: "osm", trace }).catch(() => null);
+    return { lat, lon, display_name: r?.display_name ? `${lat.toFixed(5)}, ${lon.toFixed(5)} (${r.display_name})` : `${lat.toFixed(5)}, ${lon.toFixed(5)}` };
+  }
   const url = `${NOMINATIM}?format=json&limit=1&q=${encodeURIComponent(address.trim())}`;
   const [hit] = await getJSON(url, { headers: { "User-Agent": "abro-aqui/0.1 (+https://github.com/mktaisales-glitch/abro-aqui)" }, source: "osm", trace });
   if (!hit) throw new Error(`Address not found: ${address}`);
@@ -32,6 +37,16 @@ export async function streetAt({ lat, lon }, trace) {
   const road = a.road ?? a.pedestrian ?? a.square ?? null;
   const area = a.neighbourhood ?? a.quarter ?? a.suburb ?? null;
   return road ? [road, area].filter(Boolean).join(", ") : area;
+}
+
+const EURO = /españa|spain|france|francia|italia|italy|deutschland|germany|alemania|portugal|nederland|netherlands|belgi|österreich|austria|ireland|irlanda|ελλάδα|greece|suomi|finland|eesti|latvija|lietuva|slovensko|slovenija|hrvatska|croatia|luxembourg|malta|κύπρος|cyprus/i;
+/** Currency symbol for price levels, from the country at the end of the geocoded name; null when unknown. */
+export function currencyOf(display) {
+  const country = String(display ?? "").split(",").at(-1).replace(/\)$/, "").trim();
+  if (/united states|estados unidos|^usa$/i.test(country)) return "$";
+  if (/united kingdom|reino unido/i.test(country)) return "£";
+  if (EURO.test(country)) return "€";
+  return null;
 }
 
 // ---------- concept → Qloo tags ----------

@@ -72,3 +72,18 @@ test("brands: no rivals, no restaurant chains for a restaurant, nothing a shop c
   assert.deepEqual(pickBrands(b, { isRestaurant: true }).map((x) => x.name), ["Estrella Damm", "Unknown Co"]);
   assert.deepEqual(pickBrands(b, { rivalNames: ["estrella damm"] }).map((x) => x.name), ["Goiko", "Unknown Co"]);
 });
+
+test("at the better spot, the seeds are the rivals around that spot", async () => {
+  const { launchCandidates } = await import("../src/launch.js");
+  const spot = { lat: 41.3800, lon: 2.1600 };
+  const c2 = { ...ctx, rivals_wide: [{ name: "Far Rival", id: "id-far", rating: 4.8, lat: 41.3805, lon: 2.1605 }, ...ctx.competitors.map((c) => ({ ...c, lat: 41.375, lon: 2.169 }))] };
+  const r = await launchCandidates(c2, { add() {}, entries: [] }, { at: spot });
+  assert.deepEqual(r.seeds.map((s) => s.name), ["Far Rival"]);
+});
+
+test("currency from the country in the geocoded name; unknown → no symbol", async () => {
+  const { currencyOf } = await import("../src/tools.js");
+  assert.equal(currencyOf("200, Schermerhorn Street, Brooklyn, Kings County, New York, 11201, United States"), "$");
+  assert.equal(currencyOf("40, Avinguda del Paral·lel, Barcelona, Catalunya, 08001, España"), "€");
+  assert.equal(currencyOf("40.68855, -73.98537"), null);
+});

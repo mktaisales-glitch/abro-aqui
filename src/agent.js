@@ -92,14 +92,17 @@ export async function signalsAt({ geo, resolved }, trace, { withBest = true } = 
 
   let best = null;
   let candidates = [];
+  let wide = [];
   if (withBest && v.level !== "UNKNOWN") {
     const tags = [...new Set(resolved.map((p) => p.competitor_tag).filter(Boolean))];
-    const wide = dedupeByName((await Promise.all(tags.map((tag) => T.rivalsAround({ lat: geo.lat, lon: geo.lon, tag }, trace).catch(() => [])))).flat());
+    wide = dedupeByName((await Promise.all(tags.map((tag) => T.rivalsAround({ lat: geo.lat, lon: geo.lon, tag }, trace).catch(() => [])))).flat());
     const better = bestSpot(geo, heat, dedupeByName([...wide, ...competitors]).filter((r) => r.lat != null), v);
     let unknown = null;
-    for (const b of better.slice(0, 4)) {
+    const top4 = better.slice(0, 4);
+    const counts = await Promise.all(top4.map((b) => T.placesNear({ lat: b.lat, lon: b.lon }, trace).catch(() => null)));
+    for (const [i, b] of top4.entries()) {
       // a failed count is unknown, not zero: use an unchecked block only if none is confirmed
-      const n = await T.placesNear({ lat: b.lat, lon: b.lon }, trace).catch(() => null);
+      const n = counts[i];
       b.places_200m = n;
       if (n == null) { unknown ??= b; continue; }
       if (n >= MIN_PLACES && !best) best = b; // keep counting the others: the scout compares them
@@ -108,7 +111,7 @@ export async function signalsAt({ geo, resolved }, trace, { withBest = true } = 
     candidates = better.filter((b) => b.places_200m >= MIN_PLACES || (best && b.lat === best.lat && b.lon === best.lon)).slice(0, 5);
   }
   heat.best = best;
-  return { heat, competitors, supply_by_part, share, profile, verdict: v, gap, main, measured, unmeasured, candidates };
+  return { heat, competitors, supply_by_part, share, profile, verdict: v, gap, main, measured, unmeasured, candidates, wide };
 }
 
 export async function analyze({ concept, address, lang = "en", withoutQloo = false }) {
@@ -149,7 +152,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
     supply_by_part: s.supply_by_part,
     already_served_by: s.share,
     gap: s.gap,
-    price_gap: T.priceGap(s.competitors) && { ...T.priceGap(s.competitors), currency: /united states|estados unidos|usa\b|new york|nueva york|brooklyn/i.test(geo.display_name) ? "$" : /united kingdom|reino unido|london/i.test(geo.display_name) ? "£" : "€" },
+    price_gap: T.priceGap(s.competitors) && { ...T.priceGap(s.competitors), currency: T.currencyOf(geo.display_name) },
     area_profile: profile,
   };
 
@@ -197,6 +200,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
     unmeasured: s.unmeasured,
     candidates: s.candidates,
     competitors: s.competitors,
+    rivals_wide: (s.wide ?? []).map(({ name, id, rating, lat, lon }) => ({ name, id, rating, lat, lon })),
     supply_by_part: s.supply_by_part,
     share: s.share,
     gap: s.gap,
@@ -243,8 +247,10 @@ export function chatTools(ctx, trace) {
       description: "Check on the live web whether a business exists before proposing it as a partner.",
       parameters: { type: "object", properties: { name: { type: "string" }, city: { type: "string" } }, required: ["name", "city"] },
       run: ({ name, city }) => {
-        const n = String(name).toLowerCase();
-        if ((ctx.competitors ?? []).some((c) => { const r = c.name.toLowerCase(); return r.includes(n) || n.includes(r); })) return { exists: false, note: "direct competitor: not a partner" };
+        const norm = (x) => String(x ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+        const n = norm(name);
+        const same = (r) => n.length >= 4 && r.length >= 4 && (` ${r} `.includes(` ${n} `) || ` ${n} `.includes(` ${r} `));
+        if ((ctx.competitors ?? []).some((c) => same(norm(c.name)))) return { exists: false, note: "direct competitor: not a partner" };
         return T.verifyBusiness({ name, city }, trace);
       },
     },
@@ -276,7 +282,8 @@ Current analysis: ${JSON.stringify({ concept: ctx.concept, address: ctx.address,
     const r = await chatWithTools({ messages, tools: chatTools(ctx, trace), lang });
     return { ...r, trace: trace.entries };
   } catch (e) {
-    return { text: lang === "es" ? `El modelo no ha podido responder ahora (${String(e.message).slice(0, 80)}). El análisis de arriba sigue siendo válido; prueba de nuevo en un momento.` : `The model could not answer right now (${String(e.message).slice(0, 80)}). The analysis above still stands; try again in a moment.`, calls: [], trace: trace.entries, error: true };
+    trace.add({ source: "nebius", url: "chat: Nemotron 3.5 Lightning", ms: 0, cached: false, error: String(e.message).slice(0, 120) });
+    return { text: lang === "es" ? "El modelo no ha podido responder ahora. El análisis de arriba sigue siendo válido; prueba de nuevo en un momento." : "The model could not answer right now. The analysis above still stands; try again in a moment.", calls: [], trace: trace.entries, error: true };
   }
 }
 
@@ -309,7 +316,8 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
       const steps = r.calls.map((c) => stepOut(c, lang));
       const words = { "AMBER-GREEN": es ? "Prometedor" : "Promising", AMBER: es ? "Difícil" : "Hard", RED: es ? "Aquí no" : "Not here", UNKNOWN: es ? "Sin datos" : "No data" };
       let text = String(r.text ?? "").replace(/\*\*|__|^#+\s*/gm, "").replace(/^\s*[-*]\s+/gm, "").trim();
-      text = text.replace(/\b(?:AMBER-GREEN|AMBER‑GREEN|AMBER|RED|UNKNOWN)\b/g, (m) => `«${words[m.replace("‑", "-")]}»`);
+      text = text.replace(/\b(?:AMBER-GREEN|AMBER‑GREEN|AMBER|UNKNOWN)\b/g, (m) => `«${words[m.replace("‑", "-")]}»`)
+        .replace(/((?:verdict|veredicto|sale|comes out|is)\s*:?\s*)RED\b/gi, (_m, pre) => `${pre}«${words.RED}»`);
       if (es) text = text.replace(/taste[‑ -]rank/gi, "gusto");
       // every number in the answer must come from a tool result or the analysis; sentences with others are dropped
       const checked = groundNumbers(text, [ctx.verdict, ctx.heatmap?.demand, ctx.heatmap?.best, ...r.calls.map((c) => c.result)]);
