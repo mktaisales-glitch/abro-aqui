@@ -178,6 +178,22 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
 .empty p{font:600 17px/1.45 var(--body);max-width:30ch;margin:0;color:var(--ink);background:rgba(255,255,255,.94);padding:18px 22px;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.12)}
 .leaflet-container{font:inherit;background:var(--asphalt)}
 .pin{width:16px;height:16px;background:var(--ink);border:3px solid #fff;box-shadow:0 0 0 1.5px var(--ink);border-radius:3px}
+/* ---------- result blocks ---------- */
+.blocks{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:10px 24px;background:var(--paper);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.blocks::-webkit-scrollbar{display:none}
+.blocks button{flex:none;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;color:var(--ink-2)}
+.blocks button:hover{border-color:var(--ink);color:var(--ink)}
+.blocks button[aria-selected=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.blk{scroll-margin-top:58px}
+.blk>section.s:first-child,.blk>.s:first-child{border-top:0}
+.reportcard{display:grid;gap:10px}
+.reportcard ul{margin:0;padding-left:18px;font-size:13.5px;color:var(--ink-2)}
+.fab{position:absolute;right:14px;bottom:30px;z-index:600;display:flex;align-items:center;gap:8px;border:0;border-radius:999px;background:var(--ink);color:#fff;padding:12px 18px 12px 14px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.fab:hover{background:#222}
+.fab .dot{width:26px;height:26px;border-radius:50%;background:var(--orange);display:grid;place-items:center;font-size:15px;line-height:1}
+.askintro{font-size:13px;color:var(--ink-2);margin:0 0 10px}
+@media(min-width:901px){.blocks{flex-wrap:wrap;overflow:visible}.blk{scroll-margin-top:96px}}
+@media(max-width:900px){.blocks{padding:8px 16px}.fab{bottom:24px;padding:10px 14px 10px 10px;font-size:13px}}
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:no-preference){.verdict.in .vword{animation:stamp .5s cubic-bezier(.2,.9,.3,1.2)}@keyframes stamp{from{transform:scale(1.15);opacity:0}to{transform:none;opacity:1}}}
 </style>
@@ -220,38 +236,47 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
         <details class="rule"><summary data-i="rule">Why this colour</summary><p id="rule"></p><div id="adjust"></div></details>
       </div>
 
+      <div class="blocks" id="blocks" role="tablist" aria-label="Report sections">
+        <button type="button" role="tab" id="bt-why" aria-controls="blk-why" aria-selected="true" tabindex="0" data-blk="why" data-i="bwhy">Why</button>
+        <button type="button" role="tab" id="bt-area" aria-controls="blk-area" aria-selected="false" tabindex="-1" data-blk="area" data-i="barea">Area</button>
+        <button type="button" role="tab" id="bt-scout" aria-controls="blk-scout" aria-selected="false" tabindex="-1" data-blk="scout" data-i="bscout">Better spot</button>
+        <button type="button" role="tab" id="bt-launch" aria-controls="blk-launch" aria-selected="false" tabindex="-1" data-blk="launch" data-i="blaunch">Opening plan</button>
+        <button type="button" role="tab" id="bt-ask" aria-controls="blk-ask" aria-selected="false" tabindex="-1" data-blk="ask" data-i="bask">Assistant</button>
+        <button type="button" role="tab" id="bt-how" aria-controls="blk-how" aria-selected="false" tabindex="-1" data-blk="how" data-i="bhow">How I know</button>
+        <button type="button" role="tab" id="bt-report" aria-controls="blk-report" aria-selected="false" tabindex="-1" data-blk="report" data-i="breport">Report</button>
+      </div>
+      <div class="blk" id="blk-why" role="tabpanel" aria-labelledby="bt-why" tabindex="0">
       <section class="s">
         <h2 data-i="numbers">What the area says</h2>
         <div class="gauge" id="g-aff"></div>
         <div class="gauge" id="g-sup"></div>
         <p class="note" id="bestnote"></p>
       </section>
-
       <section class="s">
         <h2 id="comph">Direct competitors within 700 m</h2>
         <table class="comp" id="comp"></table>
         <p class="note" id="share"></p><p class="note" id="pricegap"></p>
         <div id="gapbox" hidden><h3 style="margin-top:12px" data-i="gap">Nobody nearby offers</h3><div class="gap" id="gap"></div></div>
       </section>
-
-      <details class="s" id="profbox" style="padding:16px 24px;border-top:1px solid var(--line)">
-        <summary id="profh">The 50 most popular places within 500 m</summary>
-        <div class="cols2"><div><h3 data-i="who">Who goes</h3><div class="bars" id="who"></div></div><div><h3 data-i="when">When</h3><div class="bars" id="when"></div></div></div>
-        <h3 style="margin-top:14px" data-i="serves">What they serve</h3><div class="bars" id="serves"></div>
-      </details>
-
       <section class="s">
         <h2 data-i="whyh">Why</h2><ul class="plain" id="why"></ul>
         <h2 style="margin-top:14px" data-i="actions">What to do</h2><ul class="plain" id="actions"></ul>
         <div id="partnersbox"><h2 style="margin-top:14px" data-i="partners">Launch partners</h2><ul class="plain" id="partners"></ul></div>
       </section>
-
       <section class="s unk">
         <h2 data-i="unk">What Qloo cannot see</h2>
         <p class="note" style="margin:0 0 10px" data-i="unkhelp">Qloo measures taste and offer. Answer these three yourself before you sign anything.</p>
         <div id="unknowns"></div><p id="unkres" class="ok"></p>
       </section>
-
+      </div>
+      <div class="blk" id="blk-area" role="tabpanel" aria-labelledby="bt-area" tabindex="0" hidden>
+      <section class="s" id="profbox">
+        <h2 id="profh">The 50 most popular places within 500 m</h2>
+        <div class="cols2"><div><h3 data-i="who">Who goes</h3><div class="bars" id="who"></div></div><div><h3 data-i="when">When</h3><div class="bars" id="when"></div></div></div>
+        <h3 style="margin-top:14px" data-i="serves">What they serve</h3><div class="bars" id="serves"></div>
+      </section>
+      </div>
+      <div class="blk" id="blk-scout" role="tabpanel" aria-labelledby="bt-scout" tabindex="0" hidden>
       <section class="s" id="scoutbox">
         <h2 data-i="scouth">Second opinion: let the agent look around</h2>
         <p class="note" style="margin:0 0 10px" data-i="scouthelp">One goal, and the agent plans the steps: it compares the blocks nearby with the same rules and tells you whether to move or stay, and why.</p>
@@ -259,7 +284,8 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
         <ol class="steps2" id="scoutsteps"></ol>
         <p id="scouttext" class="scouttext"></p><p class="note" id="scoutby"></p>
       </section>
-
+      </div>
+      <div class="blk" id="blk-launch" role="tabpanel" aria-labelledby="bt-launch" tabindex="0" hidden>
       <section class="s" id="launchbox">
         <h2 data-i="launchh">Plan the opening: where to announce it</h2>
         <p class="note" style="margin:0 0 10px" data-i="launchhelp">Learned from the customers of the best-rated places that already serve your idea nearby: the music they listen to, the brands they like, the neighbours they also visit (not competitors), and the busiest blocks where the area likes your idea most.</p>
@@ -274,14 +300,17 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
         <ul class="weeks" id="lweeks"></ul>
         <p class="note" id="lby"></p>
       </section>
-
+      </div>
+      <div class="blk" id="blk-ask" role="tabpanel" aria-labelledby="bt-ask" tabindex="0" hidden>
       <section class="s">
         <h2 data-i="chat">Ask “what if…?”</h2>
+        <p class="askintro" data-i="askintro">Ask about this address: another radius, ignore a rival, another street. It recalculates with the same rules.</p>
         <div class="chips" id="chips"></div>
         <div class="log" id="log" aria-live="polite"></div>
         <form class="q" id="qf"><input id="q" autocomplete="off" aria-label="Question"><button type="submit" data-i="ask">Ask</button></form>
       </section>
-
+      </div>
+      <div class="blk" id="blk-how" role="tabpanel" aria-labelledby="bt-how" tabindex="0" hidden>
       <section class="s">
         <div class="tabs" role="tablist">
           <button role="tab" aria-selected="true" data-tab="how" data-i="how">How I know</button>
@@ -295,6 +324,21 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
           <div id="cmpout" style="margin-top:12px"></div>
         </div>
       </section>
+      </div>
+      <div class="blk" id="blk-report" role="tabpanel" aria-labelledby="bt-report" tabindex="0" hidden>
+      <section class="s reportcard">
+        <h2 data-i="reporth">Take it with you: the PDF report</h2>
+        <p class="note" style="margin:0" data-i="reporthelp">A report you can send to a partner, an agency or your bank. Built from this analysis, with no new calls.</p>
+        <ul>
+          <li data-i="rep1">The address, the verdict and the rule behind it</li>
+          <li data-i="rep2">The three key facts and a drawn taste map</li>
+          <li data-i="rep3">Direct competitors, the reasons and what the data cannot see</li>
+          <li data-i="rep4">The agent's answer and the opening plan, if you ran them</li>
+        </ul>
+        <div><button type="button" class="scoutgo" id="pdfgo" data-i="gopdf">Download report (PDF)</button></div>
+      </section>
+
+      </div>
     </div>
 
     <div class="foot" data-i="foot">Built on aggregated taste data about places (Qloo) and NVIDIA Nemotron on Nebius Token Factory. It decides about places, never about people, and must not be used for housing, employment or credit decisions. It does not predict success: it shows what the data supports and what it cannot see.</div>
@@ -302,6 +346,7 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
 
   <div class="mapwrap">
     <div id="map" role="img" aria-label="Taste heat map around the address"></div>
+    <button type="button" class="fab" id="fab" hidden><span class="dot" aria-hidden="true">?</span><span data-i="fab">Ask Open Here</span></button>
     <div class="empty" id="empty"><p data-i="emptymap">Pick a street. The map shows how much the area likes your idea, block by block.</p></div>
     <details class="legend" id="legend" open hidden>
       <summary class="ttl" id="legendttl">Where the area likes it most</summary>
@@ -314,7 +359,7 @@ form.q button{border:0;border-radius:var(--r);background:var(--ink);color:#fff;p
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script>
-const ES={lead:"Para restaurantes, bares y cafeterías. Dile tu concepto y la calle: lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",concept:"Concepto de restaurante, bar o cafetería",address:"Dirección o «lat, lon»",go:"¿Abro aquí?",rule:"Por qué este color",numbers:"Lo que dice la zona",gap:"Nadie cerca ofrece",who:"Quién va",when:"Cuándo",serves:"Qué sirven",whyh:"Por qué",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",chat:"Pregunta «¿y si…?»",ask:"Preguntar",how:"Cómo lo sé",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",legend:"Cuánto le gusta a la zona (gusto de Qloo)",low:"poco",high:"mucho",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo (pasa el ratón para ver el nombre)",scouth:"Segunda opinión: deja que el agente mire alrededor",scouthelp:"Un objetivo y el agente decide los pasos: compara las manzanas cercanas con las mismas reglas y te dice si moverte o quedarte, y por qué.",scoutgo:"Búscame un sitio mejor",launchh:"Planifica la apertura: dónde anunciarla",launchhelp:"Aprendido de los clientes de los locales mejor valorados que ya sirven tu idea cerca: la música que escuchan, las marcas que les gustan, los vecinos que también visitan (no competidores) y las manzanas con más vida donde más gusta tu idea.",launchgo:"Planifica mi apertura",lmusic:"Música para la inauguración",lco:"Vecinos con los que aliarte",lbrands:"Marcas para pedir degustación",lposters:"Carteles y flyers",goscout:"Buscar un sitio mejor",gopdf:"Descargar informe (PDF)",golaunch:"Planificar la apertura",goask:"Preguntar «¿y si…?»",mone:"¿Abro mi idea aquí?",mfit:"Tengo un local: ¿qué restaurante encaja?",radius:"Zona alrededor de la dirección"};
+const ES={bwhy:"Por qué",barea:"Zona",bscout:"Mejor sitio",blaunch:"Plan de apertura",bask:"Asistente",bhow:"Cómo lo sé",breport:"Informe",fab:"Pregunta a Open Here",askintro:"Pregunta sobre esta dirección: otro radio, ignorar a un rival, otra calle. Lo recalcula con las mismas reglas.",reporth:"Llévatelo: el informe en PDF",reporthelp:"Un informe para enviar a un socio, a una inmobiliaria o al banco. Sale de este análisis, sin llamadas nuevas.",rep1:"La dirección, el veredicto y la regla que lo decide",rep2:"Los tres datos clave y un mapa del gusto dibujado",rep3:"La competencia directa, los porqués y lo que los datos no ven",rep4:"La respuesta del agente y el plan de apertura, si los has pedido",lead:"Para restaurantes, bares y cafeterías. Dile tu concepto y la calle: lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",concept:"Concepto de restaurante, bar o cafetería",address:"Dirección o «lat, lon»",go:"¿Abro aquí?",rule:"Por qué este color",numbers:"Lo que dice la zona",gap:"Nadie cerca ofrece",who:"Quién va",when:"Cuándo",serves:"Qué sirven",whyh:"Por qué",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",chat:"Pregunta «¿y si…?»",ask:"Preguntar",how:"Cómo lo sé",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",legend:"Cuánto le gusta a la zona (gusto de Qloo)",low:"poco",high:"mucho",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo (pasa el ratón para ver el nombre)",scouth:"Segunda opinión: deja que el agente mire alrededor",scouthelp:"Un objetivo y el agente decide los pasos: compara las manzanas cercanas con las mismas reglas y te dice si moverte o quedarte, y por qué.",scoutgo:"Búscame un sitio mejor",launchh:"Planifica la apertura: dónde anunciarla",launchhelp:"Aprendido de los clientes de los locales mejor valorados que ya sirven tu idea cerca: la música que escuchan, las marcas que les gustan, los vecinos que también visitan (no competidores) y las manzanas con más vida donde más gusta tu idea.",launchgo:"Planifica mi apertura",lmusic:"Música para la inauguración",lco:"Vecinos con los que aliarte",lbrands:"Marcas para pedir degustación",lposters:"Carteles y flyers",goscout:"Buscar un sitio mejor",gopdf:"Descargar informe (PDF)",golaunch:"Planificar la apertura",goask:"Preguntar «¿y si…?»",mone:"¿Abro mi idea aquí?",mfit:"Tengo un local: ¿qué restaurante encaja?",radius:"Zona alrededor de la dirección"};
 const VERD={en:{RED:"Not here","AMBER":"Hard","AMBER-GREEN":"Promising",UNKNOWN:"No data"},es:{RED:"Aquí no","AMBER":"Difícil","AMBER-GREEN":"Prometedor",UNKNOWN:"Sin datos"}};
 const EXAMPLES=[["ramen","200 Schermerhorn Street, Brooklyn, New York","Ramen · Boerum Hill, NYC"],["seafood restaurant","Avinguda del Paral·lel 40, Barcelona","Seafood · Paral·lel 40"],["waffles and ice cream","41.37903, 2.15478","Waffles · Gran Via 400"],["ramen","Carrer de Sants 100, Barcelona","Ramen · Sants"]];
 const STEPS={en:["Finding the address","Matching your idea to Qloo","Reading taste, offer and competitors","Writing the verdict"],es:["Buscando la dirección","Traduciendo tu idea a Qloo","Leyendo gusto, oferta y competencia","Escribiendo el veredicto"]};
@@ -374,7 +419,8 @@ function bars(el,items){const max=Math.max(1,...items.map(x=>x.count));
 }
 
 function render(d,keep=false){
-  $("#result").hidden=false;$("#empty").hidden=true;$("#legend").hidden=false;
+  $("#result").hidden=false;$("#empty").hidden=true;$("#legend").hidden=false;$("#fab").hidden=false;
+  if(!keep&&typeof openBlock==="function")openBlock("why",{instant:true,noscroll:true});
   const v=d.verdict,rep=d.report;
   $("#vword").className="vword "+v.level;$("#vtext").textContent=VERD[lang][v.level];
   $("#headline").textContent=rep.headline;
@@ -479,7 +525,7 @@ $("#launchgo").onclick=async()=>{
 const ES_CONCEPT={"seafood restaurant":"marisquería",pizza:"pizzería",ramen:"ramen",sushi:"sushi",burger:"hamburguesería",tapas:"tapas","vegan restaurant":"restaurante vegano","mexican restaurant":"restaurante mexicano","italian restaurant":"restaurante italiano",brunch:"brunch","coffee shop":"cafetería",bakery:"panadería","ice cream":"heladería","cocktail bar":"coctelería","wine bar":"bar de vinos"};
 async function runFit(){
   const address=$("#address").value.trim();if(!address)return;
-  $("#err").hidden=true;$("#go").disabled=true;$("#result").hidden=true;$("#fitbox").hidden=false;$("#fit").innerHTML="";$("#fith").textContent=T("Checking 15 restaurant, bar and café concepts… (about 20 s the first time)","Comprobando 15 conceptos de restaurante, bar y cafetería… (unos 20 s la primera vez)");$("#fithelp").textContent="";$("#fitnote").textContent="";
+  $("#err").hidden=true;$("#go").disabled=true;$("#result").hidden=true;$("#fab").hidden=true;$("#fitbox").hidden=false;$("#fit").innerHTML="";$("#fith").textContent=T("Checking 15 restaurant, bar and café concepts… (about 20 s the first time)","Comprobando 15 conceptos de restaurante, bar y cafetería… (unos 20 s la primera vez)");$("#fithelp").textContent="";$("#fitnote").textContent="";
   try{const r=await fetch("/api/explore",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({address,radius:+$("#radius").value,lang})});const d=await r.json();if(!r.ok)throw new Error(d.error);
     document.body.classList.add("has-result");$("#empty").hidden=true;$("#legend").hidden=true;baseLayers(d);
     $("#fith").textContent=T(`What fits at ${d.place??short(d.address)}`,`Qué encaja en ${d.place??short(d.address)}`);
@@ -492,10 +538,31 @@ async function runFit(){
   finally{$("#go").disabled=false}
 }
 
-$("#go-scout").onclick=()=>{$("#scoutbox").scrollIntoView({behavior:"smooth",block:"start"});$("#scoutgo").click()};
-$("#go-launch").onclick=()=>{$("#launchbox").scrollIntoView({behavior:"smooth",block:"start"});$("#launchgo").click()};
-$("#go-pdf").onclick=()=>{if(cur?.id)location.href=`/api/report.pdf?id=${encodeURIComponent(cur.id)}&lang=${lang}`};
-$("#go-ask").onclick=()=>{$("#q").scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>$("#q").focus(),400)};
+
+// ---------- result blocks: one section at a time ----------
+const BLOCKS=["why","area","scout","launch","ask","how","report"];
+let curBlock="why";
+function openBlock(k,o={}){
+  if(!BLOCKS.includes(k))return;curBlock=k;
+  BLOCKS.forEach(x=>{const t=$("#bt-"+x),pnl=$("#blk-"+x),on=x===k;t.setAttribute("aria-selected",on);t.tabIndex=on?0:-1;pnl.hidden=!on});
+  const t=$("#bt-"+k),nv=$("#blocks");nv.scrollTo({left:t.offsetLeft-nv.clientWidth/2+t.offsetWidth/2,behavior:o.instant?"auto":"smooth"});
+  if(o.focusTab)t.focus();
+  const pnl=$("#blk-"+k),nav=$("#blocks");
+  if(!o.noscroll&&(o.scroll||pnl.getBoundingClientRect().top<nav.getBoundingClientRect().bottom-2))pnl.scrollIntoView({behavior:o.instant?"auto":"smooth",block:"start"});
+  if(k==="how"&&$("#tab-noq")&&!$("#tab-noq").hidden)loadNoQ();
+}
+document.querySelectorAll("#blocks [role=tab]").forEach(b=>{
+  b.onclick=()=>openBlock(b.dataset.blk);
+  b.onkeydown=e=>{const i=BLOCKS.indexOf(b.dataset.blk);let j=null;
+    if(e.key==="ArrowRight")j=(i+1)%BLOCKS.length;else if(e.key==="ArrowLeft")j=(i-1+BLOCKS.length)%BLOCKS.length;else if(e.key==="Home")j=0;else if(e.key==="End")j=BLOCKS.length-1;
+    if(j!=null){e.preventDefault();openBlock(BLOCKS[j],{focusTab:true})}};
+});
+$("#fab").onclick=()=>{openBlock("ask",{scroll:true});setTimeout(()=>$("#q").focus({preventScroll:true}),450)};
+$("#pdfgo").onclick=()=>{if(cur?.id)location.href=`/api/report.pdf?id=${encodeURIComponent(cur.id)}&lang=${lang}`};
+$("#go-scout").onclick=()=>{openBlock("scout",{scroll:true});$("#scoutgo").click()};
+$("#go-launch").onclick=()=>{openBlock("launch",{scroll:true});$("#launchgo").click()};
+$("#go-pdf").onclick=()=>{openBlock("report");if(cur?.id)location.href=`/api/report.pdf?id=${encodeURIComponent(cur.id)}&lang=${lang}`};
+$("#go-ask").onclick=()=>{openBlock("ask",{scroll:true});setTimeout(()=>$("#q").focus({preventScroll:true}),450)};
 
 $("#qf").onsubmit=async e=>{
   e.preventDefault();const q=$("#q").value.trim();if(!q||!cur)return;$("#q").value="";
