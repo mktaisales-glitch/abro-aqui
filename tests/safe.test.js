@@ -10,3 +10,11 @@ test("e-mails and phone numbers are removed before any model or search call", ()
   assert.match(out, /\[phone\]/);
   assert.match(out, /Paral·lel 40/, "street numbers survive");
 });
+
+test("coordinates, amounts and ranges survive; Spanish IDs and IBANs do not", () => {
+  assert.equal(scrubPII("41.379030, 2.154780"), "41.379030, 2.154780");
+  assert.match(scrubPII("rent 2500-3000 a month, 1.500.000 budget"), /2500-3000.*1\.500\.000/);
+  assert.equal(scrubPII("my DNI 12345678Z"), "my DNI [id]");
+  assert.equal(scrubPII("IBAN ES91 2100 0418 4502 0005 1332"), "IBAN [iban]");
+  assert.match(scrubPII("call 612 345 678"), /\[phone\]/);
+});

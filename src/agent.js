@@ -120,6 +120,13 @@ export async function signalsAt({ geo, resolved, radius = 1500 }, trace, { withB
 
 export const RADII = [500, 1000, 1500, 2000];
 
+/** "Without Qloo", on demand: the same question to the model alone (runs only when the visitor opens that tab). */
+export async function withoutQloo({ concept, address, lang = "en" }) {
+  if (!llmEnabled) return { headline: null, why: [], model: null, unavailable: true };
+  const r = await writeReportWithoutQloo({ concept, address }, lang);
+  return { ...r.data, model: r.model, ms: r.ms };
+}
+
 export async function analyze({ concept, address, lang = "en", withoutQloo = false, radius = 1000 }) {
   radius = RADII.includes(Number(radius)) ? Number(radius) : 1000;
   const trace = makeTrace();
@@ -234,6 +241,8 @@ export function chatTools(ctx, trace) {
       description: "Direct competitors near the analysed address. Use for another radius, or to ignore competitors the owner names (exclude_names), and get the recomputed verdict.",
       parameters: { type: "object", properties: { radius_m: { type: "number" }, exclude_names: { type: "array", items: { type: "string" } } } },
       run: async ({ radius_m = 700, exclude_names = [] }) => {
+        radius_m = Math.min(Math.max(Number(radius_m) || 700, 100), 1500);
+        exclude_names = (Array.isArray(exclude_names) ? exclude_names : []).slice(0, 10).map((n) => String(n).slice(0, 80));
         const lists = await Promise.all(resolved.map((p) => competitorsWithFallback(geo, { ...p }, trace, radius_m)));
         const kept = dedupeByName(lists.flat()).filter((c) => !exclude_names.some((n) => c.name.toLowerCase().includes(String(n).toLowerCase())));
         const v = verdict({ demand: ctx.heatmap.demand, local: ctx.heatmap.local, competitors: kept, share: shareOf(ctx.share), coverage: ctx.heatmap.coverage, minCoverage: minCoverageFor(ctx.radius ?? 1500) });
@@ -244,7 +253,8 @@ export function chatTools(ctx, trace) {
       description: "Run the same concept at another address or at \"lat, lon\" (for the better spot use the best_alternative coordinates). Returns verdict, demand, offer and competitors there.",
       parameters: { type: "object", properties: { address: { type: "string" } }, required: ["address"] },
       run: async ({ address }) => {
-        const g = await T.geocode(address, trace);
+        const g = await T.geocode(String(address).slice(0, 200), trace);
+        if (T.haversine(geo.lat, geo.lon, g.lat, g.lon) > 3000) return { error: "analyse_address only compares places within 3 km of the analysed address" };
         const s = await signalsAt({ geo: g, resolved: resolved.map((p) => ({ ...p })), radius: ctx.radius ?? 1500 }, trace, { withBest: false });
         return { address: g.display_name, lat: g.lat, lon: g.lon, verdict: s.verdict.level, rule: s.verdict.rule_fired, demand: s.heat.demand, offer: s.verdict.offer, competitors: s.competitors.length, supply_by_part: s.supply_by_part };
       },
@@ -253,7 +263,9 @@ export function chatTools(ctx, trace) {
       description: "What an area is made of: among the most popular places in the radius, what they serve, who goes, at what time, and their names (to pick complementary partners). Defaults to the analysed address; pass lat/lon for another spot.",
       parameters: { type: "object", properties: { radius_m: { type: "number" }, lat: { type: "number" }, lon: { type: "number" } } },
       run: async ({ radius_m = 500, lat = geo.lat, lon = geo.lon }) => {
-        const { tag_ids, tag_names, ...p } = await T.zoneProfile({ lat, lon, radius: Math.min(radius_m, 800) }, trace);
+        // stay near the analysed address: no profile of arbitrary places on the planet
+        if (!Number.isFinite(+lat) || !Number.isFinite(+lon) || T.haversine(geo.lat, geo.lon, +lat, +lon) > 2000) return { error: "zone_profile only works within 2 km of the analysed address" };
+        const { tag_ids, tag_names, ...p } = await T.zoneProfile({ lat: +lat, lon: +lon, radius: Math.min(Math.max(Number(radius_m) || 500, 100), 800) }, trace);
         return p;
       },
     },
@@ -265,7 +277,8 @@ export function chatTools(ctx, trace) {
         const n = norm(name);
         const same = (r) => n.length >= 4 && r.length >= 4 && (` ${r} `.includes(` ${n} `) || ` ${n} `.includes(` ${r} `));
         if ((ctx.competitors ?? []).some((c) => same(norm(c.name)))) return { exists: false, note: "direct competitor: not a partner" };
-        return T.verifyBusiness({ name, city }, trace);
+        // web text never goes back to the model (it could carry instructions): only found / not found and the link
+        return T.verifyBusiness({ name: String(name).slice(0, 80), city: String(city).slice(0, 60) }, trace).then(({ exists, url, title, note }) => ({ exists, url, title, note }));
       },
     },
   };
@@ -326,7 +339,7 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
 
   if (llmEnabled) {
     try {
-      const r = await chatWithTools({ messages: [{ role: "system", content: "You are the scouting agent of Abro Aquí. Plan your own steps with the tools; never invent numbers or businesses." }, { role: "user", content: goal }], tools, maxRounds: 10, maxTokens: 700, lang });
+      const r = await chatWithTools({ messages: [{ role: "system", content: "You are the scouting agent of Abro Aquí. Plan your own steps with the tools; never invent numbers or businesses." }, { role: "user", content: goal }], tools, maxRounds: 5, maxTokens: 700, lang, maxCalls: 6 });
       const steps = r.calls.map((c) => stepOut(c, lang));
       const words = { "AMBER-GREEN": es ? "Prometedor" : "Promising", AMBER: es ? "Difícil" : "Hard", RED: es ? "Aquí no" : "Not here", UNKNOWN: es ? "Sin datos" : "No data" };
       let text = String(r.text ?? "").replace(/\*\*|__|^#+\s*/gm, "").replace(/^\s*[-*]\s+/gm, "").trim();

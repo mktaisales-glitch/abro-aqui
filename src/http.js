@@ -11,9 +11,20 @@ const PINNED = Number.MAX_SAFE_INTEGER; // recorded fixtures never expire
 // native SQLite module is not available or the disk is ephemeral anyway (CACHE_MEMORY=1, e.g. Render free).
 let getStmt, putStmt, fb = null;
 if (process.env.CACHE_MEMORY === "1") {
+  // bounded by bytes (free hosts have 512 MB): oldest entries go first
   const mem = new Map();
+  const MAX_BYTES = (Number(process.env.CACHE_MAX_MB) || 64) * 1024 * 1024;
+  let bytes = 0;
   getStmt = { get: (k) => mem.get(k) };
-  putStmt = { run: (k, v, t) => { mem.set(k, { v, t }); if (mem.size > 5000) mem.delete(mem.keys().next().value); } };
+  putStmt = {
+    run: (k, v, t) => {
+      const old = mem.get(k);
+      if (old) { bytes -= old.v.length; mem.delete(k); }
+      mem.set(k, { v, t });
+      bytes += v.length;
+      while (bytes > MAX_BYTES && mem.size > 1) { const [k0, e0] = mem.entries().next().value; mem.delete(k0); bytes -= e0.v.length; }
+    },
+  };
 } else {
   const { default: Database } = await import("better-sqlite3");
   const DB_PATH = process.env.CACHE_PATH || "data/cache.sqlite";

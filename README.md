@@ -96,9 +96,9 @@ git clone https://github.com/mktaisales-glitch/abro-aqui && cd abro-aqui
 npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
-npm test                  # 32 tests: verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
+npm test                  # 35 tests: HTTP layer and security headers, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
                           # 6 of them replay the recorded Barcelona cases
-                          # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (26 run)
+                          # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (29 run)
 ```
 
 Deploy: `render.yaml` (Render blueprint) or the `Dockerfile`. API: `POST /api/analyze {concept, address, lang, without_qloo}`, `POST /api/chat {id, question}`, `POST /api/scout {id, lang}`, `POST /api/launch {id, lang, at}`, `POST /api/explore {address, radius}`, `POST /api/compare {id, address}`, `GET /api/health`. `radius` is 500, 1000 (default), 1500 or 2000.
@@ -112,7 +112,11 @@ Offline replay: `OFFLINE=1` serves only recorded responses (`scripts/plan.js` li
 - `affinity_rank` compares a block with a wide reference that Qloo does not document in detail; dense city centres score high for many concepts, so offer often decides between Hard and Promising.
 - Exotic concepts may not map to a Qloo tag. The tool says so and suggests a simpler word. "How I know" shows which tag was used.
 - Geocoding uses OpenStreetMap Nominatim. You can also type "lat, lon".
-- The demo allows 30 analyses, 30 comparisons, 60 chat questions, 20 scout runs and 20 launch plans per IP per day, and 600 model calls per day in total. On the free hosting plan the first visit after a quiet spell can take up to a minute.
+- The demo allows per IP and day: 30 analyses, 30 comparisons, 40 chat questions, 15 scout runs, 15 launch plans, 3 "what fits here" runs and 60 model calls; 600 model calls per day in total. Every request has a 60 s ceiling; after 3 model failures in a row the model is skipped for 5 minutes and the templates answer. Limits and caches live in memory and reset when the server restarts. On the free hosting plan the first visit after a quiet spell can take up to a minute.
+
+## Security
+
+Keys stay on the server (Qloo's travels in a header, never in a URL, so "How I know" cannot show it). Security headers (CSP, no framing, nosniff, no referrer). All model and third-party text is escaped before it reaches the page. Web search results never go back to the model (only found / not found and the link), the chat's tools only work within 2–3 km of the analysed address and have a budget of 6 calls per answer, so a prompt injection cannot run up costs. E-mails, phones, Spanish ID numbers and IBANs are removed before any model or search call. `npm audit --omit=dev`: 0 vulnerabilities (28 Oct 2026).
 
 ## Responsible use
 

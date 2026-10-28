@@ -1,5 +1,6 @@
 // NVIDIA Nemotron on Nebius Token Factory through the OpenAI SDK — see specs/03-agent.md.
 import OpenAI from "openai";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { z } from "zod";
 import { es as esName, esPart } from "./i18n.js";
 
@@ -11,7 +12,7 @@ export const MODELS = {
 
 const key = process.env.NEBIUS_API_KEY?.trim();
 export const llmEnabled = !!key;
-const client = llmEnabled ? new OpenAI({ baseURL: process.env.NEBIUS_BASE_URL || "https://api.tokenfactory.nebius.com/v1/", apiKey: key, timeout: Number(process.env.LLM_TIMEOUT_MS) || 25000, maxRetries: 1 }) : null;
+const client = llmEnabled ? new OpenAI({ baseURL: process.env.NEBIUS_BASE_URL || "https://api.tokenfactory.nebius.com/v1/", apiKey: key, timeout: Number(process.env.LLM_TIMEOUT_MS) || 25000, maxRetries: 0 }) : null;
 
 export const ReportSchema = z.object({
   headline: z.string().max(200),
@@ -23,13 +24,38 @@ export const ReportSchema = z.object({
   unknowns: z.array(z.string()).length(3),
 });
 
-// Hard daily cap on LLM calls: the demo can never spend more than the credits allow.
+// Hard daily cap on LLM calls: the demo can never spend more than the credits allow, and one visitor cannot use
+// the whole day's budget (per-IP cap; the server runs every request inside withClient).
 const CAP = Number(process.env.LLM_DAILY_CAP) || 600;
-const usage = { day: "", n: 0 };
+const CAP_PER_IP = Number(process.env.LLM_DAILY_CAP_PER_IP) || 60;
+const usage = { day: "", n: 0, byIp: new Map() };
+const als = new AsyncLocalStorage();
+export const withClient = (ip, fn) => als.run({ ip }, fn);
+// circuit breaker: after 3 failures in a row the model is skipped for 5 minutes (templates answer at once)
+const breaker = { fails: 0, until: 0 };
+export const llmPaused = () => Date.now() < breaker.until;
 function spend() {
   const d = new Date().toISOString().slice(0, 10);
-  if (usage.day !== d) Object.assign(usage, { day: d, n: 0 });
+  if (usage.day !== d) Object.assign(usage, { day: d, n: 0, byIp: new Map() });
+  if (llmPaused()) throw new Error("model paused after repeated failures");
   if (++usage.n > CAP) throw new Error("daily LLM budget reached");
+  const ip = als.getStore()?.ip;
+  if (ip) {
+    const n = (usage.byIp.get(ip) ?? 0) + 1;
+    usage.byIp.set(ip, n);
+    if (n > CAP_PER_IP) throw new Error("daily LLM budget for this visitor reached");
+  }
+}
+/** Every model call goes through here: failures feed the breaker, a success resets it. */
+async function guarded(fn) {
+  try {
+    const r = await fn();
+    breaker.fails = 0;
+    return r;
+  } catch (e) {
+    if (++breaker.fails >= 3) { breaker.until = Date.now() + 5 * 60 * 1000; breaker.fails = 0; }
+    throw e;
+  }
 }
 export const llmUsage = () => ({ day: usage.day, calls: usage.n, cap: CAP });
 
@@ -39,14 +65,14 @@ let thinkingKwargs = true;
 async function complete(params) {
   if (thinkingKwargs) {
     try {
-      return await client.chat.completions.create({ ...params, chat_template_kwargs: { enable_thinking: false } });
+      return await guarded(() => client.chat.completions.create({ ...params, chat_template_kwargs: { enable_thinking: false } }));
     } catch (e) {
       if (e?.status !== 400 || !/chat_template_kwargs|enable_thinking|unrecognized|unexpected|extra/i.test(String(e?.message))) throw e;
       thinkingKwargs = false;
       spend(); // the retry is a second model call
     }
   }
-  return client.chat.completions.create(params);
+  return guarded(() => client.chat.completions.create(params));
 }
 
 /** Text after the last </think> (templates often open <think> inside the prompt, so only the closing tag shows). */
@@ -220,13 +246,15 @@ export function templateReport(sig, lang = "en") {
 }
 
 /** Chat with tools (Lightning). tools: {name: {description, parameters, run}} */
-export async function chatWithTools({ messages, tools, maxRounds = 8, maxTokens = 900, lang = "en" }) {
+export async function chatWithTools({ messages, tools, maxRounds = 4, maxTokens = 900, lang = "en", maxCalls = 6 }) {
   const toolDefs = Object.entries(tools).map(([name, t]) => ({ type: "function", function: { name, description: t.description, parameters: t.parameters } }));
   const calls = [];
   for (let i = 0; i < maxRounds; i++) {
     spend();
     const t0 = Date.now();
-    const res = await client.chat.completions.create({ model: MODELS.fast, messages, tools: toolDefs, tool_choice: "auto", temperature: 0.3, max_tokens: maxTokens });
+    // once the tool budget is used, the model must answer with what it has
+    const toolChoice = calls.length >= maxCalls || i === maxRounds - 1 ? "none" : "auto";
+    const res = await guarded(() => client.chat.completions.create({ model: MODELS.fast, messages, tools: toolDefs, tool_choice: toolChoice, temperature: 0.3, max_tokens: maxTokens }));
     const think_ms = Date.now() - t0;
     const msg = res.choices[0].message;
     messages.push(msg);
@@ -235,7 +263,13 @@ export async function chatWithTools({ messages, tools, maxRounds = 8, maxTokens 
       if (!text) throw new Error("the model returned an empty answer");
       return { text, calls, model: MODELS.fast };
     }
-    for (const call of msg.tool_calls) {
+    const allowed = Math.max(0, maxCalls - calls.length);
+    for (const [k, call] of msg.tool_calls.entries()) {
+      if (k >= allowed) {
+        // every tool call needs an answer in the conversation, even the ones over budget
+        messages.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify({ error: "tool budget used: answer with what you have" }) });
+        continue;
+      }
       let args = {};
       try { args = JSON.parse(call.function.arguments || "{}"); } catch {}
       let result;

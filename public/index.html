@@ -356,7 +356,7 @@ $("#ask").onsubmit=async e=>{
   $("#err").hidden=true;$("#go").disabled=true;$("#steps").hidden=false;let i=0;steps(0);
   const tick=setInterval(()=>{i=Math.min(i+1,3);steps(i)},2500);
   try{
-    const r=await fetch("/api/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({concept,address,lang,without_qloo:true,radius:+$("#radius").value})});
+    const r=await fetch("/api/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({concept,address,lang,radius:+$("#radius").value})});
     const d=await r.json();if(!r.ok)throw new Error(d.error||("Error "+r.status));
     d.lang=d.lang||lang;cur=d;document.body.classList.add("has-result");$("#fitbox").hidden=true;render(d);$("#log").innerHTML="";
     $("#vbox").classList.remove("in");void $("#vbox").offsetWidth;$("#vbox").classList.add("in");
@@ -392,7 +392,7 @@ function render(d,keep=false){
   $("#bestnote").textContent=bc?T(`Better spot: ${bc.distance_m} m away (green ring) on a busy block, the area likes it more (${n2(bc.demand)}) and there are ${bc.c700} rivals within 700 m instead of ${of.c700}.${bc.density_unchecked?" (Street density not checked: Qloo did not answer.)":""}`,`Mejor punto: a ${bc.distance_m} m (círculo verde), en una manzana con vida; allí gusta más (${n2(bc.demand)}) y hay ${bc.c700} rivales a 700 m en lugar de ${of.c700}.${bc.density_unchecked?" (Densidad de la calle sin comprobar: Qloo no respondió.)":""}`):T("No nearby busy block scores better under the same rules.","Ninguna manzana con vida cercana sale mejor con las mismas reglas.");
   const comps=d.competitors.slice(0,8);
   $("#comph").textContent=T(`Direct competitors within 700 m: ${d.competitors.length}`,`Competencia directa a 700 m: ${d.competitors.length}`);
-  $("#comp").innerHTML=comps.length?comps.map(c=>`<tr><td>${esc(c.name)}</td><td class="n">${c.rating!=null?(+c.rating).toFixed(1)+" ★":"–"}</td><td class="n">${c.price_level?(d.price_gap?.currency?d.price_gap.currency.repeat(c.price_level):T("level ","nivel ")+c.price_level):""}</td><td class="n">${c.distance_m} m</td></tr>`).join(""):`<tr><td>${T("None. Nobody nearby sells this.","Ninguna. Nadie cerca vende esto.")}</td></tr>`;
+  $("#comp").innerHTML=comps.length?comps.map(c=>`<tr><td>${esc(c.name)}</td><td class="n">${c.rating!=null?(+c.rating).toFixed(1)+" ★":"–"}</td><td class="n">${c.price_level?esc(d.price_gap?.currency?d.price_gap.currency.repeat(+c.price_level):T("level ","nivel ")+(+c.price_level)):""}</td><td class="n">${c.distance_m} m</td></tr>`).join(""):`<tr><td>${T("None. Nobody nearby sells this.","Ninguna. Nadie cerca vende esto.")}</td></tr>`;
   $("#share").textContent=d.share.filter(s=>s.places>0).map(s=>T(`${s.places} of the ${s.of} most popular places within 500 m already serve ${s.part}.`,`${s.places} de los ${s.of} locales más populares a 500 m ya sirven ${s.part}.`)).join(" ");
   const pg=d.price_gap,dec=x=>lang==="es"?String(x).replace(".",","):x;$("#pricegap").textContent=pg?T("By price, rivals within 700 m: ","Por precio, rivales a 700 m: ")+pg.levels.filter(l=>l.level<=3).map(l=>`${pg.currency?pg.currency.repeat(l.level):T("level ","nivel ")+l.level} ${l.rivals}${l.best?` (${T("best","mejor")}: ${l.best.name} ${dec(l.best.rating)}★)`:""}${l.open?" ← "+T("open, nobody rated 4.5+","libre, nadie con 4,5+"):""}`).join(" · ")+(pg.unpriced?T(` · ${pg.unpriced} without price`,` · ${pg.unpriced} sin precio`):""):"";
   $("#gapbox").hidden=!d.gap.length;$("#gap").innerHTML=d.gap.map(g=>`<span>${esc(g)}</span>`).join("");
@@ -411,8 +411,7 @@ function render(d,keep=false){
   $("#chips").innerHTML=chips.map(c=>`<button type="button">${c}</button>`).join("");
   $("#chips").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("#q").value=b.textContent;$("#qf").requestSubmit()});
   $("#trace").innerHTML=d.trace.map(t=>`<tr><td>${t.source}</td><td class="u">${esc(decodeURIComponent(t.url.replace(/^https?:\/\/[^/]+/,"")).replace(/\+/g," "))}</td><td class="n">${t.error?esc(t.error):t.note?esc(t.note):t.recorded?T("recorded","grabado"):t.cached?T("cached","caché"):t.ms+" ms"}</td></tr>`).join("")+(d.llm||[]).map(l=>`<tr><td>nebius</td><td class="u">${esc(l.model)} · ${esc(l.task)}</td><td class="n">${l.ms} ms</td></tr>`).join("");
-  const wq=d.without_qloo;
-  $("#vs").innerHTML=`<div><h3>${T("With Qloo","Con Qloo")}</h3><ul class="plain">${comps.slice(0,5).map(c=>`<li>${esc(c.name)}, ${c.rating??"–"} ★, ${c.distance_m} m</li>`).join("")||"<li>–</li>"}</ul></div><div><h3>${T("Language model alone","Solo el modelo")}</h3>${wq?`<p style="margin:0 0 6px;font-weight:600">${esc(wq.headline)}</p><ul class="plain">${wq.why.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<p class="note">${T("Runs when the Nebius key is configured.","Se ejecuta cuando la clave de Nebius está configurada.")}</p>`}</div>`;
+  renderNoQ(d);
   drawMap(d);
   $("#comp").querySelectorAll("tr").forEach((tr,i)=>{const c=d.competitors[i];if(!c)return;tr.onmouseenter=()=>{tr.classList.add("hl");const m=compMarkers[c.name];if(m){m.setStyle({radius:10,fillColor:"#C0392B"});m.openTooltip()}};tr.onmouseleave=()=>{tr.classList.remove("hl");const m=compMarkers[c.name];if(m){m.setStyle({radius:6,fillColor:"#fff"});m.closeTooltip()}}});
 }
@@ -514,7 +513,16 @@ $("#cf").onsubmit=async e=>{
   catch(err){$("#cmpout").innerHTML=`<p class="err">${esc(err.message)}</p>`}
 };
 
-document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));["how","noq","cmp"].forEach(k=>$("#tab-"+k).hidden=k!==b.dataset.tab)});
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));["how","noq","cmp"].forEach(k=>$("#tab-"+k).hidden=k!==b.dataset.tab);if(b.dataset.tab==="noq")loadNoQ()});
+function renderNoQ(d){
+  const comps=d.competitors.slice(0,5),wq=d.noqloo;
+  $("#vs").innerHTML=`<div><h3>${T("With Qloo","Con Qloo")}</h3><ul class="plain">${comps.map(c=>`<li>${esc(c.name)}, ${c.rating??"–"} ★, ${c.distance_m} m</li>`).join("")||"<li>–</li>"}</ul></div><div><h3>${T("Language model alone","Solo el modelo")}</h3>${wq&&wq.headline?`<p style="margin:0 0 6px;font-weight:600">${esc(wq.headline)}</p><ul class="plain">${(wq.why||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:wq&&wq.unavailable?`<p class="note">${T("Runs when the Nebius key is configured.","Se ejecuta cuando la clave de Nebius está configurada.")}</p>`:`<p class="note" id="noqwait">${T("Asking the model alone…","Preguntando solo al modelo…")}</p>`}</div>`;
+}
+async function loadNoQ(){
+  if(!cur||cur.noqloo)return;
+  try{const r=await fetch("/api/noqloo",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:cur.id,lang})});const d=await r.json();if(!r.ok)throw new Error(d.error);cur.noqloo=d;renderNoQ(cur)}
+  catch(err){const w=$("#noqwait");if(w)w.textContent=err.message}
+}
 </script>
 </body>
 </html>
