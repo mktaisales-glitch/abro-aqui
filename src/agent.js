@@ -167,6 +167,8 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
     try {
       const r = await writeReport(signals, lang);
       report = r.data;
+      // the verdict word is shown apart; a headline that names a colour or a verdict code is replaced by the plain one
+      if (/\b(amber|red|green|ámbar|rojo|verde|AMBER-GREEN|UNKNOWN)\b/i.test(report.headline)) report.headline = templateReport(signals, lang).headline;
       reportMeta = { model: r.model, ms: r.ms };
       llm.push({ task: "write report", model: r.model, ms: r.ms });
     } catch (e) {
