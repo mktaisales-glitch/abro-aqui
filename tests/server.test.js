@@ -26,6 +26,9 @@ test("bad input is rejected with a short message; oversized bodies get 413; malf
   assert.equal((await post("/api/analyze", { concept: "", address: "x" })).status, 400);
   assert.equal((await post("/api/analyze", { concept: "a".repeat(200), address: "x" })).status, 400);
   assert.equal((await post("/api/chat", { id: "nope", question: "hi" })).status, 404);
+  const pdf = await fetch(`http://127.0.0.1:${PORT}/api/report.pdf?id=nope`);
+  assert.equal(pdf.status, 404, "an unknown or expired session has no report");
+  assert.match((await pdf.json()).error, /expired/);
   assert.equal((await post("/api/analyze", null, "{bad")).status, 400);
   assert.equal((await post("/api/analyze", { concept: "x", address: "y".repeat(60000) })).status, 413);
 });

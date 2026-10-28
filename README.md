@@ -24,6 +24,7 @@ Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
 - **Launch plan, "where do I announce it?"** (screenshots: [agent steps](docs/live-agent-steps.jpg), [launch plan at the better spot](docs/live-launch-plan.jpg), [what fits at Fuencarral 100, Madrid](docs/live-what-fits-madrid.jpg)): learned from the customers of the best-rated rivals nearby, through Qloo's taste graph: music for the opening, brands to ask for sampling, neighbours to team up with (not competitors, checked on the web) and the poster zones on the map, with a 4-week plan. The model chooses among Qloo's candidates; code drops any name it invents ([`specs/04-launch.md`](specs/04-launch.md)).
 - **"What if…?" chat**: "What if I ignore Puertecillo?", "What about Carrer de Blai?". The agent calls the tools again and recomputes the verdict.
 - **"Without Qloo"**: the same question answered by the language model alone, so you can see what it makes up.
+- **Downloadable report (PDF)**: the address, verdict, facts, a drawn taste map, competitors, the reasons, what to check before signing, and the agent's answer and opening plan when they were run; built from the analysis already in memory, no new API calls ([`specs/08-report.md`](specs/08-report.md)).
 - **"How I know"**: every Qloo, geocoding and Tavily call behind the report (failed ones too) and every model call with its time, without the key.
 
 Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/) and the [Nebius x NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com/) (October 2026) by [MarketingAiSales](https://marketingaisales.com).
@@ -98,9 +99,9 @@ git clone https://github.com/mktaisales-glitch/abro-aqui && cd abro-aqui
 npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
-npm test                  # 35 tests: HTTP layer and security headers, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
+npm test                  # 38 tests: HTTP layer and security headers, PDF report, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
                           # 6 of them replay the recorded Barcelona cases
-                          # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (29 run)
+                          # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (32 run)
 ```
 
 Deploy: `render.yaml` (Render blueprint) or the `Dockerfile`. API: `POST /api/analyze {concept, address, lang, without_qloo}`, `POST /api/chat {id, question}`, `POST /api/scout {id, lang}`, `POST /api/launch {id, lang, at}`, `POST /api/explore {address, radius}`, `POST /api/compare {id, address}`, `GET /api/health`. `radius` is 500, 1000 (default), 1500 or 2000.

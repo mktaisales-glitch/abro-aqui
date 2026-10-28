@@ -6,6 +6,7 @@ import { llmEnabled, MODELS, withClient } from "./llm.js";
 import { scrubPII } from "./safe.js";
 import { launchPlan } from "./launch.js";
 import { explore } from "./explore.js";
+import { buildReportPdf, reportFileName } from "./report-pdf.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -29,7 +30,7 @@ app.use("/vendor/fonts", express.static(path.resolve("node_modules/@fontsource/m
 
 // --- demo protection: N requests per IP per day (in memory; reset on restart, documented)
 const quota = new Map();
-const LIMITS = { analyze: Number(process.env.DAILY_LIMIT) || 30, compare: 30, chat: 40, scout: 15, launch: 15, explore: 3, noqloo: 20 };
+const LIMITS = { analyze: Number(process.env.DAILY_LIMIT) || 30, compare: 30, chat: 40, scout: 15, launch: 15, explore: 3, noqloo: 20, report: 60 };
 const today = () => new Date().toISOString().slice(0, 10);
 function allow(ip, kind = "analyze") {
   const k = `${kind}|${ip}|${today()}`;
@@ -146,7 +147,9 @@ app.post("/api/scout", async (req, res) => {
   if (!s) return res.status(404).json({ error: "Run the analysis again: the scout uses the last one and it expired." });
   if (!allow(ipOf(req), "scout")) return res.status(429).json({ error: "Daily scouting limit reached on this demo." });
   try {
-    res.json(await withDeadline(scout({ ctx: s.ctx, lang: lang === "es" ? "es" : "en" })));
+    const r = await withDeadline(scout({ ctx: s.ctx, lang: lang === "es" ? "es" : "en" }));
+    s.scout = r; // kept for the PDF report
+    res.json(r);
   } catch (e) {
     fail(res, "scout", e);
   }
@@ -160,9 +163,26 @@ app.post("/api/launch", async (req, res) => {
   const best = s.ctx.heatmap?.best;
   const spot = at === "best" && best ? { lat: best.lat, lon: best.lon } : undefined;
   try {
-    res.json(await withDeadline(launchPlan({ ctx: s.ctx, lang: lang === "es" ? "es" : "en", at: spot })));
+    const r = await withDeadline(launchPlan({ ctx: s.ctx, lang: lang === "es" ? "es" : "en", at: spot }));
+    s.launch = r; // kept for the PDF report
+    res.json(r);
   } catch (e) {
     fail(res, "launch", e);
+  }
+});
+
+// The analysis of this session as a PDF to keep or forward (spec 08): built from what is already in memory, no new API calls
+app.get("/api/report.pdf", async (req, res) => {
+  const id = str(req.query?.id, 100);
+  const s = id && sessions.get(id);
+  if (!s) return res.status(404).json({ error: "This report has expired (analyses are kept for 2 hours). Run the analysis again and download it." });
+  if (!allow(ipOf(req), "report")) return res.status(429).json({ error: "Daily report limit reached on this demo." });
+  try {
+    const pdf = await buildReportPdf({ ctx: s.ctx, scout: s.scout, launch: s.launch, lang: req.query?.lang === "es" ? "es" : "en" });
+    res.set({ "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${reportFileName(s.ctx)}"`, "Cache-Control": "no-store" });
+    res.send(pdf);
+  } catch (e) {
+    fail(res, "report", e);
   }
 });
 
