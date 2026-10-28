@@ -3,7 +3,8 @@ import { makeTrace } from "./http.js";
 import * as T from "./tools.js";
 import { CONCEPT_LIST, knownResolved } from "./concepts.js";
 import { verdict, plainVerdictDeep, plainVerdictWords, betterSpotWhy } from "./verdict.js";
-import { llmEnabled, normalizeConcept, writeReport, writeReportWithoutQloo, templateReport, chatWithTools } from "./llm.js";
+import { llmEnabled, normalizeConcept, writeReport, writeReportWithoutQloo, templateReport, chatWithTools, inLang } from "./llm.js";
+import { explore } from "./explore.js";
 
 function dedupeByName(list) {
   const seen = new Map();
@@ -344,18 +345,60 @@ export function chatContext(ctx) {
 export async function chat({ ctx, history, question, lang = "en" }) {
   const es = lang === "es";
   if (!llmEnabled) return { text: es ? "El chat necesita el modelo (NEBIUS_API_KEY). El análisis de arriba funciona igualmente." : "The chat needs the LLM (NEBIUS_API_KEY). The analysis above still works.", calls: [] };
-  const system = `You are "Open Here", the assistant inside a location report for a small-business owner. You can see the whole report below: answer from it directly when you can (a summary, the risks, what would change the verdict, who the area is) without calling any tool. Call a tool only when the question changes the inputs (another radius, ignoring a competitor, another address or block). Write for someone with no data background: plain words, short sentences, at most 4 sentences unless asked for a list, cite the key numbers, never invent businesses or figures that are not below. Verdict words: RED = ${es ? "Aquí no" : "Not here"}, AMBER = ${es ? "Difícil" : "Hard"}, AMBER-GREEN = ${es ? "Prometedor" : "Promising"}, UNKNOWN = ${es ? "Sin datos" : "No data"}; there is no green light until the owner checks foot traffic, rent and licences. You may use **bold** for one or two key words. Answer in ${es ? "Spanish" : "English"}.
+  const system = `You are "Open Here", the assistant inside a location report for a small-business owner who wants to open a restaurant, bar or café. You can see the whole report below.
+- Questions about this place (a summary, the risks, what would change the verdict, who the area is, the competitors): answer from the report directly, citing the key numbers. Call a tool only when the question changes the inputs (another radius, ignoring a competitor, another address or block, which other kinds of business fit here).
+- Other questions about opening (licences, budget, menu, pricing, marketing, what to check in the premises, negotiating the rent): answer them too, with practical general advice, and say it is general advice when it is not from the report.
+- Never invent local businesses or figures: numbers about this area come only from the report or a tool.
+Write for someone with no data background: plain words, short sentences, about 4 sentences unless they ask for a list or more detail. Verdict words: RED = ${es ? "Aquí no" : "Not here"}, AMBER = ${es ? "Difícil" : "Hard"}, AMBER-GREEN = ${es ? "Prometedor" : "Promising"}, UNKNOWN = ${es ? "Sin datos" : "No data"}; there is no green light until the owner checks foot traffic, rent and licences. You may use **bold** for one or two key words.
+${es ? "IMPORTANTE: responde siempre en español, aunque el informe esté en inglés." : "Answer in English."}
 
 The report: ${JSON.stringify(chatContext(ctx))}`;
   const messages = [{ role: "system", content: system }, ...history, { role: "user", content: question }];
   const trace = makeTrace();
   try {
-    const r = await chatWithTools({ messages, tools: chatTools(ctx, trace), lang });
-    return { ...r, text: plainVerdictWords(r.text, lang), trace: trace.entries };
+    const r = await chatWithTools({ messages, tools: { ...chatTools(ctx, trace), ...fitTool(ctx, trace) }, lang });
+    return { ...r, text: plainVerdictWords(await inLang(r.text, lang), lang), trace: trace.entries };
   } catch (e) {
     trace.add({ source: "nebius", url: "chat: Nemotron 3.5 Lightning", ms: 0, cached: false, error: String(e.message).slice(0, 120) });
     if (/daily LLM budget/.test(String(e.message))) return { text: BUDGET_TEXT[es ? "es" : "en"], calls: [], trace: trace.entries, error: true, limit: true };
     return { text: es ? "El modelo no ha podido responder ahora. El análisis sigue siendo válido; prueba de nuevo en un momento." : "The model could not answer right now. The analysis still stands; try again in a moment.", calls: [], trace: trace.entries, error: true };
+  }
+}
+
+// "what fits here" for the chat: the same 15-concept table as the "I have premises" mode, once per address
+const fitMemo = new Map();
+function fitTool(ctx, trace) {
+  return {
+    what_fits_here: {
+      description: "Which kinds of restaurant, bar or café fit best at the analysed address: the same rules for 15 concepts (verdict, taste rank, rivals within 700 m). Use when the owner asks what else could work here or has premises and no idea yet.",
+      parameters: { type: "object", properties: {} },
+      run: async () => {
+        const key = `${ctx.geo.lat.toFixed(4)},${ctx.geo.lon.toFixed(4)},${ctx.radius ?? 1000}`;
+        if (!fitMemo.has(key)) fitMemo.set(key, explore({ address: ctx.address, coords: ctx.geo, radius: ctx.radius ?? 1000 }).catch((e) => { fitMemo.delete(key); throw e; }));
+        const v = await fitMemo.get(key);
+        while (fitMemo.size > 50) fitMemo.delete(fitMemo.keys().next().value);
+        return { rows: v.rows.map(({ concept, level, demand, c700 }) => ({ concept, verdict: level, taste_rank: demand, rivals_700m: c700 })) };
+      },
+    },
+  };
+}
+
+/** The chat after "I have premises: what fits?": it reads the table of 15 concepts at that address. */
+export async function chatFit({ fit, history, question, lang = "en" }) {
+  const es = lang === "es";
+  if (!llmEnabled) return { text: es ? "El chat necesita el modelo (NEBIUS_API_KEY)." : "The chat needs the LLM (NEBIUS_API_KEY).", calls: [] };
+  const rows = fit.rows.map(({ concept, level, demand, c700, nearest_rival }) => ({ concept, verdict: level, taste_rank: demand, rivals_700m: c700, nearest_rival: nearest_rival?.name ?? null }));
+  const system = `You are "Open Here", the assistant for an owner who has premises at ${fit.place ?? fit.address} and wants to know which kind of restaurant, bar or café to open there. Below is the table that applied the same rules to 15 concepts within ${fit.radius} m: verdict, Qloo taste rank (0 to 1: how much the area likes it) and direct rivals within 700 m.
+Answer what they ask: which concepts fit best and why, which to avoid, how two compare, what to check in the premises. Use the table for anything about this area and never invent local figures or businesses; for general questions about opening (licences, budget, menu, marketing) give practical general advice. Plain words, about 4 sentences unless they ask for more. Verdict words: RED = ${es ? "Aquí no" : "Not here"}, AMBER = ${es ? "Difícil" : "Hard"}, AMBER-GREEN = ${es ? "Prometedor" : "Promising"}, UNKNOWN = ${es ? "Sin datos" : "No data"}. You may use **bold** for one or two key words. To see the full report of one concept, the owner clicks its row in the table.
+${es ? "IMPORTANTE: responde siempre en español." : "Answer in English."}
+
+The table: ${JSON.stringify(rows)}`;
+  try {
+    const r = await chatWithTools({ messages: [{ role: "system", content: system }, ...history, { role: "user", content: question }], tools: {}, maxRounds: 1, lang });
+    return { ...r, text: plainVerdictWords(await inLang(r.text, lang), lang) };
+  } catch (e) {
+    if (/daily LLM budget/.test(String(e.message))) return { text: BUDGET_TEXT[es ? "es" : "en"], calls: [], error: true, limit: true };
+    return { text: es ? "El modelo no ha podido responder ahora. Prueba de nuevo en un momento." : "The model could not answer right now. Try again in a moment.", calls: [], error: true };
   }
 }
 

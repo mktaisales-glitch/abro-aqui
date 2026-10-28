@@ -1,7 +1,7 @@
 import express from "express";
 import crypto from "node:crypto";
 import path from "node:path";
-import { analyze, chat, compare, scout, withoutQloo, BUDGET_TEXT } from "./agent.js";
+import { analyze, chat, chatFit, compare, scout, withoutQloo, BUDGET_TEXT } from "./agent.js";
 import { llmEnabled, MODELS, withClient } from "./llm.js";
 import { scrubPII } from "./safe.js";
 import { launchPlan } from "./launch.js";
@@ -134,7 +134,7 @@ app.get("/api/geocode/suggest", async (req, res) => {
 app.post("/api/noqloo", async (req, res) => {
   const { id, lang = "en" } = req.body ?? {};
   const s = sessions.get(id);
-  if (!s) return res.status(404).json({ error: "Run the analysis again: it expired." });
+  if (!s?.ctx) return res.status(404).json({ error: "Run the analysis again: it expired." });
   if (s.noqloo) return res.json(s.noqloo);
   if (!allow(ipOf(req), "noqloo")) return res.status(429).json({ error: "Daily limit reached on this demo." });
   try {
@@ -148,7 +148,7 @@ app.post("/api/noqloo", async (req, res) => {
 app.post("/api/compare", async (req, res) => {
   const { id, address } = req.body ?? {};
   const s = sessions.get(id);
-  if (!s) return res.status(404).json({ error: "Run the analysis again: comparisons use the last one and it expired." });
+  if (!s?.ctx) return res.status(404).json({ error: "Run the analysis again: comparisons use the last one and it expired." });
   const a2 = str(address, 200);
   if (!a2) return res.status(400).json({ error: "Write the second address (up to 200 characters)." });
   if (!allow(ipOf(req), "compare")) return res.status(429).json({ error: "Daily comparison limit reached on this demo." });
@@ -168,7 +168,8 @@ app.post("/api/chat", async (req, res) => {
   if (!allow(ipOf(req), "chat")) return res.json({ text: lang === "es" ? BUDGET_TEXT.es : BUDGET_TEXT.en, calls: [], error: true, limit: true });
   const clean = scrubPII(q);
   try {
-    const r = await withDeadline(chat({ ctx: s.ctx, history: s.history.slice(-8), question: clean, lang: lang === "es" ? "es" : "en" }));
+    const L = lang === "es" ? "es" : "en";
+    const r = await withDeadline(s.fit ? chatFit({ fit: s.fit, history: s.history.slice(-8), question: clean, lang: L }) : chat({ ctx: s.ctx, history: s.history.slice(-8), question: clean, lang: L }));
     s.history.push({ role: "user", content: clean }, { role: "assistant", content: r.text });
     s.history = s.history.slice(-16);
     res.json(r);
@@ -180,7 +181,7 @@ app.post("/api/chat", async (req, res) => {
 app.post("/api/scout", async (req, res) => {
   const { id, lang = "en" } = req.body ?? {};
   const s = sessions.get(id);
-  if (!s) return res.status(404).json({ error: "Run the analysis again: the scout uses the last one and it expired." });
+  if (!s?.ctx) return res.status(404).json({ error: "Run the analysis again: the scout uses the last one and it expired." });
   if (!allow(ipOf(req), "scout")) return res.status(429).json({ error: "Daily scouting limit reached on this demo." });
   try {
     const r = await withDeadline(scout({ ctx: s.ctx, lang: lang === "es" ? "es" : "en" }));
@@ -194,7 +195,7 @@ app.post("/api/scout", async (req, res) => {
 app.post("/api/launch", async (req, res) => {
   const { id, lang = "en", at } = req.body ?? {};
   const s = sessions.get(id);
-  if (!s) return res.status(404).json({ error: "Run the analysis again: the launch plan uses the last one and it expired." });
+  if (!s?.ctx) return res.status(404).json({ error: "Run the analysis again: the launch plan uses the last one and it expired." });
   if (!allow(ipOf(req), "launch")) return res.status(429).json({ error: "Daily launch-plan limit reached on this demo." });
   const best = s.ctx.heatmap?.best;
   const spot = at === "best" && best ? { lat: best.lat, lon: best.lon } : undefined;
@@ -211,7 +212,7 @@ app.post("/api/launch", async (req, res) => {
 app.get("/api/report.pdf", async (req, res) => {
   const id = str(req.query?.id, 100);
   const s = id && sessions.get(id);
-  if (!s) return res.status(404).json({ error: "This report has expired (analyses are kept for 2 hours). Run the analysis again and download it." });
+  if (!s?.ctx) return res.status(404).json({ error: "This report has expired (analyses are kept for 2 hours). Run the analysis again and download it." });
   if (!allow(ipOf(req), "report")) return res.status(429).json({ error: "Daily report limit reached on this demo." });
   try {
     const pdf = await buildReportPdf({ ctx: s.ctx, scout: s.scout, launch: s.launch, lang: req.query?.lang === "es" ? "es" : "en" });
@@ -232,7 +233,9 @@ app.post("/api/explore", async (req, res) => {
   const coords = req.body?.coords && Number.isFinite(+req.body.coords.lat) && Number.isFinite(+req.body.coords.lon) ? { lat: +req.body.coords.lat, lon: +req.body.coords.lon } : null;
   const key = `${coords ? `${coords.lat.toFixed(5)},${coords.lon.toFixed(5)}` : address.toLowerCase()}|${radius}`;
   const hit = exploreCache.get(key);
-  if (hit && Date.now() - hit.t < 24 * 3600 * 1000) return res.json(hit.v);
+  // every "what fits" answer gets a chat session of its own (the assistant reads the table)
+  const withChat = (v) => { const id = crypto.randomUUID(); keep(id, { t: Date.now(), fit: v, history: [] }); return { id, ...v }; };
+  if (hit && Date.now() - hit.t < 24 * 3600 * 1000) return res.json(withChat(hit.v));
   if (!allow(ipOf(req), "explore")) return res.status(429).json({ error: "Daily limit for \"what fits here\" reached on this demo." });
   if (exploring) return res.status(429).json({ error: "Another \"what fits here\" is running. Try again in a few seconds." });
   try {
@@ -240,7 +243,7 @@ app.post("/api/explore", async (req, res) => {
     const v = await exploring;
     exploreCache.set(key, { t: Date.now(), v });
     while (exploreCache.size > 100) exploreCache.delete(exploreCache.keys().next().value);
-    res.json(v);
+    res.json(withChat(v));
   } catch (e) {
     fail(res, "explore", e);
   } finally {

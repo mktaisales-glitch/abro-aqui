@@ -40,3 +40,17 @@ test("scout answers that name a street missing from the tool results lose that s
   assert.equal(r.dropped, 1);
   assert.equal(groundStreets("Mira el Carrer de Pujades, a 300 m.", [{ address: "Carrer de Pujades" }]).dropped, 0);
 });
+
+test("an address typed with the city but no comma finds the city, and Spanish names of Barcelona streets", async () => {
+  const T = await import("../src/tools.js");
+  assert.equal(T.withCity("avenida paralelo barcelona"), "avenida paralelo, barcelona");
+  assert.equal(T.catalanStreet(T.withCity("avenida paralelo barcelona")), "Avinguda del Paral·lel, barcelona");
+  assert.deepEqual(T.namedPlaces(T.withCity("100 brick lane londres")), ["london"]);
+  assert.equal(T.withCity("Rambla del Poblenou 100"), "Rambla del Poblenou 100");
+});
+
+test("a Spanish answer that came back in English is spotted", async () => {
+  const { looksEnglish } = await import("../src/llm.js");
+  assert.equal(looksEnglish("The area has strong appetite for ramen and there are three rivals within 700 m, so it is hard."), true);
+  assert.equal(looksEnglish("La zona tiene mucho interés por el ramen y hay tres rivales a 700 m, así que es difícil."), false);
+});

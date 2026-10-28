@@ -50,7 +50,7 @@ export async function geocode(address, trace) {
     }
     return { lat, lon, display_name: name ? `${lat.toFixed(5)}, ${lon.toFixed(5)} (${name})` : `${lat.toFixed(5)}, ${lon.toFixed(5)}` };
   }
-  const q = address.trim();
+  const q = withCity(address.trim());
   const places = namedPlaces(q);
   const ok = (name) => !places.length || placeMatches(name, places);
   // recordings and older cache entries were made with limit=1: use them when they already agree with the city
@@ -87,7 +87,16 @@ export async function geocode(address, trace) {
 
 const fold = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[·.]/g, "").replace(/\s+/g, " ").trim();
 // English (and old Spanish) names → the local name OpenStreetMap uses
-const EXONYM = { seville: "sevilla", lisbon: "lisboa", milan: "milano", rome: "roma", naples: "napoli", florence: "firenze", turin: "torino", venice: "venezia", munich: "munchen", cologne: "koln", vienna: "wien", prague: "praha", brussels: "bruxelles", saragossa: "zaragoza", gerona: "girona", lerida: "lleida", "la coruna": "a coruna", nyc: "new york", "new york city": "new york", ny: "new york", la: "los angeles", sf: "san francisco", athens: "athina", copenhagen: "kobenhavn", warsaw: "warszawa" };
+const EXONYM = { londres: "london", "nueva york": "new york", seville: "sevilla", lisbon: "lisboa", milan: "milano", rome: "roma", naples: "napoli", florence: "firenze", turin: "torino", venice: "venezia", munich: "munchen", cologne: "koln", vienna: "wien", prague: "praha", brussels: "bruxelles", saragossa: "zaragoza", gerona: "girona", lerida: "lleida", "la coruna": "a coruna", nyc: "new york", "new york city": "new york", ny: "new york", la: "los angeles", sf: "san francisco", athens: "athina", copenhagen: "kobenhavn", warsaw: "warszawa" };
+// a city typed without a comma ("avenida paralelo barcelona") is read as "avenida paralelo, barcelona"
+const CITY_END = /\s+(barcelona|madrid|valencia|sevilla|seville|bilbao|m[aá]laga|zaragoza|sabadell|terrassa|girona|tarragona|lleida|london|londres|paris|par[ií]s|lisboa|lisbon|berl[ií]n|mil[aá]n|milano|roma|rome|new york|nueva york|brooklyn|manhattan|san francisco|chicago|los angeles|amsterdam|[aá]msterdam|m[uü]nchen|munich)\s*$/i;
+export function withCity(q) {
+  const s = String(q ?? "").trim();
+  if (s.includes(",")) return s;
+  const m = s.match(CITY_END);
+  return m && m.index > 0 ? `${s.slice(0, m.index)}, ${m[1]}` : s;
+}
+
 /** The places an address names after the street ("…, Barcelona" → ["barcelona"]), without postcodes. */
 export function namedPlaces(address) {
   const parts = String(address ?? "").split(",").slice(1).map((p) => fold(p.replace(/\b\d[\d-]*\b/g, ""))).filter((p) => p.length >= 2);
@@ -102,7 +111,7 @@ export function placeMatches(displayName, places) {
 }
 // Spanish street names typed for Barcelona, where OpenStreetMap has the Catalan ones
 const CAT = [
-  [/\bavenida del paralelo\b/i, "Avinguda del Paral·lel"], [/\bavenida (?:de la )?diagonal\b/i, "Avinguda Diagonal"],
+  [/\b(?:avenida|avda\.?|av\.?|avinguda)\s+(?:del?\s+)?(?:paral[·.]?lel|paralelo)\b/i, "Avinguda del Paral·lel"], [/^(?:el\s+)?paralelo\b/i, "Avinguda del Paral·lel"], [/\bavenida (?:de la )?diagonal\b/i, "Avinguda Diagonal"],
   [/\bgran v[ií]a(?! de les)(?: de las cortes catalanas)?\b/i, "Gran Via de les Corts Catalanes"], [/\bpaseo de gracia\b/i, "Passeig de Gràcia"],
   [/\bpaseo de san juan\b/i, "Passeig de Sant Joan"], [/\bplaza (?:de )?catalu[nñ]a\b/i, "Plaça de Catalunya"], [/^diagonal\b/i, "Avinguda Diagonal"],
   [/\bavenida\b/i, "Avinguda"], [/\bcalle\b/i, "Carrer"], [/\bpaseo\b/i, "Passeig"], [/\bplaza\b/i, "Plaça"], [/\bronda de\b/i, "Ronda de"],
@@ -144,7 +153,7 @@ export function photonLabel(p = {}) {
   return { label: [...new Set([head, area, city].filter(Boolean))].join(", "), country: p.country ?? "" };
 }
 export async function suggestPlaces(q, lang = "en", trace) {
-  const query = String(q ?? "").trim().slice(0, 120);
+  const query = withCity(String(q ?? "").trim().slice(0, 120));
   if (query.length < 4) return [];
   // Photon speaks en/de/fr; for Spanish the local names (default) read best
   const url = (q) => `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5${lang === "en" ? "&lang=en" : ""}`;
@@ -154,9 +163,12 @@ export async function suggestPlaces(q, lang = "en", trace) {
   const lists = await Promise.all([alias, query].filter(Boolean).map((q) => getJSON(url(q), { headers: UA, source: "osm", trace }).catch(() => null)));
   const ph = { features: lists.flatMap((l) => l?.features ?? []) };
   const seen = new Set();
-  return (ph?.features ?? []).map((f) => ({ ...photonLabel(f.properties), lat: f.geometry?.coordinates?.[1], lon: f.geometry?.coordinates?.[0] }))
-    .filter((x) => Number.isFinite(x.lat) && Number.isFinite(x.lon) && x.label && !seen.has(x.label + x.country) && seen.add(x.label + x.country))
-    .slice(0, 5);
+  const all = (ph?.features ?? []).map((f) => ({ ...photonLabel(f.properties), lat: f.geometry?.coordinates?.[1], lon: f.geometry?.coordinates?.[0] }))
+    .filter((x) => Number.isFinite(x.lat) && Number.isFinite(x.lon) && x.label && !seen.has(x.label + x.country) && seen.add(x.label + x.country));
+  // when the visitor named a city, only places in it (if there are any): "…, Barcelona" never offers Almussafes
+  const places = namedPlaces(query);
+  const inCity = places.length ? all.filter((x) => placeMatches(x.label, places)) : [];
+  return (inCity.length ? inCity : all).slice(0, 5);
 }
 
 const HOUSE = /^\d+[a-z]?(?:[-–]\d+[a-z]?)?$/i;

@@ -85,8 +85,8 @@ select.rad{border:1px solid var(--line);border-radius:24px;padding:0 14px;min-he
 .go svg.i{width:18px;height:18px}
 .examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;align-items:center}
 .examples .ex-l{font-size:12px;color:var(--ink-3);font-weight:600;margin-right:2px}
-.examples button{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 12px;min-height:36px;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--ink-2)}
-@media(hover:hover){.examples button:hover{border-color:var(--orange);color:var(--brick);background:var(--o-50)}}
+.examples button{border:0;background:none;padding:6px 0;min-height:36px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--brick);text-align:left;text-decoration:underline;text-decoration-color:var(--o-200);text-underline-offset:3px}
+@media(hover:hover){.examples button:hover{color:var(--orange);text-decoration-color:currentColor}}
 .steps{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:6px;font-size:13.5px;color:var(--ink-3)}
 .steps li.done,.steps li.now{color:var(--ink)}
 .steps li.now{font-weight:600}
@@ -285,7 +285,6 @@ form.q button{border:0;border-radius:24px;background:var(--orange);color:#fff;pa
   .chat-h{padding-top:calc(12px + env(safe-area-inset-top))}
   .chat form.q{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
   body.chat-open{overflow:hidden}
-  body.ask-visible .fab{opacity:0;pointer-events:none;transform:translateY(8px)}
   .fab{transition:opacity .2s,transform .2s}
   #fitbox{overflow-x:auto}
   .lang button,.examples button,.next button,.chips button,.fit button,.tabs button,details.rule summary{min-height:44px}
@@ -348,7 +347,7 @@ form.q button{border:0;border-radius:24px;background:var(--orange);color:#fff;pa
             <button class="go" id="go" type="submit"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><span id="golbl">Should I open here?</span></button>
           </div>
         </form>
-        <div class="examples" id="examples"><span class="ex-l" data-i="tryex">Try:</span></div>
+        <div class="examples" id="examples"><span class="ex-l" data-i="tryex">Example:</span></div>
       </div>
       <ol class="steps" id="steps" hidden aria-live="polite"></ol>
       <div class="err" id="err" hidden role="alert"></div>
@@ -372,7 +371,6 @@ form.q button{border:0;border-radius:24px;background:var(--orange);color:#fff;pa
         <div class="next" id="next">
           <button type="button" id="go-scout"><svg class="i" aria-hidden="true"><use href="#i-spot"/></svg><span data-i="goscout">Find a better spot</span></button>
           <button type="button" id="go-launch"><svg class="i" aria-hidden="true"><use href="#i-rocket"/></svg><span data-i="golaunch">Plan the opening</span></button>
-          <button type="button" id="go-ask"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg><span data-i="fab">Ask Open Here</span></button>
         </div>
         <details class="rule"><summary data-i="rule">Which rule decided it</summary><p id="rule"></p><div id="adjust"></div></details>
       </div>
@@ -473,12 +471,12 @@ form.q button{border:0;border-radius:24px;background:var(--orange);color:#fff;pa
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script>
-const ES={hero:"¿Abro aquí?",lead:"Para restaurantes, bares y cafeterías. Elige tu tipo de negocio y la calle: lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",mone:"¿Abro mi idea aquí?",mfit:"Tengo un local: ¿qué encaja?",concept:"Tipo de negocio",chint:"Aún no disponible: elige uno de la lista",address:"Dirección",ahint:"Escribe la calle y el número, y elígela de la lista",radius:"Zona alrededor",tryex:"Prueba:",goscout:"Buscar un sitio mejor",golaunch:"Planificar la apertura",fab:"Pregunta a Open Here",rule:"Qué regla lo decide",qwhy:"¿Por qué este resultado?",qarea:"¿Quién sale por la zona?",qscout:"¿Hay un sitio mejor cerca?",qlaunch:"¿Cómo lanzo la apertura?",qhow:"¿Cómo lo sabemos?",gap:"Nadie cerca ofrece",whyh:"Los motivos",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",who:"Quién va",when:"Cuándo",serves:"Qué sirven",scouthelp:"Un objetivo y el agente decide los pasos: compara las manzanas cercanas con las mismas reglas y te dice si moverte o quedarte, y por qué.",scoutgo:"Búscame un sitio mejor",launchhelp:"Aprendido de los clientes de los locales mejor valorados que ya sirven tu idea cerca: la música que escuchan, las marcas que les gustan, los vecinos que también visitan (no competidores) y las manzanas con más vida donde más gusta tu idea.",launchgo:"Planifica mi apertura",lmusic:"Música para la inauguración",lco:"Vecinos con los que aliarte",lbrands:"Marcas para pedir degustación",lposters:"Carteles y flyers",how:"Cada llamada",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",pdf:"Descargar PDF",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo (pasa el ratón para ver el nombre)",
+const ES={hero:"¿Abro aquí?",lead:"Para restaurantes, bares y cafeterías. Elige tu tipo de negocio y la calle: lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",mone:"¿Abro mi idea aquí?",mfit:"Tengo un local: ¿qué encaja?",concept:"Tipo de negocio",chint:"Aún no disponible: elige uno de la lista",address:"Dirección",ahint:"Escribe la calle y el número, y elígela de la lista",radius:"Zona alrededor",tryex:"Ejemplo:",goscout:"Buscar un sitio mejor",golaunch:"Planificar la apertura",fab:"Pregunta a Open Here",rule:"Qué regla lo decide",qwhy:"¿Por qué este resultado?",qarea:"¿Quién sale por la zona?",qscout:"¿Hay un sitio mejor cerca?",qlaunch:"¿Cómo lanzo la apertura?",qhow:"¿Cómo lo sabemos?",gap:"Nadie cerca ofrece",whyh:"Los motivos",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",who:"Quién va",when:"Cuándo",serves:"Qué sirven",scouthelp:"Un objetivo y el agente decide los pasos: compara las manzanas cercanas con las mismas reglas y te dice si moverte o quedarte, y por qué.",scoutgo:"Búscame un sitio mejor",launchhelp:"Aprendido de los clientes de los locales mejor valorados que ya sirven tu idea cerca: la música que escuchan, las marcas que les gustan, los vecinos que también visitan (no competidores) y las manzanas con más vida donde más gusta tu idea.",launchgo:"Planifica mi apertura",lmusic:"Música para la inauguración",lco:"Vecinos con los que aliarte",lbrands:"Marcas para pedir degustación",lposters:"Carteles y flyers",how:"Cada llamada",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",pdf:"Descargar PDF",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo (pasa el ratón para ver el nombre)",
   phconcept:"Pizzería, hamburguesería, cafetería…",phaddress:"Avenida del Paralelo 4, Barcelona",phaddr2:"Carrer de Blai 20, Barcelona",phq:"Pregunta sobre este informe…",showall:"Ver todos los tipos",close:"Cerrar",send:"Enviar"};
 const EN_PH={phconcept:"Pizzeria, burger joint, coffee shop…",phaddress:"Avinguda del Paral·lel 4, Barcelona",phaddr2:"Carrer de Blai 20, Barcelona",phq:"Ask about this report…",showall:"Show all types",close:"Close",send:"Send"};
 const VERD={en:{RED:"Not here","AMBER":"Hard","AMBER-GREEN":"Promising",UNKNOWN:"No data"},es:{RED:"Aquí no","AMBER":"Difícil","AMBER-GREEN":"Prometedor",UNKNOWN:"Sin datos"}};
 // the Paral·lel 40 and Gran Via 400 examples are recorded (1.5 km): they work even when the live services do not
-const EXAMPLES=[["ramen","200 Schermerhorn Street, Brooklyn, New York","Ramen · Boerum Hill, NYC","Ramen · Boerum Hill, NYC"],["seafood restaurant","Avinguda del Paral·lel 40, Barcelona","Seafood · Paral·lel 40","Marisquería · Paral·lel 40",1500],["waffles and ice cream","41.37903, 2.15478","Waffles · Gran Via 400","Gofres · Gran Via 400",1500],["ramen","Carrer de Sants 100, Barcelona","Ramen · Sants","Ramen · Sants"]];
+const EXAMPLES=[["ramen","Rambla del Poblenou 100, Barcelona","Ramen bar at Rambla del Poblenou 100, Barcelona","Ramen en la Rambla del Poblenou 100, Barcelona"]];
 const STEPS={en:["Finding the address","Matching your idea to Qloo","Reading taste, offer and competitors","Writing the verdict"],es:["Buscando la dirección","Traduciendo tu idea a Qloo","Leyendo gusto, oferta y competencia","Escribiendo el veredicto"]};
 const $=s=>document.querySelector(s);
 let lang="en",cur=null,map=null,layer=null,mode="one";
@@ -509,7 +507,7 @@ function applyLang(){
   if(conceptId&&byId(conceptId))$("#concept").value=cLabel(byId(conceptId));
   setMode(mode);
   if(cur)render(cur,true);
-  if(!$("#chat").hidden&&cur)$("#chatsub").textContent=chatSub();
+  if(!$("#chat").hidden&&chatCtx)$("#chatsub").textContent=chatCtx.sub();
 }
 document.querySelectorAll(".lang button").forEach(b=>b.onclick=()=>{lang=b.dataset.lang;try{localStorage.setItem("abro-lang",lang)}catch(e){}applyLang()});
 
@@ -599,7 +597,7 @@ $("#ask").onsubmit=async e=>{
   try{
     const r=await fetch("/api/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({concept,...addressBody(),lang,radius:+$("#radius").value})});
     const d=await r.json();if(!r.ok)throw new Error(d.error||("Error "+r.status));
-    d.lang=d.lang||lang;cur=d;document.body.classList.add("has-result","has-pdf");$("#fitbox").hidden=true;render(d);resetChat();
+    d.lang=d.lang||lang;cur=d;document.body.classList.add("has-result","has-pdf");$("#fitbox").hidden=true;render(d);resetChat();chatCtx=chatFromCur();
     $("#vbox").classList.remove("in");void $("#vbox").offsetWidth;$("#vbox").classList.add("in");
     requestAnimationFrame(()=>setTimeout(()=>$("#vbox").scrollIntoView({behavior:"smooth",block:"start"}),60));
   }catch(err){$("#err").textContent=err.message;$("#err").hidden=false}
@@ -723,10 +721,11 @@ $("#launchgo").onclick=async()=>{
 async function runFit(){
   const body=addressBody();
   cCombo.close();aCombo.close();
-  $("#err").hidden=true;$("#go").disabled=true;$("#result").hidden=true;$("#fab").hidden=true;$("#pdfbar").hidden=true;document.body.classList.remove("has-pdf");closeChat();$("#fitbox").hidden=false;$("#fit").innerHTML="";$("#fith").textContent=T("Checking 15 restaurant, bar and café concepts… (about 20 s the first time)","Comprobando 15 conceptos de restaurante, bar y cafetería… (unos 20 s la primera vez)");$("#fithelp").textContent="";$("#fitnote").textContent="";
+  $("#err").hidden=true;$("#go").disabled=true;$("#result").hidden=true;$("#fab").hidden=true;$("#pdfbar").hidden=true;document.body.classList.remove("has-pdf");resetChat();chatCtx=null;$("#fitbox").hidden=false;$("#fit").innerHTML="";$("#fith").textContent=T("Checking 15 restaurant, bar and café concepts… (about 20 s the first time)","Comprobando 15 conceptos de restaurante, bar y cafetería… (unos 20 s la primera vez)");$("#fithelp").textContent="";$("#fitnote").textContent="";
   try{const r=await fetch("/api/explore",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...body,radius:+$("#radius").value,lang})});const d=await r.json();if(!r.ok)throw new Error(d.error);
     document.body.classList.add("has-result");$("#empty").hidden=true;$("#legend").hidden=true;baseLayers(d);
     $("#fith").textContent=T(`What fits at ${d.place??short(d.address)}`,`Qué encaja en ${d.place??short(d.address)}`);
+    if(d.id){chatCtx=chatFromFit(d);$("#fab").hidden=false}
     $("#fithelp").textContent=T("Same rules as the full analysis, one row per kind of business: taste rank around the address and direct rivals within 700 m. Open a row for the full report, the map and the better spot.","Mismas reglas que el análisis completo, una fila por tipo de negocio: gusto alrededor de la dirección y rivales directos a 700 m. Abre una fila para el informe completo, el mapa y el mejor punto.");
     $("#fit").innerHTML=`<tr><th>${T("Business","Negocio")}</th><th>${T("Verdict","Veredicto")}</th><th class="n">${T("Taste","Gusto")}</th><th class="n">${T("Rivals 700 m","Rivales 700 m")}</th><th></th></tr>`+d.rows.map((x,i)=>`<tr><td><b>${esc(conceptName(x.concept))}</b>${x.nearest_rival?`<br><span class="note">${T("closest","más cercano")}: ${esc(x.nearest_rival.name)}, ${x.nearest_rival.distance_m} m</span>`:""}</td><td><span class="chip ${x.level}" title="${esc(lang==="es"?x.rule_es:x.rule)}">${VERD[lang][x.level]}</span></td><td class="n">${n2(x.demand)}</td><td class="n">${x.c700??"–"}</td><td><button type="button" data-k="${i}">${T("Open","Abrir")}</button></td></tr>`).join("");
     $("#fit").querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{const x=d.rows[+b.dataset.k];setMode("one");const c=byId(x.concept);conceptId=c?.id??null;exampleConcept=c?null:x.concept;$("#concept").value=c?cLabel(c):x.concept;$("#ask").requestSubmit()});
@@ -748,25 +747,30 @@ document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>setTab(b.data
 
 // ---------- assistant: a chat floating over the map (a full-screen sheet on phones) ----------
 let chatFor=null,lastFocus=null;
-const CHIPS={en:["Summarise the report in 3 sentences","What would make this Promising?","What are the main risks here?","And within 500 m?","Ignore the closest competitor"],es:["Resúmeme el informe en 3 frases","¿Qué haría falta para que sea Prometedor?","¿Qué riesgos tiene este local?","¿Y en un radio de 500 m?","Ignora al competidor más cercano"]};
-const chatSub=()=>cur?`${conceptName(cur.concept)} · ${cur.place??short(cur.address)}`:"";
+const CHIPS={en:["Summarise the report in 3 sentences","What would make this Promising?","What are the main risks here?","What else could work here?","Ignore the closest competitor"],es:["Resúmeme el informe en 3 frases","¿Qué haría falta para que sea Prometedor?","¿Qué riesgos tiene este local?","¿Qué otro negocio encajaría aquí?","Ignora al competidor más cercano"]};
+const CHIPS_FIT={en:["Which one fits best here, and why?","Which ones should I avoid?","Compare the two best options","What should I check in the premises?"],es:["¿Cuál encaja mejor aquí y por qué?","¿Cuáles debería evitar?","Compara las dos mejores opciones","¿Qué debo comprobar del local?"]};
+let chatCtx=null; // what the assistant is reading: the analysis, or the "what fits" table
+const chatFromCur=()=>cur&&{id:cur.id,sub:()=>`${conceptName(cur.concept)} · ${cur.place??short(cur.address)}`,chips:CHIPS,
+  intro:()=>T(`Hi! I have read the whole report for **${conceptName(cur.concept)}** at ${cur.place??short(cur.address)}: the verdict is **${VERD.en[cur.verdict.level]}**. Ask me anything about it or about opening, or start with one of these:`,`¡Hola! He leído el informe completo de **${conceptName(cur.concept)}** en ${cur.place??short(cur.address)}: el veredicto es **${VERD.es[cur.verdict.level]}**. Pregúntame lo que quieras del informe o de cómo abrir, o empieza por una de estas:`)};
+const chatFromFit=d=>{const place=d.place??short(d.address);return {id:d.id,sub:()=>T("What fits · ","Qué encaja · ")+place,chips:CHIPS_FIT,
+  intro:()=>T(`Hi! I have the table of 15 kinds of restaurant, bar and café at **${place}**. Ask me which fits best and why, or start with one of these:`,`¡Hola! Tengo la tabla de 15 tipos de restaurante, bar y cafetería en **${place}**. Pregúntame cuál encaja mejor y por qué, o empieza por una de estas:`)}};
 function resetChat(){chatFor=null;$("#log").innerHTML="";closeChat()}
 function openChat(){
-  if(!cur)return;lastFocus=document.activeElement;
-  $("#chat").hidden=false;$("#fab").hidden=true;$("#fab").setAttribute("aria-expanded","true");document.body.classList.add("chat-open");$("#chatsub").textContent=chatSub();
-  if(chatFor!==cur.id){chatFor=cur.id;$("#log").innerHTML="";
-    add("bot",T(`Hi! I have read the whole report for **${conceptName(cur.concept)}** at ${cur.place??short(cur.address)}: the verdict is **${VERD.en[cur.verdict.level]}**. Ask me anything about it, or start with one of these:`,`¡Hola! He leído el informe completo de **${conceptName(cur.concept)}** en ${cur.place??short(cur.address)}: el veredicto es **${VERD.es[cur.verdict.level]}**. Pregúntame lo que quieras, o empieza por una de estas:`));
-    const box=document.createElement("div");box.className="chips";box.innerHTML=CHIPS[lang].map(c=>`<button type="button">${esc(c)}</button>`).join("");
+  const c=chatCtx;if(!c)return;lastFocus=document.activeElement;
+  $("#chat").hidden=false;$("#fab").hidden=true;$("#fab").setAttribute("aria-expanded","true");document.body.classList.add("chat-open");$("#chatsub").textContent=c.sub();
+  if(chatFor!==c.id){chatFor=c.id;$("#log").innerHTML="";
+    add("bot",c.intro());
+    const box=document.createElement("div");box.className="chips";box.innerHTML=c.chips[lang].map(c=>`<button type="button">${esc(c)}</button>`).join("");
     box.querySelectorAll("button").forEach(b=>b.onclick=()=>ask(b.textContent));$("#log").appendChild(box)}
   setTimeout(()=>$("#q").focus({preventScroll:true}),60);
 }
-function closeChat(){if($("#chat").hidden)return;$("#chat").hidden=true;document.body.classList.remove("chat-open");$("#fab").setAttribute("aria-expanded","false");if(cur&&!$("#result").hidden)$("#fab").hidden=false;if(lastFocus&&document.contains(lastFocus))lastFocus.focus({preventScroll:true})}
-$("#fab").onclick=openChat;$("#go-ask").onclick=openChat;$("#chatx").onclick=closeChat;
+function closeChat(){if($("#chat").hidden)return;$("#chat").hidden=true;document.body.classList.remove("chat-open");$("#fab").setAttribute("aria-expanded","false");if(chatCtx&&(!$("#result").hidden||!$("#fitbox").hidden))$("#fab").hidden=false;if(lastFocus&&document.contains(lastFocus))lastFocus.focus({preventScroll:true})}
+$("#fab").onclick=openChat;$("#chatx").onclick=closeChat;
 $("#chat").addEventListener("keydown",e=>{if(e.key==="Escape")closeChat()});
 async function ask(q){
-  q=String(q||"").trim();if(!q||!cur)return;
+  q=String(q||"").trim();if(!q||!chatCtx)return;
   add("me",q);const m=add("bot",T("Thinking","Pensando"));m.classList.add("wait");
-  try{const r=await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:cur.id,question:q,lang})});const d=await r.json();
+  try{const r=await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:chatCtx.id,question:q,lang})});const d=await r.json();
     m.classList.remove("wait");setMsg(m,d.text||d.error||"");if(d.limit)m.classList.add("lim");
     if(d.calls?.length){const s=document.createElement("span");s.className="tools";s.textContent=T("used: ","usó: ")+d.calls.map(c=>c.name).join(", ");m.appendChild(s)}}
   catch(err){m.classList.remove("wait");setMsg(m,err.message)}
@@ -794,8 +798,6 @@ async function loadNoQ(){
 }
 // the map changes size when the layout does (phone ↔ desktop, the sheet opening)
 addEventListener("resize",()=>{if(map)map.invalidateSize()});
-// phones: the floating button steps aside while the card's own "Ask Open Here" is on screen
-if("IntersectionObserver" in window)new IntersectionObserver(([e])=>document.body.classList.toggle("ask-visible",e.isIntersecting)).observe($("#go-ask"));
 </script>
 </body>
 </html>

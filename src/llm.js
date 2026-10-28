@@ -252,6 +252,26 @@ export function templateReport(sig, lang = "en") {
 }
 
 /** Chat with tools (Lightning). tools: {name: {description, parameters, run}} */
+// Lightning sometimes answers a Spanish question in English (the report it reads is in English)
+const EN_WORDS = /\b(?:the|and|is|are|with|of|to|this|that|you|your|would|there|it|for)\b/gi;
+const ES_WORDS = /\b(?:el|la|los|las|y|es|son|con|de|que|para|una|un|hay|tu|del|en|por)\b/gi;
+export function looksEnglish(t) {
+  const s = String(t ?? "");
+  const en = (s.match(EN_WORDS) ?? []).length, es = (s.match(ES_WORDS) ?? []).length;
+  return en >= 4 && en > es;
+}
+/** A Spanish answer that came back in English is translated once (one more call to Lightning). */
+export async function inLang(text, lang) {
+  if (lang !== "es" || !llmEnabled || !looksEnglish(text)) return text;
+  try {
+    spend();
+    const r = await complete({ model: MODELS.fast, temperature: 0.1, max_tokens: 900, messages: [
+      { role: "system", content: "Translate the user's text into natural Spanish from Spain. Keep every number, name, **bold** and «» mark. Output only the translation." },
+      { role: "user", content: text }] });
+    return afterThink(r.choices[0].message.content) || text;
+  } catch { return text; }
+}
+
 export async function chatWithTools({ messages, tools, maxRounds = 4, maxTokens = 900, lang = "en", maxCalls = 6 }) {
   const toolDefs = Object.entries(tools).map(([name, t]) => ({ type: "function", function: { name, description: t.description, parameters: t.parameters } }));
   const calls = [];
@@ -262,7 +282,7 @@ export async function chatWithTools({ messages, tools, maxRounds = 4, maxTokens 
     const last = calls.length >= maxCalls || i === maxRounds - 1;
     // final round: no tools at all (Nemotron otherwise writes the call as text) and an explicit request to answer
     const params = last
-      ? { model: MODELS.fast, messages: [...messages, { role: "user", content: "Answer now with what the tools returned. Do not call any tool." }], temperature: 0.3, max_tokens: maxTokens }
+      ? { model: MODELS.fast, messages: [...messages, { role: "user", content: `Answer now with what the tools returned. Do not call any tool.${lang === "es" ? " Answer in Spanish." : ""}` }], temperature: 0.3, max_tokens: maxTokens }
       : { model: MODELS.fast, messages, tools: toolDefs, tool_choice: "auto", temperature: 0.3, max_tokens: maxTokens };
     const res = await guarded(() => client.chat.completions.create(params));
     const think_ms = Date.now() - t0;
