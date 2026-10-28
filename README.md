@@ -14,13 +14,13 @@ Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
 
 - **A verdict**: Not here, Hard, Promising, or No data. The exact rule that produced it is one click away.
 - **What the area says**: how much the area likes the concept (Qloo `affinity_rank` around the address) and how much of it is already there (real rivals within 400 and 700 m, and the share of popular places that already serve it), drawn on two gauges with the rule's thresholds.
-- **A taste heat map** of the concept around the address, block by block, with a **better spot nearby** when the same rules rate one higher (busy blocks only).
+- **A taste heat map** of the concept around the address, block by block, with a **better spot nearby** when a busy block comes out better under the same rules (taste measured the same way, within 250 m): a better verdict, or the same verdict with clearly more taste and fewer rivals. The page says which, e.g. "same verdict (Hard), 1 rival within 700 m instead of 3, the area likes it more (0.82 vs 0.78)".
 - **The real competitors** within 700 m, with rating, price level and distance.
 - **The gap**: parts of your idea nobody nearby offers, and parts Qloo cannot measure there (said as such, never passed off as a gap).
 - **The area**: among the 50 most popular places within 500 m, what they serve, who goes and when.
 - **What to do**: positioning, opening hours and where to move.
 - **What Qloo cannot see**: foot traffic, rent and income. The owner answers these three, and only then does "Promising" become a green light.
-- **Second opinion agent**: one goal ("find me a better spot"); Nemotron 3.5 Lightning chooses which blocks to re-analyse with the same rules and recommends moving or staying; the page lists each step with its time.
+- **Second opinion agent**: one goal ("find me a better spot"); code finds the candidate blocks (the green ring is computed by code), and Nemotron 3.5 Lightning, given the goal, the current verdict and the tools, chooses which of them to re-analyse with the same rules and recommends moving or staying; numbers in its answer that no tool returned are dropped by code; the page lists each step with its time.
 - **Launch plan, "where do I announce it?"** (screenshots: [agent steps](docs/live-agent-steps.jpg), [launch plan at the better spot](docs/live-launch-plan.jpg), [what fits at Fuencarral 100, Madrid](docs/live-what-fits-madrid.jpg)): learned from the customers of the best-rated rivals nearby, through Qloo's taste graph: music for the opening, brands to ask for sampling, neighbours to team up with (not competitors, checked on the web) and the poster zones on the map, with a 4-week plan. The model chooses among Qloo's candidates; code drops any name it invents ([`specs/04-launch.md`](specs/04-launch.md)).
 - **"What if…?" chat**: "What if I ignore Puertecillo?", "What about Carrer de Blai?". The agent calls the tools again and recomputes the verdict.
 - **"Without Qloo"**: the same question answered by the language model alone, so you can see what it makes up.
@@ -36,7 +36,7 @@ The verdict is computed from Qloo signals. Without them, a language model guesse
 | Qloo call | What we take from it |
 | --- | --- |
 | `GET /v2/tags` (genre, category and specialty-dish types) | candidate tags for each part of the concept, scored by word overlap |
-| `GET /v2/insights?filter.type=urn:heatmap&filter.location=POINT(lon lat)&filter.location.radius=1500&signal.interests.tags=<genre tag>` | affinity, affinity rank and popularity (supply) per block; nearest block and best block with room left |
+| `GET /v2/insights?filter.type=urn:heatmap&filter.location=POINT(lon lat)&filter.location.radius=<area picked, default 1000>&signal.interests.tags=<genre tag>` | affinity, affinity rank and popularity (supply) per block, within the area the owner picks (500 m–2 km, 1 km by default); nearest block and best block with room left |
 | `GET /v2/insights?filter.type=urn:entity:place&filter.location=…&filter.location.radius=700&filter.tags=<category or dish tag>` | direct competitors: name, `business_rating`, `price_level`, coordinates, `is_closed` |
 | `GET /v2/insights?filter.type=urn:entity:place&filter.location=…&filter.location.radius=500&take=50` | the 50 most popular places nearby; their cuisine, category, customer-identity and time-of-day tags make the area profile |
 | `GET /v2/insights?…&filter.location.radius=5000&take=1` | checks whether a tag is actually used nearby before trusting an empty competitor list |
@@ -50,7 +50,7 @@ The verdict comes from deterministic code (`src/verdict.js`), specified in [`spe
 
 How we read Qloo's heat map: `affinity` and `popularity` are ranks **inside** the 1.5 km circle (evenly spread from 0 to 1), so they never decide on their own. Demand is `affinity_rank`, averaged over the blocks within 250 m. Offer is counted with real places.
 
-1. fewer than 50 heat-map blocks → **No data**
+1. too few heat-map blocks for the area picked → **No data** (the minimum scales with the circle's area: 10 blocks for 500 m, 22 for 1 km, 50 for 1.5 km, 89 for 2 km; `minCoverageFor` in `src/agent.js`)
 2. demand < 0.75 → **Not here** (the area's taste leans elsewhere)
 3. well served (≥ 3 rivals within 400 m, ≥ 6 within 700 m, or ≥ 20 % of the popular places nearby already serve it) → **Hard**
 4. demand ≥ 0.85 and almost no offer (≤ 1 rival within 700 m) → **Promising**
@@ -64,10 +64,10 @@ Both businesses below closed. We do not claim the tool would have predicted it: 
 
 | Case | What Qloo says | Verdict |
 | --- | --- | --- |
-| Seafood restaurant, Av. del Paral·lel 40 | the area **loves** seafood (demand 0.93), but it is **well served**: Puertecillo Paral·lel (4.4★) is 26 m away, 7 seafood restaurants within 700 m, and **13 of the 50** most popular places within 500 m already serve seafood. A busy block in Poble-sec, 750 m west, likes it even more (0.99) with 4 rivals | **Hard**, with a better spot nearby |
+| Seafood restaurant, Av. del Paral·lel 40 | the area **loves** seafood (demand 0.93), but it is **well served**: Puertecillo Paral·lel (4.4★) is 26 m away, 7 seafood restaurants within 700 m, and **13 of the 50** most popular places within 500 m already serve seafood. A busy block about 390 m away comes out with the same verdict but likes it more (0.97 vs 0.93) and has 3 rivals within 700 m instead of 7 | **Hard**, with a better spot nearby |
 | Waffles and ice cream, Gran Via 400 (corner of Entença) | demand for ice cream 0.85; **7 ice-cream shops** within 700 m (Gelatomania 4.8★ at 356 m). Waffles **cannot be measured**: Qloo has no waffle-tagged place within 5 km, and the report says so instead of calling it a gap | **Hard** |
 
-![Live: seafood at Avinguda del Paral·lel 40 comes out Hard, with a better spot 747 m west (green ring)](docs/live-hard-paralel.jpg)
+![Live (27-Oct, before the better-spot fix of 28-Oct): seafood at Avinguda del Paral·lel 40 comes out Hard, with a better spot nearby (green ring)](docs/live-hard-paralel.jpg)
 
 ### The other verdicts, live on the public demo (28 Oct 2026)
 
@@ -99,7 +99,7 @@ git clone https://github.com/mktaisales-glitch/abro-aqui && cd abro-aqui
 npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
-npm test                  # 39 tests: HTTP layer and security headers, PDF report, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
+npm test                  # 42 tests (36 run on a public clone; 6 replay recorded Qloo data that is not published): HTTP layer and security headers, PDF report, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
                           # 6 of them replay the recorded Barcelona cases
                           # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (32 run)
 ```

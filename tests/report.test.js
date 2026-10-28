@@ -38,3 +38,10 @@ test("thin and no-break spaces become plain spaces (the fonts lack them)", async
   const { safeText } = await import("../src/report-pdf.js");
   assert.equal(safeText("590 m and 7 rivals"), "590 m and 7 rivals");
 });
+
+test("short address drops a leading place name and puts the house number after the street", async () => {
+  const { shortAddress } = await import("../src/tools.js");
+  assert.equal(shortAddress("rico, 100, Rambla del Poblenou, el Poblenou, Sant Martí, Barcelona, Barcelonès, Barcelona, Catalunya, 08005, España"), "Rambla del Poblenou 100, el Poblenou, Barcelona");
+  assert.equal(shortAddress("200, Schermerhorn Street, Brooklyn, Kings County, New York, 11201, United States"), "200 Schermerhorn Street, Brooklyn");
+  assert.equal(shortAddress("41.37903, 2.15478 (Gran Via)"), "41.37903, 2.15478 (Gran Via)");
+});

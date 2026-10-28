@@ -42,14 +42,14 @@ A concept can have several parts ("waffles and ice cream"). The heat map only an
 
 ## Better spot nearby
 
-Among heat-map cells 150–800 m away (so their 700 m ring fits inside the 1.5 km of rivals fetched), on busy blocks (activity ≥ 0.5) with ≥ 15 places within 200 m (parks and hillsides fail), the same rules are applied with demand = mean `affinity_rank` within 150 m and offer = rivals counted around that cell. A cell is shown only if its verdict is higher than the address's, or the same verdict with demand ≥ +0.03, at least 2 fewer rivals within 700 m and a lower offer level.
+Among heat-map cells 150–800 m away (so their 700 m ring fits inside the 1.5 km of rivals fetched), on busy blocks (activity ≥ 0.5) with ≥ 15 places within 200 m (parks and hillsides fail), the same rules are applied with demand = mean `affinity_rank` within **250 m** (the same window as at the address; v2 used 150 m, which made the comparison unfair) and offer = rivals counted around that cell. A cell is shown only if its verdict is strictly better than the address's, or the same verdict with demand ≥ +0.03, at least 2 fewer rivals within 700 m and a lower offer level. The page, the PDF and the model say exactly which case it is (`betterSpotWhy` in `src/verdict.js`), e.g. "same verdict (Hard), 3 rivals within 700 m instead of 7, the area likes it more (0.97 vs 0.93)".
 
 ## Calibration (recorded 26–27 Oct 2026)
 
 | Case | Demand | Offer | Verdict | Better spot |
 | --- | --- | --- | --- | --- |
-| Seafood restaurant, Av. Paral·lel 40 | 0.93 (beats 24 % of blocks in the circle) | HIGH: 7 rivals within 700 m, Puertecillo 4.4★ at 26 m, 13 of 50 popular places serve seafood | **Hard** (well served) | 747 m west, Poble-sec: demand 0.99, 4 rivals within 700 m |
-| Waffles and ice cream, Gran Via 400 | 0.85 for ice cream; waffles not measurable (no waffle-tagged places within 5 km) | HIGH: 7 ice-cream shops within 700 m | **Hard** (well served) | 744 m east, Sant Antoni: demand 0.91, 5 rivals within 700 m |
+| Seafood restaurant, Av. Paral·lel 40 | 0.93 (beats 24 % of blocks in the circle) | HIGH: 7 rivals within 700 m, Puertecillo 4.4★ at 26 m, 13 of 50 popular places serve seafood | **Hard** (well served) | ~390 m: same verdict, demand 0.97, 3 rivals within 700 m (v2 with the 150 m window: 747 m west, 0.99, 4 rivals) |
+| Waffles and ice cream, Gran Via 400 | 0.85 for ice cream; waffles not measurable (no waffle-tagged places within 5 km) | HIGH: 7 ice-cream shops within 700 m | **Hard** (well served) | ~780 m: same verdict, demand 0.88, 5 rivals within 700 m (v2: 744 m east, 0.91, 5 rivals) |
 
 Both businesses closed. The seafood restaurant lasted ten years; we do not claim the tool predicts closures. What the data says today: the area loves seafood and is already full of it.
 
@@ -62,3 +62,4 @@ Both businesses closed. The seafood restaurant lasted ten years; we do not claim
 
 ## Note on dense city centres (28-Oct-2026)
 In central Barcelona the generic tag "restaurant" ranks ~0.997 on every block (it saturates: it reflects how much data an area has), while a specific concept still discriminates between neighbourhoods: seafood Barceloneta 0.996 · Poble-sec 0.993 · Gràcia 0.968 · Entença 0.956 · Paral·lel 0.952; ice cream Barceloneta 0.964 · Poble-sec 0.922 · Gràcia 0.913 · Paral·lel 0.890 · Entença 0.856. So in dense centres the RED threshold (0.75) rarely fires and the decision is carried by offer and by the better-spot comparison; the report also shows where the address stands inside its 1.5 km circle ("beats N % of blocks").
+

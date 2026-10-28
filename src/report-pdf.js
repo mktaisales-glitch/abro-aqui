@@ -2,6 +2,8 @@
 // Everything comes from the session: the analysis, and the agent's answer and the launch plan if they were run.
 // No external tiles or services: the map is drawn from the heat-map cells already in the analysis.
 import PDFDocument from "pdfkit";
+import { plainVerdictDeep, plainVerdictWords, betterSpotWhy } from "./verdict.js";
+import { shortAddress } from "./tools.js";
 import path from "node:path";
 import { createRequire } from "node:module";
 
@@ -18,28 +20,28 @@ const CLS = ["#7a1e08", "#D4421B", "#EF751F", "#f7c9a1", "#fdf1e6"], CLSOP = [0.
 const TXT = {
   en: {
     lang: "en", range: "Qloo taste rank here", title: "Location report", concept: "Idea", address: "Address", area: "Area analysed", verdict: "Verdict",
-    facts: ["How much the area likes it", "Direct rivals within 700 m", "Better spot nearby"], within400: (n) => `${n} within 400 m`, toBetter: "to a block the same rules rate better", noBetter: "no better block nearby",
+    facts: ["How much the area likes it", "Direct rivals within 700 m", "Better spot nearby"], within400: (n) => `${n} within 400 m`, noBetter: "no better block nearby",
     map: "Map: taste rank block by block", legend: ["top 20 % of this area", "next 20 %", "middle", "lower 20 %", "bottom 20 %"], you: "your address", rivals: "direct rival", best: "better spot",
     comp: "Direct competitors nearby", cols: ["Name", "Distance", "Rating", "Price"], none: "None found by Qloo within the area.",
     why: "Why this verdict", actions: "What to do next", audience: "Who goes out around here", unknowns: "What the data cannot see (check it before signing)",
     agent: "The agent's recommendation", agentBy: (m, n) => `Steps chosen by ${m} on Nebius Token Factory (${n} tool calls).`,
     launch: "Opening plan", music: "Music for the opening", co: "Neighbours to team up with", brands: "Brands to ask for sampling", posters: "Posters and flyers", weeks: "Four weeks",
     how: "How we know", calls: (q, t) => `${q} calls to Qloo's API (taste rank by block, places nearby, rivals)${t ? ` and ${t} other lookups` : ""}, listed with their URLs in the app under "How I know".`,
-    model: (m) => `Report written by ${m}; every number in it comes from the data above, not from the model.`, tpl: "Report written by fixed rules (no language model).",
+    model: (m) => `Text written by ${m} from the structured signals; the verdict, the facts, the map and the competitors on this page come from code and Qloo, not from the model.`, tpl: "Report written by fixed rules (no language model).",
     foot: "Built on aggregated taste data about places (Qloo) and NVIDIA Nemotron on Nebius Token Factory. It decides about places, never about people, and must not be used for housing, employment or credit decisions. It does not predict success: it shows what the data supports and what it cannot see.",
     page: (n) => `Open Here · abro-aqui.onrender.com · page ${n}`,
     taste: (x) => (x == null ? "no data" : x >= 0.9 ? "Very high" : x >= 0.85 ? "High" : x >= 0.75 ? "Medium" : "Low"),
   },
   es: {
     lang: "es", range: "Gusto de Qloo aquí", title: "Informe de ubicación", concept: "Idea", address: "Dirección", area: "Zona analizada", verdict: "Veredicto",
-    facts: ["Cuánto le gusta a la zona", "Rivales directos a 700 m", "Sitio mejor cerca"], within400: (n) => `${n} a 400 m`, toBetter: "hasta una manzana que las mismas reglas valoran mejor", noBetter: "ninguna manzana mejor cerca",
+    facts: ["Cuánto le gusta a la zona", "Rivales directos a 700 m", "Sitio mejor cerca"], within400: (n) => `${n} a 400 m`, noBetter: "ninguna manzana mejor cerca",
     map: "Mapa: gusto manzana a manzana", legend: ["el 20 % más alto", "siguiente 20 %", "zona media", "20 % bajo", "el 20 % más bajo"], you: "tu dirección", rivals: "rival directo", best: "sitio mejor",
     comp: "Competidores directos cerca", cols: ["Nombre", "Distancia", "Valoración", "Precio"], none: "Qloo no encontró ninguno en la zona.",
     why: "Por qué este veredicto", actions: "Qué hacer ahora", audience: "Quién sale por aquí", unknowns: "Lo que los datos no ven (compruébalo antes de firmar)",
     agent: "La recomendación del agente", agentBy: (m, n) => `Pasos elegidos por ${m} en Nebius Token Factory (${n} llamadas a herramientas).`,
     launch: "Plan de apertura", music: "Música para la inauguración", co: "Vecinos con los que aliarse", brands: "Marcas a las que pedir degustación", posters: "Carteles y flyers", weeks: "Cuatro semanas",
     how: "Cómo lo sabemos", calls: (q, t) => `${q} llamadas a la API de Qloo (gusto por manzana, locales cerca, rivales)${t ? ` y ${t} consultas más` : ""}, con sus URL en la app, en «Cómo lo sé».`,
-    model: (m) => `Informe redactado por ${m}; cada número sale de los datos de arriba, no del modelo.`, tpl: "Informe redactado con reglas fijas (sin modelo de lenguaje).",
+    model: (m) => `Texto redactado por ${m} a partir de las señales estructuradas; el veredicto, los datos clave, el mapa y los competidores de esta página salen del código y de Qloo, no del modelo.`, tpl: "Informe redactado con reglas fijas (sin modelo de lenguaje).",
     foot: "Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",
     page: (n) => `Open Here · abro-aqui.onrender.com · página ${n}`,
     taste: (x) => (x == null ? "sin datos" : x >= 0.9 ? "Muy alto" : x >= 0.85 ? "Alto" : x >= 0.75 ? "Medio" : "Bajo"),
@@ -52,6 +54,12 @@ const SWAP = { "★": "*", "→": "->", "≥": ">=", "≤": "<=" };
 export function safeText(s) {
   // thin and no-break spaces (the app writes "590\u202Fm") are missing from the fonts: plain space
   return [...String(s ?? "").replace(/[\u00a0\u2000-\u200b\u202f\u205f]/g, " ")].map((ch) => (OK.test(ch) ? ch : SWAP[ch] ?? (ch.normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^\u0000-ÿ]/g, "") || ""))).join("");
+}
+/** Why the better spot is better, said exactly (stored by the analysis; recomputed for older sessions). */
+function bestWhy(best, ctx, L) {
+  if (best.why) return { text: L === "es" ? best.why.es : best.why.en, short: L === "es" ? best.why.short_es : best.why.short_en };
+  const r = betterSpotWhy(best, { level: ctx.verdict?.level, demand: ctx.heatmap?.demand, c700: ctx.verdict?.offer?.c700 }, L);
+  return { text: r.text, short: r.short };
 }
 const num = (x, lang, d = 2) => (x == null ? "–" : lang === "es" ? x.toFixed(d).replace(".", ",") : x.toFixed(d));
 const radiusLabel = (r, lang) => (r >= 1000 ? `${String(r / 1000).replace(".", lang === "es" ? "," : ".")} km` : `${r} m`);
@@ -69,6 +77,9 @@ export function reportFileName(ctx) {
 export function buildReportPdf({ ctx, scout = null, launch = null, lang = "en", date = new Date() }) {
   const t = TXT[lang === "es" ? "es" : "en"];
   const L = lang === "es" ? "es" : "en";
+  // model-written text never shows internal codes ("Amber", "RED"); older sessions may still carry them
+  ctx = { ...ctx, report: plainVerdictDeep(ctx.report, L) };
+  if (scout?.text) scout = { ...scout, text: plainVerdictWords(scout.text, L) };
   const doc = new PDFDocument({ size: "A4", margins: { top: 48, bottom: 56, left: 48, right: 48 }, info: { Title: `Open Here — ${t.title}`, Author: "Open Here", Subject: safeText(`${ctx.concept} - ${ctx.geo?.display_name ?? ctx.address}`) }, bufferPages: true });
   const chunks = [];
   doc.on("data", (c) => chunks.push(c));
@@ -99,7 +110,9 @@ export function buildReportPdf({ ctx, scout = null, launch = null, lang = "en", 
   // --- what was asked
   const kv = (k, v) => { const y = doc.y; doc.font(F.s).fontSize(9).fillColor(C.grey).text(k, X0, y, { width: 92 }); doc.font(F.r).fontSize(10).fillColor(C.ink).text(safeText(v), X0 + 96, y, { width: W - 96 }); doc.moveDown(0.25); };
   kv(t.concept, ctx.concept);
-  kv(t.address, ctx.geo?.display_name ?? ctx.address);
+  const full = ctx.geo?.display_name ?? ctx.address;
+  kv(t.address, ctx.place ?? shortAddress(full));
+  if ((ctx.place ?? shortAddress(full)) !== full) { doc.font(F.r).fontSize(8).fillColor(C.grey).text(safeText(full), X0 + 96, doc.y - 2, { width: W - 96 }); doc.moveDown(0.25); }
   kv(t.area, `${radiusLabel(ctx.radius ?? 1000, L)} · ${num(ctx.geo?.lat, L, 5)}, ${num(ctx.geo?.lon, L, 5)}`);
 
   // --- verdict
@@ -116,7 +129,7 @@ export function buildReportPdf({ ctx, scout = null, launch = null, lang = "en", 
   const facts = [
     [t.taste(ctx.heatmap?.demand), `${t.facts[0]} (${num(ctx.heatmap?.demand, L)})`],
     [String(of.c700 ?? "–"), `${t.facts[1]} · ${t.within400(of.c400 ?? 0)}`],
-    [best ? `${best.distance_m} m` : "—", best ? t.toBetter : t.noBetter],
+    [best ? `${best.distance_m} m` : "—", best ? bestWhy(best, ctx, L).short : t.noBetter],
   ];
   const fw = (W - 16) / 3, fy = doc.y;
   facts.forEach(([big, small], i) => {
@@ -126,6 +139,7 @@ export function buildReportPdf({ ctx, scout = null, launch = null, lang = "en", 
     doc.font(F.r).fontSize(7.8).fillColor(C.grey).text(safeText(small), x + 10, fy + 30, { width: fw - 20, height: 26, ellipsis: true });
   });
   doc.y = fy + 70;
+  if (best) { para(`${L === "es" ? `Mejor punto a ${best.distance_m} m` : `Better spot ${best.distance_m} m away`}: ${bestWhy(best, ctx, L).text}.`, { size: 9, color: C.grey }); doc.moveDown(0.3); }
 
   // --- map
   drawMap(doc, ctx, t, F, X0, W);

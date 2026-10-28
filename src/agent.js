@@ -1,7 +1,7 @@
 // Pipeline for one analysis + the "what if…?" chat — see specs/03-agent.md.
 import { makeTrace } from "./http.js";
 import * as T from "./tools.js";
-import { verdict } from "./verdict.js";
+import { verdict, plainVerdictDeep, plainVerdictWords, betterSpotWhy } from "./verdict.js";
 import { llmEnabled, normalizeConcept, writeReport, writeReportWithoutQloo, templateReport, chatWithTools } from "./llm.js";
 
 function dedupeByName(list) {
@@ -46,7 +46,9 @@ async function competitorsWithFallback(geo, p, trace, radius = 700) {
 const shareOf = (share) => (share.length && share[0].of ? Math.max(...share.map((x) => x.places)) / share[0].of : null);
 
 /**
- * Best block within 800 m that the same rules rate higher than the address (offer counted from rivals only).
+ * Best block within 800 m that the same rules rate higher than the address (offer counted from rivals only):
+ * a strictly better verdict, or the same verdict with clearly more taste (+0.03) and clearly fewer rivals (−2).
+ * Taste is measured exactly as at the address (mean affinity_rank of the blocks within 250 m).
  * Returns the blocks that beat the address, best first.
  */
 function bestSpot(geo, heat, rivals, here, { maxDist = 800, minCoverage } = {}) {
@@ -54,7 +56,7 @@ function bestSpot(geo, heat, rivals, here, { maxDist = 800, minCoverage } = {}) 
   for (const c of heat.cells) {
     const d = T.haversine(geo.lat, geo.lon, c.lat, c.lon);
     if (d < 150 || d > maxDist || c.popularity < 0.5) continue; // busy blocks only (popularity = activity, ranked in the circle) // rivals are fetched within 1.5 km, so judge blocks whose 700 m ring fits inside
-    const dm = T.demandAround(heat.cells, c.lat, c.lon, 150);
+    const dm = T.demandAround(heat.cells, c.lat, c.lon); // same 250 m window as the verdict at the address
     const comps = rivals.map((r) => ({ ...r, distance_m: T.haversine(c.lat, c.lon, r.lat, r.lon) }));
     const v = verdict({ demand: dm.demand, competitors: comps, coverage: heat.coverage, minCoverage });
     cand.push({ lat: c.lat, lon: c.lon, distance_m: d, level: v.level, score: v.score ?? -1, demand: dm.demand, c400: v.offer.c400, c700: v.offer.c700, offer: v.offer.level, rule: v.rule_fired,
@@ -113,6 +115,12 @@ export async function signalsAt({ geo, resolved, radius = 1500 }, trace, { withB
     }
     if (!best && unknown) best = { ...unknown, density_unchecked: true };
     candidates = better.filter((b) => b.places_200m >= MIN_PLACES || (best && b.lat === best.lat && b.lon === best.lon)).slice(0, 5);
+  }
+  // say exactly why each block is "better" (the page, the PDF and the model all use these words)
+  const here = { level: v.level, demand: heat.demand, c700: v.offer.c700 };
+  for (const b of new Set([best, ...candidates].filter(Boolean))) {
+    const en = betterSpotWhy(b, here, "en"), es = betterSpotWhy(b, here, "es");
+    Object.assign(b, { reason: en.reason, vs: here, why: { en: en.text, es: es.text, short_en: en.short, short_es: es.short } });
   }
   heat.best = best;
   return { heat, competitors, supply_by_part, share, profile, verdict: v, gap, main, measured, unmeasured, candidates, wide };
@@ -180,7 +188,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
   if (llmEnabled) {
     try {
       const r = await writeReport(signals, lang);
-      report = r.data;
+      report = plainVerdictDeep(r.data, lang); // codes like "Amber" or "RED" in the model's text become the words the page shows
       // the verdict word is shown apart; a headline that names a colour or a verdict code is replaced by the plain one
       if (/\b(amber|red|green|ámbar|rojo|verde|AMBER-GREEN|UNKNOWN)\b/i.test(report.headline)) report.headline = templateReport(signals, lang).headline;
       reportMeta = { model: r.model, ms: r.ms };
@@ -192,11 +200,16 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
     }
   } else report = templateReport(signals, lang);
 
-  // Partners proposed by the writer are checked on the live web (Tavily) before they are shown.
+  // Partners proposed by the writer: only names Qloo returned for this area survive (as in the launch plan), and only
+  // those found on the live web (Tavily) are kept; an unanswered check counts as unverified and is dropped.
+  if (report.partners?.length) {
+    const known = new Set((profile.places_named ?? []).map((x) => x.name.toLowerCase()));
+    report.partners = report.partners.filter((p) => known.has(String(p.name).toLowerCase()));
+  }
   if (report.partners?.length) {
     const city = geo.display_name.split(",").map((x) => x.trim()).find((x) => /barcelona|new york|brooklyn|london|san francisco|madrid|paris/i.test(x)) ?? geo.display_name.split(",").slice(-4, -3)[0]?.trim() ?? "";
     const checks = await Promise.all(report.partners.map((p) => T.verifyBusiness({ name: p.name, city }, trace).catch((e) => ({ exists: null, error: String(e.message).slice(0, 80) }))));
-    report.partners = report.partners.map((p, i) => ({ ...p, verified: checks[i].exists, source: checks[i].url ?? null })).filter((p) => p.verified !== false);
+    report.partners = report.partners.map((p, i) => ({ ...p, verified: checks[i].exists, source: checks[i].url ?? null })).filter((p) => p.verified === true);
   }
 
   const noQloo = await noQlooP;
@@ -210,6 +223,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
     radius,
     outside_scope,
     address: geo.display_name,
+    place: T.shortAddress(geo.display_name),
     geo,
     resolved,
     verdict: s.verdict,
@@ -307,7 +321,7 @@ Current analysis: ${JSON.stringify({ concept: ctx.concept, address: ctx.address,
   const trace = makeTrace();
   try {
     const r = await chatWithTools({ messages, tools: chatTools(ctx, trace), lang });
-    return { ...r, trace: trace.entries };
+    return { ...r, text: plainVerdictWords(r.text, lang), trace: trace.entries };
   } catch (e) {
     trace.add({ source: "nebius", url: "chat: Nemotron 3.5 Lightning", ms: 0, cached: false, error: String(e.message).slice(0, 120) });
     return { text: lang === "es" ? "El modelo no ha podido responder ahora. El análisis de arriba sigue siendo válido; prueba de nuevo en un momento." : "The model could not answer right now. The analysis above still stands; try again in a moment.", calls: [], trace: trace.entries, error: true };
@@ -345,6 +359,7 @@ Then answer in ${es ? "Spanish" : "English"}, plain text without markdown, in at
       let text = String(r.text ?? "").replace(/\*\*|__|^#+\s*/gm, "").replace(/^\s*[-*]\s+/gm, "").trim();
       text = text.replace(/\b(?:AMBER-GREEN|AMBER‑GREEN|AMBER|UNKNOWN)\b/g, (m) => `«${words[m.replace("‑", "-")]}»`)
         .replace(/((?:verdict|veredicto|sale|comes out|is)\s*:?\s*)RED\b/gi, (_m, pre) => `${pre}«${words.RED}»`);
+      text = plainVerdictWords(text, lang);
       if (es) text = text.replace(/taste[‑ -]rank/gi, "gusto");
       // every number in the answer must come from a tool result or the analysis; sentences with others are dropped
       const checked = groundNumbers(text, [ctx.verdict, ctx.heatmap?.demand, ctx.heatmap?.best, ...r.calls.map((c) => c.result)]);

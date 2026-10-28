@@ -46,7 +46,15 @@ export function pickNeighbours(entities, { lat, lon, rivalNames = [], tagIds = [
     if (words.length && names.some((nm) => words.some((w) => nm.split(/[^a-z0-9]+/).map(singular).includes(w)))) continue;
     const kind = tags.find((t) => t.type === "urn:tag:category:place" && !/^(place|restaurant|point of interest|establishment)$/i.test(t.name))?.name ?? null;
     if (NOT_FOR_PROMO.test(`${kind ?? ""} ${e.name}`)) continue;
-    if (excludeKinds && kind && excludeKinds.test(kind)) continue;
+    // same-trade places are not partners: test every category tag, the restaurant genre tags and the name, not only
+    // the first specific category (a burger place tagged only "Restaurant" was slipping through as a ramen partner)
+    if (excludeKinds) {
+      const cats = tags.filter((t) => t.type === "urn:tag:category:place").map((t) => String(t.name ?? ""));
+      const isBarOrCafe = cats.some((c) => /\b(bar|pub|caf[eé]|coffee|cocktail|wine|brewery|theat(er|re)|music|club|hotel|shop|store|market|gallery|museum|cinema|gym)\b/i.test(c));
+      const restaurantGenre = tags.some((t) => /^urn:tag:genre:place:restaurant:/.test(String(t.id ?? "")));
+      if (cats.some((c) => excludeKinds.test(c)) && !isBarOrCafe) continue;
+      if (!kind && (restaurantGenre || excludeKinds.test(e.name))) continue;
+    }
     const g = e.location ?? {};
     out.push({
       name: e.name,

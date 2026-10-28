@@ -1,6 +1,6 @@
 # Demo video script (2:18)
 
-Screen recording of the live site (ramen at Rambla del Poblenou 100, Barcelona, 28-Oct-2026), edited with zooms, captions, voice-over and music. Sources on screen: Ara (23 Sep 2025) for Barcelona opening costs; Parsa et al., Cornell HRA Quarterly (2005), 2,439 restaurants, for closures.
+Screen recording of the live site (ramen at Rambla del Poblenou 100, Barcelona, 28-Oct-2026), edited with zooms, captions, voice-over (synthetic voice, Kokoro TTS) and music. The music is original: generated procedurally in code for this video (no third-party music, no samples). No third-party logos are shown; product names appear as plain text. Sources on screen: Ara (23 Sep 2025) for Barcelona opening costs; Parsa et al., Cornell HRA Quarterly (2005), 2,439 restaurants, for closures.
 
 | Time | Scene | Voice-over |
 | --- | --- | --- |
@@ -19,3 +19,12 @@ Screen recording of the live site (ramen at Rambla del Poblenou 100, Barcelona, 
 | 1:55 | What fits here | Already have premises? Switch mode, and it ranks fifteen food and drink ideas for that address. |
 | 2:02 | PDF report | And when you're done, download the full report as a PDF: the address, the verdict and every reason behind it. Ready for your partner, or your bank. |
 | 2:11 | Close | Open Here. Know before you sign. Try it free at abro-aqui.onrender.com. |
+
+## Corrections for the next cut (the table above is what the current video says)
+
+| Time | Current line | Corrected line |
+| --- | --- | --- |
+| 0:35 | "…uses NVIDIA Nemotron agents on Nebius to look for a better block nearby." | "…code finds the candidate blocks nearby, and an NVIDIA Nemotron agent on Nebius re-checks them and tells you whether to move." |
+| 1:10 | "The green ring marks a block nearby that the same rules rate better." | "The green ring marks a nearby block with the same verdict, more taste and fewer rivals, and the page says exactly that." |
+| 1:35 | "Music, brands, and neighbours to team up with." | "Music, neighbours to team up with, and the best blocks for posters." (the recorded plan had no brands) |
+| 1:45 | "Without that data, a model can only guess." (the "language model alone" column was still loading) | Show the model-alone answer once it has loaded. |

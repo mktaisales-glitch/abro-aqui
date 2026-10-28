@@ -52,6 +52,6 @@ export async function explore({ address, radius = 1000, concepts = CONCEPTS }) {
     }
   }));
   rows.sort((a, b) => RANK[b.level] - RANK[a.level] || (a.rule_code === "mixed" ? -1 : 0) - (b.rule_code === "mixed" ? -1 : 0) || (b.demand ?? -1) - (a.demand ?? -1) || (a.c700 ?? 99) - (b.c700 ?? 99));
-  return { address: geo.display_name, geo, radius, rows, trace: trace.entries, total_ms: Date.now() - t0 };
+  return { address: geo.display_name, place: T.shortAddress(geo.display_name), geo, radius, rows, trace: trace.entries, total_ms: Date.now() - t0 };
 }
 

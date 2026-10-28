@@ -95,3 +95,15 @@ test("there is never a GREEN, and every verdict explains itself in both language
     assert.ok(v.rule_fired && v.rule_es);
   }
 });
+
+test("model text never shows internal verdict codes; better spot says exactly why", async () => {
+  const { plainVerdictWords, plainVerdictDeep, betterSpotWhy } = await import("../src/verdict.js");
+  assert.equal(plainVerdictWords("Consider it as another Amber option."), "Consider it as another Hard option.");
+  assert.equal(plainVerdictWords("Sale RED y AMBER-GREEN", "es"), "Sale Aquí no y Prometedor");
+  assert.equal(plainVerdictWords("a red brick facade, red wine"), "a red brick facade, red wine");
+  assert.deepEqual(plainVerdictDeep({ actions: ["another Amber option"], n: 3 }), { actions: ["another Hard option"], n: 3 });
+  const w = betterSpotWhy({ level: "AMBER", demand: 0.822, c700: 1 }, { level: "AMBER", demand: 0.778, c700: 3 });
+  assert.equal(w.reason, "same_verdict");
+  assert.equal(w.text, "same verdict (Hard), 1 rival within 700 m instead of 3, the area likes it more (0.82 vs 0.78)");
+  assert.equal(betterSpotWhy({ level: "AMBER-GREEN", demand: 0.9, c700: 1 }, { level: "AMBER", demand: 0.9, c700: 4 }).reason, "better_verdict");
+});

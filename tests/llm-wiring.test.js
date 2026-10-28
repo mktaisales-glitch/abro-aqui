@@ -14,7 +14,7 @@ test("LLM path: Nano normalises, Super writes, Lightning calls a tool in the cha
   const { analyze, chat } = await import("../src/agent.js?llm");
   const r = await analyze({ concept: "marisquería", address: "Avinguda del Paral·lel 40, Barcelona", withoutQloo: true, radius: 1500 });
   assert.equal(r.verdict.level, "AMBER");
-  assert.equal(r.report.partners[0].verified, null, "offline: partners are not checked, never marked as verified");
+  assert.equal(r.report.partners.length, 0, "offline: partners cannot be checked on the web, so none is shown");
   assert.equal(r.report_meta.model, "nvidia/nemotron-3-super-120b-a12b");
   assert.ok(r.without_qloo?.headline);
   assert.deepEqual(r.llm.map((l) => l.model).sort(), ["nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B", "nvidia/nemotron-3-super-120b-a12b", "nvidia/nemotron-3-super-120b-a12b"]);

@@ -60,6 +60,26 @@ export async function geocode(address, trace) {
   throw new Error(`Address not found: ${address}`);
 }
 
+const HOUSE = /^\d+[a-z]?(?:[-–]\d+[a-z]?)?$/i;
+const CITY = /barcelona|new york|brooklyn|manhattan|london|san francisco|madrid|paris|chicago|los angeles|valencia|sevilla|seville|lisboa|lisbon|berlin|milano|milan|roma|rome/i;
+/**
+ * A short, readable address from the geocoder's display name: "Rambla del Poblenou 100, el Poblenou, Barcelona".
+ * Nominatim sometimes puts a place name first ("rico, 100, Rambla del Poblenou, …"): it is dropped when the next
+ * token is the house number. Coordinates are kept as they are.
+ */
+export function shortAddress(display) {
+  const s = String(display ?? "").trim();
+  if (!s || /^-?\d{1,2}\.\d+\s*,\s*-?\d/.test(s)) return s;
+  let p = s.split(",").map((x) => x.trim()).filter(Boolean);
+  if (p.length > 2 && !HOUSE.test(p[0]) && HOUSE.test(p[1])) p = p.slice(1);
+  const numberFirst = /united states|united kingdom|estados unidos|reino unido|australia|canada/i.test(p.at(-1) ?? "");
+  let head, rest;
+  if (HOUSE.test(p[0]) && p[1]) { head = numberFirst ? `${p[0]} ${p[1]}` : `${p[1]} ${p[0]}`; rest = p.slice(2); }
+  else { head = p[0]; rest = p.slice(1); }
+  const city = rest.find((x) => CITY.test(x)) ?? rest.filter((x) => !/\d/.test(x))[2] ?? null;
+  return [...new Set([head, rest[0], city].filter(Boolean))].join(", ");
+}
+
 /** Street name for a point (OpenStreetMap, cached): "Carrer de Blai, Poble-sec". Null if not found. */
 export async function streetAt({ lat, lon }, trace) {
   const url = `https://nominatim.openstreetmap.org/reverse?format=json&zoom=17&lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`;

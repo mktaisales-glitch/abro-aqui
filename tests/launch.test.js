@@ -87,3 +87,18 @@ test("currency from the country in the geocoded name; unknown → no symbol", as
   assert.equal(currencyOf("40, Avinguda del Paral·lel, Barcelona, Catalunya, 08001, España"), "€");
   assert.equal(currencyOf("40.68855, -73.98537"), null);
 });
+
+test("restaurant concepts: a place tagged only 'Restaurant' (or with a restaurant genre) is a rival trade, not a partner; bars stay", async () => {
+  const { pickNeighbours } = await import("../src/launch.js");
+  const ex = /restaurant|steakhouse|bistro|diner|eatery|pizza|takeout|take-out|burger|tapas|grill|kitchen|sushi|taco|kebab|food/i;
+  const ents = [
+    { name: "Chivuo's", tags: [{ id: "urn:tag:category:place:restaurant", name: "Restaurant", type: "urn:tag:category:place" }, { id: "urn:tag:genre:place:restaurant:burger", name: "Burger", type: "urn:tag:genre:place" }], location: { lat: 41.4, lon: 2.2 } },
+    { name: "Taller Burger", tags: [], location: { lat: 41.4, lon: 2.2 } },
+    { name: "Bar Ramon", tags: [{ id: "urn:tag:category:place:bar", name: "Bar", type: "urn:tag:category:place" }, { id: "urn:tag:category:place:tapas_restaurant", name: "Tapas restaurant", type: "urn:tag:category:place" }], location: { lat: 41.4, lon: 2.2 } },
+    { name: "Sala Barts", tags: [{ id: "urn:tag:category:place:concert_hall", name: "Concert hall", type: "urn:tag:category:place" }], location: { lat: 41.4, lon: 2.2 } },
+  ];
+  const names = pickNeighbours(ents, { lat: 41.4, lon: 2.2, excludeKinds: ex }).map((n) => n.name);
+  assert.deepEqual(names, ["Bar Ramon", "Sala Barts"]);
+  // without a restaurant concept nothing is excluded for its trade
+  assert.equal(pickNeighbours(ents, { lat: 41.4, lon: 2.2 }).length, 4);
+});

@@ -1,6 +1,6 @@
 # Feedback
 
-Written while building Open Here (26–30 October 2026). Everything below happened to us; nothing is hypothetical.
+Written while building Open Here (built 26–28 October 2026, submitted 29 October). Everything below happened to us; nothing is hypothetical.
 
 ## Nebius Token Factory + NVIDIA Nemotron
 
@@ -10,9 +10,15 @@ Written while building Open Here (26–30 October 2026). Everything below happen
 **What worked well**
 
 - OpenAI compatibility is real: changing `baseURL` was the whole migration. `GET /v1/models` listed every Nemotron model we needed.
-- Tool calling on Lightning worked first try: "What if I ignore Puertecillo?" became `nearby_competitors({"radius_m":700,"exclude_names":["Puertecillo"]})` in 0.7 s.
+- Single tool calls on Lightning were right from the start: "What if I ignore Puertecillo?" became `nearby_competitors({"radius_m":700,"exclude_names":["Puertecillo"]})` in 0.7 s.
 - `response_format: {type: "json_object"}` on Nano: "gofres y helados" → `{"parts":["waffles","ice cream"]}` in 1.5 s, 137 tokens. Translation and normalisation in one cheap call.
 - Choosing the model per task (Nano / Lightning / Super) kept the cost per analysis at a fraction of a cent.
+
+**Where Nemotron tool calling needed work-arounds (multi-step agent)**
+
+- In longer runs (the scout agent, up to 7 rounds), Lightning sometimes **wrote the tool call as plain text** in its final message (`<tool_call><function=zone_profile>…`) instead of a structured call, and sometimes returned an **empty answer** after the last tool result. Our work-arounds: the last round is sent without tools plus an explicit user message ("Answer now with what the tools returned. Do not call any tool."), tool-call text is stripped from answers, an empty answer is an error that triggers our scripted fallback, and calls over a per-answer budget get an error tool message instead of running. A documented "final answer" mode, or a guarantee that tool calls are never emitted as text, would remove most of this code.
+- With thinking on, JSON answers sometimes failed validation; `chat_template_kwargs: {enable_thinking: false}` fixed it, but we only found it by trial. A note per model on how to switch thinking off would help.
+- The model writes our internal verdict codes (`AMBER`, `RED`) into user-facing text even when told not to; we replace them in code.
 
 **Zero to hello world: what slowed us down (≈ 40 minutes)**
 

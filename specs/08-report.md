@@ -21,3 +21,6 @@ Labels follow `lang`; the analysis text stays in the language it was written in.
 `scripts/report-from-json.js` renders the same PDF from a saved `/api/analyze` response.
 
 Acceptance: tests/report.test.js (a PDF with the address, optional sections, Spanish labels, safe file name and text) and tests/server.test.js (unknown id → 404).
+
+
+v2 (28-Oct): the address is shown short (`shortAddress`: "Rambla del Poblenou 100, el Poblenou, Barcelona", the geocoder's full name below it in grey); the better spot says exactly why (`betterSpotWhy`); verdict codes in model-written text are replaced by the page's words; the closing line says the verdict, facts, map and competitors come from code and Qloo, and the text from the model.

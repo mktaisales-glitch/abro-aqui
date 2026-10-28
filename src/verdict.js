@@ -111,3 +111,51 @@ export function verdict(i) {
     ],
   };
 }
+
+/** The words a person sees for each verdict code. */
+export const VERDICT_WORDS = {
+  en: { RED: "Not here", AMBER: "Hard", "AMBER-GREEN": "Promising", UNKNOWN: "No data" },
+  es: { RED: "Aquí no", AMBER: "Difícil", "AMBER-GREEN": "Prometedor", UNKNOWN: "Sin datos" },
+};
+
+/**
+ * Model-written text sometimes names the internal codes ("another Amber option", "RED verdict"):
+ * replace them with the words the page shows. Lower-case "red"/"verde" are left alone (ordinary words).
+ */
+export function plainVerdictWords(text, lang = "en") {
+  if (typeof text !== "string") return text;
+  const W = VERDICT_WORDS[lang === "es" ? "es" : "en"];
+  return text
+    .replace(/\bAMBER[-_ ]GREEN\b/gi, W["AMBER-GREEN"])
+    .replace(/\b(?:amber|ámbar)\b/gi, W.AMBER)
+    .replace(/\bRED\b/g, W.RED)
+    .replace(/\b(?:Red|Rojo|ROJO)(?= (?:verdict|veredicto|zone|zona|level|nivel)\b)/g, W.RED)
+    .replace(/\bGREEN\b/g, W["AMBER-GREEN"])
+    .replace(/\bUNKNOWN\b/g, W.UNKNOWN);
+}
+
+/** Apply plainVerdictWords to every string inside a model answer (arrays and objects included). */
+export function plainVerdictDeep(x, lang = "en") {
+  if (typeof x === "string") return plainVerdictWords(x, lang);
+  if (Array.isArray(x)) return x.map((y) => plainVerdictDeep(y, lang));
+  if (x && typeof x === "object") return Object.fromEntries(Object.entries(x).map(([k, v]) => [k, plainVerdictDeep(v, lang)]));
+  return x;
+}
+
+/**
+ * Why a block is the better spot, said exactly: a better verdict, or the same verdict with more taste and fewer rivals.
+ * best: { level, demand, c700, distance_m }; here: { level, demand, c700 }.
+ */
+export function betterSpotWhy(best, here, lang = "en") {
+  const es = lang === "es";
+  const W = VERDICT_WORDS[es ? "es" : "en"];
+  const n2 = (x) => (x == null ? "–" : es ? x.toFixed(2).replace(".", ",") : x.toFixed(2));
+  const riv = (n) => (es ? `${n} rival${n === 1 ? "" : "es"}` : `${n} rival${n === 1 ? "" : "s"}`);
+  const more = best.demand > here.demand ? (es ? "allí gusta más" : "the area likes it more") : best.demand < here.demand ? (es ? "allí gusta algo menos" : "the area likes it a little less") : (es ? "gusta igual" : "the area likes it as much");
+  const taste = `${more} (${n2(best.demand)} ${es ? "frente a" : "vs"} ${n2(here.demand)})`;
+  const rivals = es ? `${riv(best.c700)} a 700 m en lugar de ${here.c700}` : `${riv(best.c700)} within 700 m instead of ${here.c700}`;
+  const better = best.level !== here.level;
+  const head = better ? (es ? `${W[best.level]} en lugar de ${W[here.level]}` : `${W[best.level]} instead of ${W[here.level]}`) : (es ? `mismo veredicto (${W[here.level]})` : `same verdict (${W[here.level]})`);
+  const shortRivals = es ? `${riv(best.c700)} en vez de ${here.c700}` : `${riv(best.c700)} instead of ${here.c700}`;
+  return { reason: better ? "better_verdict" : "same_verdict", text: `${head}, ${rivals}, ${taste}`, short: `${head}, ${shortRivals}` };
+}
