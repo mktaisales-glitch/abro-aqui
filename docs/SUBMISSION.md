@@ -6,7 +6,7 @@
 - **Tagline (≤ 200 chars):** Should I open my restaurant here? Tell it your idea and a street address: it reads what the area likes and what it already has, finds a better block nearby, and gives you a PDF report before you sign.
 - **Demo:** https://abro-aqui.onrender.com (free plan: the first visit after a quiet spell can take up to a minute)
 - **Repo:** https://github.com/mktaisales-glitch/abro-aqui (MIT)
-- **Video (YouTube, public, 2:18):** _paste link_
+- **Video (YouTube, public, 2:36):** https://youtu.be/k79EogpIQZ4
 - **Built with:** Qloo Insights API, NVIDIA Nemotron (Nano, Lightning, Super), Nebius Token Factory, Tavily, Node.js, Express, Leaflet, OpenStreetMap, SQLite, zod
 
 ---

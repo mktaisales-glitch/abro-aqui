@@ -99,7 +99,7 @@ git clone https://github.com/mktaisales-glitch/abro-aqui && cd abro-aqui
 npm install
 cp .env.example .env      # QLOO_API_KEY, NEBIUS_API_KEY, TAVILY_API_KEY
 npm run dev               # http://localhost:3000
-npm test                  # 55 tests (49 run on a public clone; 6 replay recorded Qloo data that is not published): HTTP layer and security headers, PDF report, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
+npm test                  # 56 tests (50 run on a public clone; 6 replay recorded Qloo data that is not published): HTTP layer and security headers, PDF report, verdict rules, launch plan (Qloo and model mocks), JSON extraction, Qloo rate limiting, PII scrub;
                           # 6 of them replay the recorded Barcelona cases
                           # from fixtures/demo.sqlite, which is not published (Qloo terms), so they skip on a fresh clone (49 of 55 run)
 ```
