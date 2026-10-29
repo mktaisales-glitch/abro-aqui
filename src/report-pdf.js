@@ -157,7 +157,7 @@ export function buildReportPdf({ ctx, scout = null, launch = null, lang = "en", 
       doc.y = y + 15; doc.moveTo(X0, doc.y - 3).lineTo(X0 + W, doc.y - 3).lineWidth(0.4).strokeColor(C.line).stroke();
     };
     row(t.cols, true);
-    for (const c of comp) row([c.name, `${c.distance_m} m`, c.rating != null ? `${num(c.rating, L, 1)} / 5` : "–", c.price_level ? "€".repeat(Math.min(4, c.price_level)) : "–"]);
+    for (const c of comp) row([c.name, `${c.distance_m} m`, c.rating != null ? `${num(c.rating, L, 1)} / 5` : "–", c.price_level ? (ctx.price_gap?.currency ? ctx.price_gap.currency.repeat(Math.min(4, c.price_level)) : `${L === "es" ? "nivel" : "level"} ${c.price_level}`) : "–"]);
   }
 
   // --- the report the writer model (or the template) produced
@@ -292,6 +292,8 @@ function drawMap(doc, ctx, t, F, X0, W, tiles = []) {
   doc.rect(cx - 4, cy - 4, 8, 8).lineWidth(1.5).fillAndStroke("#000000", "#ffffff");
   doc.restore();
   doc.rect(left, top, MW, H).lineWidth(0.6).strokeColor(C.line).stroke();
+  // OpenStreetMap tile policy and ODbL: attribution next to the map
+  if (tiles.length) doc.font(F.r).fontSize(6.5).fillColor(C.grey).text("© OpenStreetMap contributors", left, top + H + 2, { width: MW, align: "right", lineBreak: false });
 
   // legend to the right of the map
   let ly = top + 4;

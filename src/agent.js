@@ -4,7 +4,7 @@ import * as T from "./tools.js";
 import { CONCEPT_LIST, knownResolved } from "./concepts.js";
 import { verdict, plainVerdictDeep, plainVerdictWords, betterSpotWhy } from "./verdict.js";
 import { llmEnabled, normalizeConcept, writeReport, writeReportWithoutQloo, templateReport, chatWithTools, inLang } from "./llm.js";
-import { explore } from "./explore.js";
+import { exploreOnce } from "./explore.js";
 
 function dedupeByName(list) {
   const seen = new Map();
@@ -183,7 +183,7 @@ export async function analyze({ concept, address, lang = "en", withoutQloo = fal
     area_profile: profile,
   };
 
-  // The report and the "without Qloo" answer run in parallel (two Super calls).
+  // The report (Super) and the "without Qloo" answer (Lightning) run in parallel.
   const noQlooP = withoutQloo && llmEnabled
     ? writeReportWithoutQloo({ concept, address }, lang).then((r) => { llm.push({ task: "report without Qloo", model: r.model, ms: r.ms }); return { ...r.data, model: r.model }; }).catch((e) => { llm.push({ task: "report without Qloo", model: "failed", ms: 0, error: String(e.message).slice(0, 120) }); return null; })
     : Promise.resolve(null);
@@ -378,7 +378,7 @@ function fitTool(ctx, trace) {
         // 15 Qloo calls each: a daily cap for the whole demo, apart from the "what fits" page's own limit
         if (!fitMemo.has(key) && ++fitRuns.n > FIT_RUNS_PER_DAY && fitRuns.day === new Date().toISOString().slice(0, 10)) return { error: "daily limit for this question reached on the demo: use the 'I have a place: what fits?' mode" };
         if (fitRuns.day !== new Date().toISOString().slice(0, 10)) Object.assign(fitRuns, { day: new Date().toISOString().slice(0, 10), n: 1 });
-        if (!fitMemo.has(key)) fitMemo.set(key, explore({ address: ctx.address, coords: ctx.geo, radius: ctx.radius ?? 1000 }).catch((e) => { fitMemo.delete(key); throw e; }));
+        if (!fitMemo.has(key)) fitMemo.set(key, exploreOnce({ address: ctx.address, coords: ctx.geo, radius: ctx.radius ?? 1000 }).catch((e) => { fitMemo.delete(key); throw e; }));
         const v = await fitMemo.get(key);
         while (fitMemo.size > 50) fitMemo.delete(fitMemo.keys().next().value);
         return { rows: v.rows.map(({ concept, level, demand, c700 }) => ({ concept, verdict: level, taste_rank: demand, rivals_700m: c700 })) };
@@ -422,7 +422,6 @@ export async function scout({ ctx, lang = "en" }) {
       run: async () => ({ address_verdict: ctx.verdict.level, address_rivals_700m: ctx.verdict.offer?.c700, candidates: (ctx.candidates ?? []).map(({ lat, lon, distance_m, level, demand, c700, places_200m }) => ({ lat, lon, distance_m, level, demand, rivals_700m: c700, places_200m })) }),
     },
   };
-  const city = ctx.address.split(",").map((x) => x.trim()).find((x) => /barcelona|new york|brooklyn|london|san francisco|madrid/i.test(x)) ?? "";
   const es = lang === "es";
   // the scout looks for the spot; launch partners come from the launch plan (Qloo taste graph + Tavily)
   delete tools.verify_business;

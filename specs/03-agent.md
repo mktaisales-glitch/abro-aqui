@@ -22,4 +22,4 @@ See spec 04. Super only chooses among Qloo's candidates and writes a one-line id
 
 ## Limits
 
-A daily cap on model calls (`LLM_DAILY_CAP`, default 2,500, and `LLM_DAILY_CAP_PER_IP`, default 250 per visitor; repair rounds included), 25 s timeout per call and no automatic retries (`maxRetries: 0`; a circuit breaker pauses the model for 5 minutes after 3 failures). Without `NEBIUS_API_KEY` the app runs in template mode: verdict, numbers, map and launch candidates still work; texts come from templates in English or Spanish.
+A daily cap on model calls (`LLM_DAILY_CAP`, default 2,500, and `LLM_DAILY_CAP_PER_IP`, default 250 per visitor; repair rounds included; a call rejected by the visitor cap does not count against the shared one). The caps and quotas live in memory: a deploy or restart resets them, which is acceptable for a single-instance demo, 25 s timeout per call and no automatic retries (`maxRetries: 0`; a circuit breaker pauses the model for 5 minutes after 3 failures). Without `NEBIUS_API_KEY` the app runs in template mode: verdict, numbers, map and launch candidates still work; texts come from templates in English or Spanish.

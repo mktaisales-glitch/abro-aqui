@@ -45,3 +45,17 @@ export async function explore({ address, radius = 1000, concepts = CONCEPTS, coo
   return { address: geo.display_name, place: T.shortAddress(geo.display_name), geo, radius, rows, trace: trace.entries, total_ms: Date.now() - t0 };
 }
 
+
+/** One "what fits" run at a time on the whole server, for the page and the chat tool alike.
+ *  The lock is released when the run really ends (not when a route deadline answers 504). */
+let running = null; // { key, p }
+const keyOf = ({ address, radius = 1000, coords = null }) => `${coords ? `${(+coords.lat).toFixed(4)},${(+coords.lon).toFixed(4)}` : String(address).toLowerCase()}|${radius}`;
+export const exploreBusy = () => !!running;
+export function exploreOnce(args) {
+  const key = keyOf(args);
+  if (running?.key === key) return running.p;                       // the same table already being built
+  if (running) return running.p.catch(() => {}).then(() => exploreOnce(args)); // another address: wait for its turn
+  const p = explore(args).finally(() => { if (running?.p === p) running = null; });
+  running = { key, p };
+  return p;
+}

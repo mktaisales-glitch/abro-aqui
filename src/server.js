@@ -5,7 +5,7 @@ import { analyze, chat, chatFit, compare, scout, withoutQloo, BUDGET_TEXT } from
 import { llmEnabled, MODELS, withClient } from "./llm.js";
 import { scrubPII } from "./safe.js";
 import { launchPlan } from "./launch.js";
-import { explore } from "./explore.js";
+import { exploreOnce, exploreBusy } from "./explore.js";
 import { buildReportPdf, reportFileName, mapTiles } from "./report-pdf.js";
 import { matchConcept, publicConcepts, CONCEPT_LIST } from "./concepts.js";
 import { suggestPlaces, resolveConcept } from "./tools.js";
@@ -84,7 +84,7 @@ app.get("/api/health", (_req, res) => res.json({ ok: true, llm: llmEnabled, qloo
 
 app.post("/api/analyze", async (req, res) => {
   const { lang = "en", without_qloo = false } = req.body ?? {};
-  const concept = str(req.body?.concept, 120), address = str(req.body?.address, 200);
+  const concept = str(req.body?.concept, 120), address = scrubPII(str(req.body?.address, 200) ?? "").trim() || null; // spec 05: no e-mail or phone reaches a prompt
   if (!concept || !address) return res.status(400).json({ error: "Write a business concept (up to 120 characters) and a street address (up to 200)." });
   if (!allow(ipOf(req))) return res.status(429).json({ error: `You have used today's ${LIMITS.analyze} free analyses on this demo. Try again tomorrow.` });
   // a concept from the list, by id, label or synonym ("hamburguesería" → burger); free text still goes to the resolver
@@ -135,15 +135,17 @@ app.post("/api/noqloo", async (req, res) => {
   const { id, lang = "en" } = req.body ?? {};
   const s = sessions.get(id);
   if (!s?.ctx) return res.status(404).json({ error: "Run the analysis again: it expired." });
-  if (s.noqloo) return res.json(s.noqloo);
-  // two clicks at once share one model call
-  if (!s.noqlooP) {
+  const L = lang === "es" ? "es" : "en";
+  s.noqloo ??= {}; s.noqlooP ??= {};
+  if (s.noqloo[L]) return res.json(s.noqloo[L]);
+  // two clicks at once share one model call (one answer per language)
+  if (!s.noqlooP[L]) {
     if (!allow(ipOf(req), "noqloo")) return res.status(429).json({ error: "Daily limit reached on this demo." });
-    s.noqlooP = withDeadline(withoutQloo({ concept: s.ctx.concept, address: scrubPII(s.ctx.address), lang: lang === "es" ? "es" : "en" }))
-      .then((v) => (s.noqloo = v)).finally(() => { s.noqlooP = null; });
+    s.noqlooP[L] = withDeadline(withoutQloo({ concept: s.ctx.concept, address: scrubPII(s.ctx.address), lang: L }))
+      .then((v) => (s.noqloo[L] = v)).finally(() => { s.noqlooP[L] = null; });
   }
   try {
-    res.json(await s.noqlooP);
+    res.json(await s.noqlooP[L]);
   } catch (e) {
     fail(res, "noqloo", e);
   }
@@ -153,7 +155,7 @@ app.post("/api/compare", async (req, res) => {
   const { id, address } = req.body ?? {};
   const s = sessions.get(id);
   if (!s?.ctx) return res.status(404).json({ error: "Run the analysis again: comparisons use the last one and it expired." });
-  const a2 = str(address, 200);
+  const a2 = scrubPII(str(address, 200) ?? "").trim() || null;
   if (!a2) return res.status(400).json({ error: "Write the second address (up to 200 characters)." });
   if (!allow(ipOf(req), "compare")) return res.status(429).json({ error: "Daily comparison limit reached on this demo." });
   try {
@@ -228,11 +230,10 @@ app.get("/api/report.pdf", async (req, res) => {
   }
 });
 
-// "what fits here" runs 15 concepts: one at a time on the whole server, results cached for a day per address and radius
+// "what fits here" runs 15 concepts: one run at a time on the whole server (exploreOnce, shared with the chat tool), results cached for a day per address and radius
 const exploreCache = new Map();
-let exploring = null;
 app.post("/api/explore", async (req, res) => {
-  const address = str(req.body?.address, 200);
+  const address = scrubPII(str(req.body?.address, 200) ?? "").trim() || null;
   if (!address) return res.status(400).json({ error: "Write a street address (up to 200 characters)." });
   const radius = [500, 1000, 1500, 2000].includes(Number(req.body?.radius)) ? Number(req.body.radius) : 1000;
   const coords = req.body?.coords && Number.isFinite(+req.body.coords.lat) && Number.isFinite(+req.body.coords.lon) ? { lat: +req.body.coords.lat, lon: +req.body.coords.lon } : null;
@@ -245,19 +246,16 @@ app.post("/api/explore", async (req, res) => {
     return { id: entry.sid, ...entry.v };
   };
   if (hit && Date.now() - hit.t < 24 * 3600 * 1000) return res.json(withChat(hit));
+  if (exploreBusy()) return res.status(429).json({ error: "Another \"what fits here\" is running. Try again in a few seconds." });
   if (!allow(ipOf(req), "explore")) return res.status(429).json({ error: "Daily limit for \"what fits here\" reached on this demo." });
-  if (exploring) return res.status(429).json({ error: "Another \"what fits here\" is running. Try again in a few seconds." });
   try {
-    exploring = withDeadline(explore({ address, radius, coords }), 90000);
-    const v = await exploring;
+    const v = await withDeadline(exploreOnce({ address, radius, coords }), 90000);
     const entry = { t: Date.now(), v };
     exploreCache.set(key, entry);
     while (exploreCache.size > 100) exploreCache.delete(exploreCache.keys().next().value);
     res.json(withChat(entry));
   } catch (e) {
     fail(res, "explore", e);
-  } finally {
-    exploring = null;
   }
 });
 

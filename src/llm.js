@@ -43,13 +43,13 @@ function spend() {
   const d = new Date().toISOString().slice(0, 10);
   if (usage.day !== d) Object.assign(usage, { day: d, n: 0, byIp: new Map() });
   if (llmPaused()) throw new Error("model paused after repeated failures");
-  if (++usage.n > CAP) throw new Error("daily LLM budget reached");
+  // the visitor's own cap first: a rejected call never spends the budget shared by everybody
   const ip = als.getStore()?.ip;
-  if (ip) {
-    const n = (usage.byIp.get(ip) ?? 0) + 1;
-    usage.byIp.set(ip, n);
-    if (n > CAP_PER_IP) throw new Error("daily LLM budget for this visitor reached");
-  }
+  const mine = ip ? (usage.byIp.get(ip) ?? 0) : 0;
+  if (ip && mine >= CAP_PER_IP) throw new Error("daily LLM budget for this visitor reached");
+  if (usage.n >= CAP) throw new Error("daily LLM budget reached");
+  usage.n += 1;
+  if (ip) usage.byIp.set(ip, mine + 1);
 }
 /** Every model call goes through here: failures feed the breaker, a success resets it. */
 async function guarded(fn) {
