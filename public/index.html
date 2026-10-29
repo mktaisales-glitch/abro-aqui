@@ -611,6 +611,8 @@ $("#ask").onsubmit=async e=>{
     d.lang=d.lang||lang;cur=d;document.body.classList.add("has-result","has-pdf");$("#fitbox").hidden=true;render(d);resetChat();chatCtx=chatFromCur();
     $("#vbox").classList.remove("in");void $("#vbox").offsetWidth;$("#vbox").classList.add("in");
     requestAnimationFrame(()=>setTimeout(()=>$("#vbox").scrollIntoView({behavior:"smooth",block:"start"}),60));
+    // the layout still moves while it scrolls (map, legend, fonts): a second pass keeps the verdict word in view
+    setTimeout(()=>{const t=$("#vbox").getBoundingClientRect().top;if(t<0||t>40)$("#vbox").scrollIntoView({block:"start"})},1300);
   }catch(err){$("#err").textContent=errText(err.message);$("#err").hidden=false}
   finally{clearInterval(tick);$("#steps").hidden=true;$("#go").disabled=false}
 };
