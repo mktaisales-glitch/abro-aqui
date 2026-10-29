@@ -272,6 +272,19 @@ export async function inLang(text, lang) {
   } catch { return text; }
 }
 
+/** A reply that is the model's reasoning, not an answer for the owner. */
+export const looksLikeReasoning = (t) => /thinking process|analy[sz]e (?:the )?user input|^\s*(?:okay|ok|alright|let me|let's think|first,|step 1)\b|\bthe user (?:asks|says|wants)\b|\bI (?:need|should|will) (?:to )?(?:answer|synthesi[sz]e|format|check|reference)\b|^\s*\d+\.\s+\*\*?(?:analy|understand|plan)/im.test(String(t));
+/** Turn a leaked plan into the answer itself: one call, thinking off, only the final words. */
+async function finalOnly(draft, lang, maxTokens) {
+  spend();
+  const r = await complete({ model: MODELS.fast, temperature: 0.2, max_tokens: Math.min(maxTokens, 500), messages: [
+    { role: "system", content: `Below are notes an assistant wrote while preparing an answer for a restaurant owner. Write ONLY the final answer to the owner: plain words, at most 4 short sentences, keep every number, place name and verdict word exactly as in the notes, no reasoning, no mention of tools or notes.${lang === "es" ? " Write it in Spanish." : " Write it in English."}` },
+    { role: "user", content: String(draft).slice(0, 6000) }] });
+  const out = afterThink(r.choices[0].message.content);
+  if (!out || looksLikeReasoning(out)) throw new Error("the model wrote its reasoning instead of an answer");
+  return out;
+}
+
 export async function chatWithTools({ messages, tools, maxRounds = 4, maxTokens = 900, lang = "en", maxCalls = 6 }) {
   const toolDefs = Object.entries(tools).map(([name, t]) => ({ type: "function", function: { name, description: t.description, parameters: t.parameters } }));
   const calls = [];
@@ -282,7 +295,7 @@ export async function chatWithTools({ messages, tools, maxRounds = 4, maxTokens 
     const last = calls.length >= maxCalls || i === maxRounds - 1;
     // final round: no tools at all (Nemotron otherwise writes the call as text) and an explicit request to answer
     const params = last
-      ? { model: MODELS.fast, messages: [...messages, { role: "user", content: `Answer now with what the tools returned. Do not call any tool.${lang === "es" ? " Answer in Spanish." : ""}` }], temperature: 0.3, max_tokens: maxTokens }
+      ? { model: MODELS.fast, messages: [...messages, { role: "user", content: `Answer now with what the tools returned. Do not call any tool.${lang === "es" ? " Answer in Spanish." : ""}` }], temperature: 0.3, max_tokens: maxTokens, ...(thinkingKwargs ? { chat_template_kwargs: { enable_thinking: false } } : {}) }
       : { model: MODELS.fast, messages, tools: toolDefs, tool_choice: "auto", temperature: 0.3, max_tokens: maxTokens };
     const res = await guarded(() => client.chat.completions.create(params));
     const think_ms = Date.now() - t0;
@@ -292,6 +305,8 @@ export async function chatWithTools({ messages, tools, maxRounds = 4, maxTokens 
       // a tool call written as text is not an answer
       const text = afterThink(msg.content).replace(/<tool_call>[\s\S]*?(<\/tool_call>|$)/g, "").replace(/<function=[\s\S]*$/g, "").trim();
       if (!text) throw new Error("the model returned an empty answer");
+      // the model sometimes prints its plan ("Here's a thinking process: 1. Analyze User Input…") instead of an answer
+      if (looksLikeReasoning(text)) return { text: await finalOnly(text, lang, maxTokens), calls, model: MODELS.fast };
       return { text, calls, model: MODELS.fast };
     }
     const allowed = Math.max(0, maxCalls - calls.length);

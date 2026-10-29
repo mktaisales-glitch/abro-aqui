@@ -54,8 +54,8 @@ export function verdict(i) {
   const coverage = i.coverage ?? 0;
   const minCov = i.minCoverage ?? T.coverage; // scaled with the circle's area by the caller
   const o = offer({ competitors: i.competitors ?? [], share: i.share ?? null });
-  const d2 = demand?.toFixed(2);
-  const dec = (x) => String(x).replace(".", ","); // Spanish decimal comma
+  const d2 = s10(demand, "en"), d2es = s10(demand, "es");
+  const dec = (x) => (typeof x === "number" && x <= 1 ? s10(x, "es") : x === d2 ? d2es : String(x).replace(".", ",")); // Spanish decimal comma; taste as /10
   let level, rule, code, es;
 
   if (coverage < minCov || demand == null) {
@@ -66,7 +66,7 @@ export function verdict(i) {
   } else if (demand < T.demandWeak) {
     level = "RED";
     code = "weak-demand";
-    rule = `Taste for this concept here ranks ${d2} on Qloo's scale, below ${T.demandWeak}: the area leans elsewhere.`;
+    rule = `Taste for this concept here ranks ${d2} on Qloo's scale, below ${s10(T.demandWeak)}: the area leans elsewhere.`;
     es = `El gusto por este concepto aquí puntúa ${dec(d2)} en la escala de Qloo, por debajo de ${dec(T.demandWeak)}: la zona va por otro lado.`;
   } else if (o.level === "HIGH") {
     level = "AMBER";
@@ -76,7 +76,7 @@ export function verdict(i) {
   } else if (o.level === "LOW" && demand >= T.demandStrong) {
     level = "AMBER-GREEN";
     code = "appetite-without-offer";
-    rule = `Strong taste for it (rank ${d2} ≥ ${T.demandStrong}) and little offer (${o.c700} rival${o.c700 === 1 ? "" : "s"} within ${T.far} m): appetite without offer.`;
+    rule = `Strong taste for it (rank ${d2} ≥ ${s10(T.demandStrong)}) and little offer (${o.c700} rival${o.c700 === 1 ? "" : "s"} within ${T.far} m): appetite without offer.`;
     es = `Mucho gusto por ello (${dec(d2)} ≥ ${dec(T.demandStrong)}) y poca oferta (${o.c700} rival${o.c700 === 1 ? "" : "es"} a ${T.far} m): apetito sin oferta.`;
   } else {
     level = "AMBER";
@@ -122,8 +122,25 @@ export const VERDICT_WORDS = {
  * Model-written text sometimes names the internal codes ("another Amber option", "RED verdict"):
  * replace them with the words the page shows. Lower-case "red"/"verde" are left alone (ordinary words).
  */
+/** Taste rank (0–1) as a score anyone reads: 0.86 → "8.6/10" ("8,6/10" in Spanish). */
+export function s10(x, lang = "en") {
+  if (x == null || !Number.isFinite(+x)) return "–";
+  const v = (Math.round(+x * 100) / 10).toFixed(1);
+  return `${lang === "es" ? v.replace(".", ",") : v}/10`;
+}
+const TASTE_CUE = /(taste|rank|gusto|likes?|demand|demanda|puntúa|scores?|affinity|afinidad|vs\.?|frente a|versus|more|más)[^0-9\n]{0,28}$/i;
+/** Taste ranks written by a model as 0.86 become 8.6/10, only next to a taste word (ratings and shares are left alone). */
+export function tasteTo10(text, lang = "en") {
+  if (typeof text !== "string") return text;
+  return text.replace(/(?<![\d.,/])(0[.,]\d{2}|1[.,]00)(?![\d%/]|[.,]\d)/g, (m, num, off, all) => {
+    const before = all.slice(Math.max(0, off - 40), off);
+    return TASTE_CUE.test(before) ? s10(Number(num.replace(",", ".")), lang) : m;
+  });
+}
+
 export function plainVerdictWords(text, lang = "en") {
   if (typeof text !== "string") return text;
+  text = tasteTo10(text, lang);
   if (lang === "es") text = spanishTouches(text);
   const W = VERDICT_WORDS[lang === "es" ? "es" : "en"];
   return text
@@ -165,7 +182,7 @@ export function plainVerdictDeep(x, lang = "en") {
 export function betterSpotWhy(best, here, lang = "en") {
   const es = lang === "es";
   const W = VERDICT_WORDS[es ? "es" : "en"];
-  const n2 = (x) => (x == null ? "–" : es ? x.toFixed(2).replace(".", ",") : x.toFixed(2));
+  const n2 = (x) => s10(x, es ? "es" : "en");
   const riv = (n) => (es ? `${n} rival${n === 1 ? "" : "es"}` : `${n} rival${n === 1 ? "" : "s"}`);
   const more = best.demand > here.demand ? (es ? "allí gusta más" : "the area likes it more") : best.demand < here.demand ? (es ? "allí gusta algo menos" : "the area likes it a little less") : (es ? "gusta igual" : "the area likes it as much");
   const taste = `${more} (${n2(best.demand)} ${es ? "frente a" : "vs"} ${n2(here.demand)})`;

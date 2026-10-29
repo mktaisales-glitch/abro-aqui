@@ -3,7 +3,7 @@
 // The map: OpenStreetMap streets underneath (fetched when the PDF is built, cached; a plain box if they do not answer),
 // and on top the heat-map cells already in the analysis.
 import PDFDocument from "pdfkit";
-import { plainVerdictDeep, plainVerdictWords, betterSpotWhy } from "./verdict.js";
+import { plainVerdictDeep, plainVerdictWords, betterSpotWhy, s10 } from "./verdict.js";
 import { shortAddress } from "./tools.js";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -128,7 +128,7 @@ export function buildReportPdf({ ctx, scout = null, launch = null, lang = "en", 
   doc.moveDown(0.7);
   const of = v.offer ?? { c400: 0, c700: 0 }, best = ctx.heatmap?.best;
   const facts = [
-    [t.taste(ctx.heatmap?.demand), `${t.facts[0]} (${num(ctx.heatmap?.demand, L)})`],
+    [t.taste(ctx.heatmap?.demand), `${t.facts[0]} (${s10(ctx.heatmap?.demand, L)})`],
     [String(of.c700 ?? "–"), `${t.facts[1]} · ${t.within400(of.c400 ?? 0)}`],
     [best ? `${best.distance_m} m` : "—", best ? bestWhy(best, ctx, L).short : t.noBetter],
   ];
@@ -313,7 +313,7 @@ function drawMap(doc, ctx, t, F, X0, W, tiles = []) {
   doc.circle(lx + 6, ly + 4, 5).lineWidth(1.8).strokeColor(C.green).stroke();
   doc.fillColor(C.ink).text(t.best, lx + 18, ly, { lineBreak: false });
   ly += 22;
-  doc.font(F.r).fontSize(7.8).fillColor(C.grey).text(`${t.range}: ${num(sorted[0], t.lang)}–${num(sorted.at(-1), t.lang)}`, lx, ly, { width: W - MW - 18 });
+  doc.font(F.r).fontSize(7.8).fillColor(C.grey).text(`${t.range}: ${s10(sorted[0], t.lang)}–${s10(sorted.at(-1), t.lang)}`, lx, ly, { width: W - MW - 18 });
   doc.y = top + H + 8;
   doc.x = X0;
 }

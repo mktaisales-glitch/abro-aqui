@@ -34,3 +34,10 @@ test("afterThink strips reasoning from tool-calling answers", async () => {
   assert.equal(afterThink("reasoning...</think>  Move 500 m east."), "Move 500 m east.");
   assert.equal(afterThink("Plain answer."), "Plain answer.");
 });
+
+test("a reply that is the model's plan, not an answer, is recognised (it is rewritten before the owner sees it)", async () => {
+  const { looksLikeReasoning } = await import("../src/llm.js");
+  assert.ok(looksLikeReasoning("Here's a thinking process:\n\n1.  Analyze User Input:\n   - User asks: \"where is better?\""));
+  assert.ok(looksLikeReasoning("The user asks where is better. I need to synthesize the tool results."));
+  assert.ok(!looksLikeReasoning("About **618 m** away, near Carrer d'Aribau, a block comes out Promising: 1 rival within 700 m instead of 2 and a taste of 8.8/10."));
+});

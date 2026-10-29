@@ -7,6 +7,7 @@ import { makeTrace } from "./http.js";
 import { haversine, verifyBusiness, streetAt, singular, placesNear } from "./tools.js";
 import { llmEnabled, writeLaunch } from "./llm.js";
 import { esPart } from "./i18n.js";
+import { s10 } from "./verdict.js";
 
 export const cityOf = (display) =>
   display.split(",").map((x) => x.trim()).find((x) => /barcelona|new york|brooklyn|manhattan|london|san francisco|madrid|paris|chicago|los angeles/i.test(x)) ??
@@ -169,7 +170,7 @@ export function composeFixed(plan, c, ctx, lang = "en") {
     : L(`Learned from what people who like ${ctx.concept} around here also like (no rated rival to learn from).`, `Aprendido de lo que también le gusta a quien disfruta de «${ctx.resolved.map((p) => esPart(p.part)).join(" y ")}» por aquí (no hay rival valorado del que aprender).`));
   const posters = c.posters.map((z) => {
     const top = Math.max(1, Math.round((1 - z.activity) * 100));
-    return { where: z.street ?? `${z.lat.toFixed(4)}, ${z.lon.toFixed(4)}`, why: L(`${z.street ? `${z.street}, ` : ""}${z.distance_m} m away: taste rank ${z.demand.toFixed(2)}, among the ${top} % busiest blocks around`, `${z.street ? `${z.street}, ` : ""}a ${z.distance_m} m: gusto ${z.demand.toFixed(2).replace(".", ",")}, entre el ${top} % de manzanas con más actividad`) };
+    return { where: z.street ?? `${z.lat.toFixed(4)}, ${z.lon.toFixed(4)}`, why: L(`${z.street ? `${z.street}, ` : ""}${z.distance_m} m away: taste ${s10(z.demand)}, among the ${top} % busiest blocks around`, `${z.street ? `${z.street}, ` : ""}a ${z.distance_m} m: gusto ${s10(z.demand, "es")}, entre el ${top} % de manzanas con más actividad`) };
   });
   const nb = plan.co_promo.map((x) => x.name), mu = plan.music.map((x) => x.name), br = plan.brands.map((x) => x.name);
   const streets = c.posters.map((z) => z.street?.split(",")[0]).filter(Boolean);

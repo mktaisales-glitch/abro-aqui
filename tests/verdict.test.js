@@ -104,7 +104,7 @@ test("model text never shows internal verdict codes; better spot says exactly wh
   assert.deepEqual(plainVerdictDeep({ actions: ["another Amber option"], n: 3 }), { actions: ["another Hard option"], n: 3 });
   const w = betterSpotWhy({ level: "AMBER", demand: 0.822, c700: 1 }, { level: "AMBER", demand: 0.778, c700: 3 });
   assert.equal(w.reason, "same_verdict");
-  assert.equal(w.text, "same verdict (Hard), 1 rival within 700 m instead of 3, the area likes it more (0.82 vs 0.78)");
+  assert.equal(w.text, "same verdict (Hard), 1 rival within 700 m instead of 3, the area likes it more (8.2/10 vs 7.8/10)");
   assert.equal(betterSpotWhy({ level: "AMBER-GREEN", demand: 0.9, c700: 1 }, { level: "AMBER", demand: 0.9, c700: 4 }).reason, "better_verdict");
 });
 
@@ -112,5 +112,9 @@ test("Spanish model answers: colour words become verdict words, decimals take a 
   const { plainVerdictWords } = await import("../src/verdict.js");
   assert.equal(plainVerdictWords("El veredicto sigue siendo ROJO, con gusto 0.687 y 1.500 m.", "es"), "El veredicto sigue siendo «Aquí no», con gusto 0,687 y 1.500 m.");
   assert.equal(plainVerdictWords("El tomate rojo.", "es"), "El tomate rojo.");
-  assert.equal(plainVerdictWords("rank 0.78", "en"), "rank 0.78");
+  // taste ranks become a score out of 10; ratings, shares and distances are left alone
+  assert.equal(plainVerdictWords("rank 0.78", "en"), "rank 7.8/10");
+  assert.equal(plainVerdictWords("the area likes it more (0.88 vs 0.86), Puertecillo 4.4/5, 26 % of places", "en"), "the area likes it more (8.8/10 vs 8.6/10), Puertecillo 4.4/5, 26 % of places");
+  assert.equal(plainVerdictWords("gusto 0,93 frente a 0,97", "es"), "gusto 9,3/10 frente a 9,7/10");
+  assert.equal(plainVerdictWords("Costs 0.50 € a call", "en"), "Costs 0.50 € a call");
 });

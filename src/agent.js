@@ -2,7 +2,7 @@
 import { makeTrace } from "./http.js";
 import * as T from "./tools.js";
 import { CONCEPT_LIST, knownResolved } from "./concepts.js";
-import { verdict, plainVerdictDeep, plainVerdictWords, betterSpotWhy } from "./verdict.js";
+import { verdict, plainVerdictDeep, plainVerdictWords, betterSpotWhy, s10 } from "./verdict.js";
 import { llmEnabled, normalizeConcept, writeReport, writeReportWithoutQloo, templateReport, chatWithTools, inLang } from "./llm.js";
 import { exploreOnce } from "./explore.js";
 
@@ -331,9 +331,9 @@ export function chatContext(ctx) {
     radius_m: ctx.radius,
     verdict: { level: v.level, rule: v.rule_fired, adjustments: v.adjustments },
     facts: {
-      taste_rank_0_to_1: hm.demand, beats_share_of_blocks_in_circle: hm.local,
+      taste_score: s10(hm.demand), beats_share_of_blocks_in_circle: hm.local,
       direct_rivals_within_400m: v.offer?.c400, direct_rivals_within_700m: v.offer?.c700,
-      better_spot: hm.best ? { distance_m: hm.best.distance_m, why: hm.best.why?.en ?? null, rivals_700m: hm.best.c700, level: hm.best.level } : null,
+      better_spot: hm.best ? { distance_m: hm.best.distance_m, near: ctx.best_street ?? null, why: hm.best.why?.en ?? null, rivals_700m: hm.best.c700, level: hm.best.level } : null,
     },
     competitors: (ctx.competitors ?? []).slice(0, 8).map(({ name, rating, distance_m }) => ({ name, rating, distance_m })),
     supply_by_part: ctx.supply_by_part,
@@ -345,10 +345,14 @@ export function chatContext(ctx) {
 export async function chat({ ctx, history, question, lang = "en" }) {
   const es = lang === "es";
   if (!llmEnabled) return { text: es ? "El chat necesita el modelo (NEBIUS_API_KEY). El análisis de arriba funciona igualmente." : "The chat needs the LLM (NEBIUS_API_KEY). The analysis above still works.", calls: [] };
+  // where the better spot is, in words the owner can walk to (one reverse-geocode, cached on the analysis)
+  if (ctx.heatmap?.best && ctx.best_street === undefined) ctx.best_street = await T.streetAt(ctx.heatmap.best).catch(() => null);
   const system = `You are "Open Here", the assistant inside a location report for a small-business owner who wants to open a restaurant, bar or café. You can see the whole report below.
 - Questions about this place (a summary, the risks, what would change the verdict, who the area is, the competitors): answer from the report directly, citing the key numbers. Call a tool only when the question changes the inputs (another radius, ignoring a competitor, another address or block, which other kinds of business fit here).
 - Other questions about opening (licences, budget, menu, pricing, marketing, what to check in the premises, negotiating the rent): answer them too, with practical general advice, and say it is general advice when it is not from the report.
 - Never invent local businesses or figures: numbers about this area come only from the report or a tool.
+- "Where is better?" or "is there a better spot?": answer from facts.better_spot first (it is already computed). Say where it is in words the owner can walk to: its distance and the street in better_spot.near ("about 618 m away, near Carrer d'Aribau"), its verdict and why. If better_spot is null, say no nearby block scores better under the same rules.
+- Taste is a score out of 10 (facts.taste_score): write it as "8.6/10", never as 0.86.
 Write for someone with no data background: plain words, short sentences, about 4 sentences unless they ask for a list or more detail. Verdict words: RED = ${es ? "Aquí no" : "Not here"}, AMBER = ${es ? "Difícil" : "Hard"}, AMBER-GREEN = ${es ? "Prometedor" : "Promising"}, UNKNOWN = ${es ? "Sin datos" : "No data"}; there is no green light until the owner checks foot traffic, rent and licences. You may use **bold** for one or two key words.
 ${es ? "IMPORTANTE: responde siempre en español, aunque el informe esté en inglés." : "Answer in English."}
 
@@ -484,7 +488,7 @@ export function groundNumbers(text, sources) {
   const ok = (raw) => {
     const x = Number(raw.replace(",", "."));
     if (!Number.isFinite(x)) return true;
-    if (/[.,]/.test(raw)) return known.some((k) => Math.abs(k - x) < 0.006);
+    if (/[.,]/.test(raw)) return known.some((k) => Math.abs(k - x) < 0.006 || (k <= 1 && Math.abs(k * 10 - x) < 0.06));
     return known.some((k) => Math.round(k) === x || Math.abs(k * 100 - x) < 0.6); // integers, or percentages of a share
   };
   const sentences = String(text).split(/(?<=[.!?])\s+/);
