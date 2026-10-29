@@ -501,7 +501,7 @@ let stakeCur="€";
 function stake(){const r=+$("#st-rent").value||0,m=+$("#st-months").value||0,f=+$("#st-fit").value||0;const tot=r*m+f;
   const fmt=n=>stakeCur==="€"?n.toLocaleString(lang==="es"?"es-ES":"en-GB")+" €":stakeCur+n.toLocaleString("en-US");
   $("#stake-total").textContent=tot?fmt(tot):"—";$("#stake-lbl").textContent=T("committed before the first customer","comprometidos antes del primer cliente");
-  $("#stake-note").textContent=T("Your numbers, your currency: rent × months plus fit-out and licences. For reference, Ara (2025) counted 397,596 € to open a ~100 m² restaurant in Barcelona's Eixample. This report is free to read twice.","Tus cifras, tu moneda: alquiler × meses más obra y licencias. Como referencia, Ara (2025) calculó 397.596 € para abrir un restaurante de ~100 m² en el Eixample de Barcelona. Este informe es gratis de leer dos veces.");}
+  $("#stake-note").textContent=T("Your numbers, your currency: rent × months plus fit-out and licences. For reference, Ara (2025) reports at least 400,000 € to open a ~100 m² restaurant in Barcelona's Eixample, and 800,000 € for a 230 m² one. This report is free to read twice.","Tus cifras, tu moneda: alquiler × meses más obra y licencias. Como referencia, Ara (2025) habla de al menos 400.000 € para abrir un restaurante de ~100 m² en el Eixample de Barcelona, y 800.000 € para uno de 230 m². Este informe es gratis de leer dos veces.");}
 for(const id of ["#st-rent","#st-months","#st-fit"])document.addEventListener("input",e=>{if(e.target&&e.target.id===id.slice(1))stake()});
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const short=a=>String(a).split(",").slice(0,3).join(",").trim();
