@@ -116,6 +116,13 @@ select.rad{border:1px solid var(--line);border-radius:24px;padding:0 14px;min-he
 .facts div:first-child b{color:var(--brick)}
 .facts span{font-size:11.5px;color:var(--ink-2);line-height:1.35;display:block;margin-top:2px}
 .next{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.stake{margin:10px 0 4px;padding:12px 12px 10px;border:1px dashed var(--o-200);border-radius:var(--r);background:var(--o-50)}
+.stake-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.stake-h b{font-size:22px;font-variant-numeric:tabular-nums;color:var(--brick)}
+.stake-h span{font-size:13px;font-weight:600;color:var(--ink-2)}
+.stake-in{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.stake-in label span{display:block;font-size:11.5px;color:var(--ink-2);margin-bottom:3px}
+.stake-in input{width:100%;box-sizing:border-box;border:1px solid var(--o-200);border-radius:8px;padding:6px 8px;font:inherit;font-size:14px;background:#fff;min-height:36px}
 .next button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--o-200);background:var(--o-50);color:var(--brick);border-radius:999px;padding:8px 14px;min-height:40px;font-size:13px;font-weight:700;cursor:pointer}
 .next button svg.i{width:16px;height:16px}
 @media(hover:hover){.next button:hover{background:var(--orange);border-color:var(--orange);color:#fff}}
@@ -293,7 +300,7 @@ form.q button{border:0;border-radius:24px;background:var(--orange);color:#fff;pa
 }
 @media(max-width:480px){
   .cols2,.launch,.vs{grid-template-columns:1fr}
-  .facts{gap:6px}.facts div{padding:10px 8px}.facts b{font-size:16px}
+  .stake-in{grid-template-columns:1fr 1fr 1fr;gap:6px}.facts{gap:6px}.facts div{padding:10px 8px}.facts b{font-size:16px}
   .row2{grid-template-columns:1fr}
   select.rad{width:100%}
   .seg button{font-size:12.5px}
@@ -369,6 +376,15 @@ form.q button{border:0;border-radius:24px;background:var(--orange);color:#fff;pa
         <p class="note" id="langnote" hidden></p>
         <div class="facts" id="facts"></div>
         <p class="scope" id="scope" hidden></p>
+        <div class="stake" id="stake">
+          <div class="stake-h"><b id="stake-total">—</b><span id="stake-lbl">committed before the first customer</span></div>
+          <div class="stake-in">
+            <label><span data-i="st-rent">rent / month</span><input type="number" id="st-rent" min="0" step="100" value="3000" inputmode="numeric"></label>
+            <label><span data-i="st-months">months committed</span><input type="number" id="st-months" min="1" max="120" step="1" value="12" inputmode="numeric"></label>
+            <label><span data-i="st-fit">fit-out &amp; licences</span><input type="number" id="st-fit" min="0" step="1000" value="0" inputmode="numeric"></label>
+          </div>
+          <p class="note" id="stake-note" style="margin:6px 0 0"></p>
+        </div>
         <div class="next" id="next">
           <button type="button" id="go-scout"><svg class="i" aria-hidden="true"><use href="#i-spot"/></svg><span data-i="goscout">Find a better spot</span></button>
           <button type="button" id="go-launch"><svg class="i" aria-hidden="true"><use href="#i-rocket"/></svg><span data-i="golaunch">Plan the opening</span></button>
@@ -472,7 +488,7 @@ form.q button{border:0;border-radius:24px;background:var(--orange);color:#fff;pa
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script>
-const ES={hero:"¿Abro aquí?",lead:"Para restaurantes, bares y cafeterías. Elige tu tipo de negocio y la calle: lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",mone:"¿Abro mi idea aquí?",mfit:"Tengo un local: ¿qué encaja?",concept:"Tipo de negocio",chint:"Aún no disponible: elige uno de la lista",address:"Dirección",ahint:"Escribe la calle y el número, y elígela de la lista",radius:"Zona alrededor",tryex:"Ejemplo:",goscout:"Buscar un sitio mejor",golaunch:"Planificar la apertura",fab:"Pregunta a Open Here",rule:"Qué regla lo decide",qwhy:"¿Por qué este resultado?",qarea:"¿Quién sale por la zona?",qscout:"¿Hay un sitio mejor cerca?",qlaunch:"¿Cómo lanzo la apertura?",qhow:"¿Cómo lo sabemos?",gap:"Nadie cerca ofrece",whyh:"Los motivos",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",who:"Quién va",when:"Cuándo",serves:"Qué sirven",scouthelp:"Un objetivo y el agente decide los pasos: compara las manzanas cercanas con las mismas reglas y te dice si moverte o quedarte, y por qué.",scoutgo:"Búscame un sitio mejor",launchhelp:"Aprendido de los clientes de los locales mejor valorados que ya sirven tu idea cerca: la música que escuchan, las marcas que les gustan, los vecinos que también visitan (no competidores) y las manzanas con más vida donde más gusta tu idea.",launchgo:"Planifica mi apertura",lmusic:"Música para la inauguración",lco:"Vecinos con los que aliarte",lbrands:"Marcas para pedir degustación",lposters:"Carteles y flyers",how:"Cada llamada",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",pdf:"Descargar PDF",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo (pasa el ratón para ver el nombre)",
+const ES={"st-rent":"alquiler / mes","st-months":"meses comprometidos","st-fit":"obra y licencias",hero:"¿Abro aquí?",lead:"Para restaurantes, bares y cafeterías. Elige tu tipo de negocio y la calle: lee qué le gusta a la zona y qué tiene ya, y te dice si abrir ahí.",mone:"¿Abro mi idea aquí?",mfit:"Tengo un local: ¿qué encaja?",concept:"Tipo de negocio",chint:"Aún no disponible: elige uno de la lista",address:"Dirección",ahint:"Escribe la calle y el número, y elígela de la lista",radius:"Zona alrededor",tryex:"Ejemplo:",goscout:"Buscar un sitio mejor",golaunch:"Planificar la apertura",fab:"Pregunta a Open Here",rule:"Qué regla lo decide",qwhy:"¿Por qué este resultado?",qarea:"¿Quién sale por la zona?",qscout:"¿Hay un sitio mejor cerca?",qlaunch:"¿Cómo lanzo la apertura?",qhow:"¿Cómo lo sabemos?",gap:"Nadie cerca ofrece",whyh:"Los motivos",actions:"Qué hacer",partners:"Socios para el lanzamiento",unk:"Lo que Qloo no ve",unkhelp:"Qloo mide gusto y oferta. Responde tú estas tres antes de firmar nada.",who:"Quién va",when:"Cuándo",serves:"Qué sirven",scouthelp:"Un objetivo y el agente decide los pasos: compara las manzanas cercanas con las mismas reglas y te dice si moverte o quedarte, y por qué.",scoutgo:"Búscame un sitio mejor",launchhelp:"Aprendido de los clientes de los locales mejor valorados que ya sirven tu idea cerca: la música que escuchan, las marcas que les gustan, los vecinos que también visitan (no competidores) y las manzanas con más vida donde más gusta tu idea.",launchgo:"Planifica mi apertura",lmusic:"Música para la inauguración",lco:"Vecinos con los que aliarte",lbrands:"Marcas para pedir degustación",lposters:"Carteles y flyers",how:"Cada llamada",noq:"Sin Qloo",cmp:"Comparar",cmpgo:"Comparar",howhelp:"Cada llamada detrás de este informe, sin la clave.",noqhelp:"La misma pregunta respondida solo por el modelo de lenguaje, sin datos de Qloo. Compara los competidores.",foot:"Hecho con datos agregados de gusto sobre lugares (Qloo) y NVIDIA Nemotron en Nebius Token Factory. Decide sobre lugares, nunca sobre personas, y no debe usarse para vivienda, empleo o crédito. No predice el éxito: muestra qué apoyan los datos y qué no ven.",pdf:"Descargar PDF",emptymap:"Elige una calle. El mapa muestra cuánto le gusta tu idea a la zona, manzana a manzana.",kaddr:"tu dirección",kbest:"mejor punto cercano",kcomp:"competidor directo (pasa el ratón para ver el nombre)",
   phconcept:"Pizzería, hamburguesería, cafetería…",phaddress:"Avenida del Paralelo 4, Barcelona",phaddr2:"Carrer de Blai 20, Barcelona",phq:"Pregunta sobre este informe…",showall:"Ver todos los tipos",close:"Cerrar",send:"Enviar"};
 const EN_PH={phconcept:"Pizzeria, burger joint, coffee shop…",phaddress:"Avinguda del Paral·lel 4, Barcelona",phaddr2:"Carrer de Blai 20, Barcelona",phq:"Ask about this report…",showall:"Show all types",close:"Close",send:"Send"};
 const VERD={en:{RED:"Not here","AMBER":"Hard","AMBER-GREEN":"Promising",UNKNOWN:"No data"},es:{RED:"Aquí no","AMBER":"Difícil","AMBER-GREEN":"Prometedor",UNKNOWN:"Sin datos"}};
@@ -481,6 +497,12 @@ const STEPS={en:["Finding the address","Matching your idea to Qloo","Reading tas
 const $=s=>document.querySelector(s);
 let lang="en",cur=null,map=null,layer=null,mode="one";
 const T=(en,es)=>lang==="es"?es:en;
+let stakeCur="€";
+function stake(){const r=+$("#st-rent").value||0,m=+$("#st-months").value||0,f=+$("#st-fit").value||0;const tot=r*m+f;
+  const fmt=n=>stakeCur==="€"?n.toLocaleString(lang==="es"?"es-ES":"en-GB")+" €":stakeCur+n.toLocaleString("en-US");
+  $("#stake-total").textContent=tot?fmt(tot):"—";$("#stake-lbl").textContent=T("committed before the first customer","comprometidos antes del primer cliente");
+  $("#stake-note").textContent=T("Your numbers, your currency: rent × months plus fit-out. A ~100 m² restaurant in Barcelona's Eixample takes at least 400,000 € to open (Ara, 2025). This report is free to read twice.","Tus cifras, tu moneda: alquiler × meses más obra. Abrir un restaurante de ~100 m² en el Eixample de Barcelona cuesta al menos 400.000 € (Ara, 2025). Este informe es gratis de leer dos veces.");}
+for(const id of ["#st-rent","#st-months","#st-fit"])document.addEventListener("input",e=>{if(e.target&&e.target.id===id.slice(1))stake()});
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const short=a=>String(a).split(",").slice(0,3).join(",").trim();
 const n2=x=>x==null?"–":lang==="es"?(+x).toFixed(2).replace(".",","):(+x).toFixed(2);
@@ -637,6 +659,7 @@ function render(d,keep=false){
   $("#rule").textContent=lang==="es"&&v.rule_es?v.rule_es:v.rule_fired;
   const tw=x=>x==null?T("no data","sin datos"):x>=.9?T("Very high","Muy alto"):x>=.85?T("High","Alto"):x>=.75?T("Medium","Medio"):T("Low","Bajo");
   const of0=v.offer||{c400:0,c700:0},b0=d.heatmap.best;
+  stakeCur=d.price_gap?.currency||"€";stake();
   $("#facts").innerHTML=`<div><b>${tw(d.heatmap.demand)}</b><span>${T("how much the area likes it","cuánto le gusta a la zona")} (${n2(d.heatmap.demand)})</span></div><div><b>${of0.c700}</b><span>${T(`direct rivals within 700 m (${of0.c400} within 400 m)`,`rivales directos a 700 m (${of0.c400} a 400 m)`)}</span></div><div><b>${b0?b0.distance_m+" m":"—"}</b><span>${b0?(b0.why?T(`to a better spot (green ring): ${b0.why.short_en}`,`hasta un sitio mejor (círculo verde): ${b0.why.short_es}`):T("to a better spot (green ring)","hasta un sitio mejor (círculo verde)")):T("no better block nearby","ninguna manzana mejor cerca")}</span></div>`;
   $("#scope").hidden=!d.outside_scope;$("#scope").textContent=d.outside_scope?T("Open Here is built for restaurants, bars and cafés. Qloo knows little about this kind of business, so read this result with care.","Open Here está pensado para restaurantes, bares y cafeterías. Qloo sabe poco de este tipo de negocio, así que lee este resultado con cautela."):"";
   $("#adjust").innerHTML=(lang==="es"&&v.adjustments_es?v.adjustments_es:v.adjustments).map(a=>`<p>${esc(a)}</p>`).join("");

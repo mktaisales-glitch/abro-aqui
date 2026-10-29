@@ -48,3 +48,12 @@ test("GET /api/concepts lists the 15 concepts with English and Spanish labels; s
   assert.equal(s2.status, 200);
   assert.deepEqual((await s2.json()).results, [], "service not reachable (offline): an empty list, not an error");
 });
+
+test("the result card shows what the owner commits before the first customer (rent × months + fit-out), in both languages", async () => {
+  const html = (await import("node:fs")).readFileSync("public/index.html", "utf8");
+  assert.match(html, /id="stake-total"/);
+  for (const id of ["st-rent", "st-months", "st-fit"]) assert.match(html, new RegExp(`id="${id}"`));
+  assert.match(html, /committed before the first customer/);
+  assert.match(html, /comprometidos antes del primer cliente/);
+  assert.match(html, /"st-rent":"alquiler \/ mes"/);
+});
