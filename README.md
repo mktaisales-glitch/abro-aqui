@@ -27,7 +27,7 @@ Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
 - **Downloadable report (PDF)**: the address, verdict, facts, a drawn taste map, competitors, the reasons, what to check before signing, and the agent's answer and opening plan when they were run; built from the analysis already in memory, no new API calls ([`specs/08-report.md`](specs/08-report.md)).
 - **"How I know"**: every Qloo, geocoding and Tavily call behind the report (failed ones too) and every model call with its time, without the key.
 
-Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/) and the [Nebius x NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com/) (October 2026) by [MarketingAiSales](https://marketingaisales.com).
+Built in October 2026 by [MarketingAiSales](https://marketingaisales.com).
 
 ## Why it only works with Qloo
 
