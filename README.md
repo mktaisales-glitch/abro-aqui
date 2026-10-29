@@ -8,7 +8,7 @@
 
 For restaurants, bars and cafés. An owner is about to sign a lease. Open Here shows them, with reasons, what the data says about **this concept** at **this street address** before they commit the money: opening a ~100 m² restaurant in Barcelona's Eixample takes at least 400,000 € ([Ara, 23 Sep 2025](https://es.ara.cat/comer/odisea-financiera-burocratica-abrir-restaurante-nuevo-comienza-400-000-euros_1_5505805.html)): how much the area likes it, how much of it is already there, and a better block nearby if there is one.
 
-Two questions, same rules: **"should I open my idea here?"** (a concept and an address) and **"I have premises: which food business fits?"** (an address; 15 restaurant, bar and café concepts ranked; see [`specs/07-explore.md`](specs/07-explore.md)). The owner picks the area around the address: 500 m, 1 km (default), 1.5 km or 2 km.
+Two questions, same rules: **"should I open my idea here?"** (a concept and an address) and **"I have a place: which food business fits?"** (an address; 15 restaurant, bar and café concepts ranked; see [`specs/07-explore.md`](specs/07-explore.md)). The owner picks the area around the address: 500 m, 1 km (default), 1.5 km or 2 km.
 
 Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
 

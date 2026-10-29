@@ -365,7 +365,7 @@ The report: ${JSON.stringify(chatContext(ctx))}`;
   }
 }
 
-// "what fits here" for the chat: the same 15-concept table as the "I have premises" mode, once per address
+// "what fits here" for the chat: the same 15-concept table as the "I have a place" mode, once per address
 const fitMemo = new Map();
 const FIT_RUNS_PER_DAY = 40, fitRuns = { day: "", n: 0 };
 function fitTool(ctx, trace) {
@@ -376,7 +376,7 @@ function fitTool(ctx, trace) {
       run: async () => {
         const key = `${ctx.geo.lat.toFixed(4)},${ctx.geo.lon.toFixed(4)},${ctx.radius ?? 1000}`;
         // 15 Qloo calls each: a daily cap for the whole demo, apart from the "what fits" page's own limit
-        if (!fitMemo.has(key) && ++fitRuns.n > FIT_RUNS_PER_DAY && fitRuns.day === new Date().toISOString().slice(0, 10)) return { error: "daily limit for this question reached on the demo: use the 'I have premises: what fits?' mode" };
+        if (!fitMemo.has(key) && ++fitRuns.n > FIT_RUNS_PER_DAY && fitRuns.day === new Date().toISOString().slice(0, 10)) return { error: "daily limit for this question reached on the demo: use the 'I have a place: what fits?' mode" };
         if (fitRuns.day !== new Date().toISOString().slice(0, 10)) Object.assign(fitRuns, { day: new Date().toISOString().slice(0, 10), n: 1 });
         if (!fitMemo.has(key)) fitMemo.set(key, explore({ address: ctx.address, coords: ctx.geo, radius: ctx.radius ?? 1000 }).catch((e) => { fitMemo.delete(key); throw e; }));
         const v = await fitMemo.get(key);
@@ -387,7 +387,7 @@ function fitTool(ctx, trace) {
   };
 }
 
-/** The chat after "I have premises: what fits?": it reads the table of 15 concepts at that address. */
+/** The chat after "I have a place: what fits?": it reads the table of 15 concepts at that address. */
 export async function chatFit({ fit, history, question, lang = "en" }) {
   const es = lang === "es";
   if (!llmEnabled) return { text: es ? "El chat necesita el modelo (NEBIUS_API_KEY)." : "The chat needs the LLM (NEBIUS_API_KEY).", calls: [] };

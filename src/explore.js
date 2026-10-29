@@ -1,4 +1,4 @@
-// "I have premises: which food business fits here?" — the same rules run for a list of concepts at one address, ranked.
+// "I have a place: which food business fits here?" — the same rules run for a list of concepts at one address, ranked.
 // No report and no better-spot search per concept (that is what the full analysis is for): taste rank, offer, verdict.
 import { makeTrace } from "./http.js";
 import * as T from "./tools.js";
