@@ -29,6 +29,16 @@ Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
 
 Built in October 2026 by [MarketingAiSales](https://marketingaisales.com).
 
+## Thirty-second tour
+
+| | |
+| --- | --- |
+| [![Verdict](docs/img/01-result.jpg)](docs/img/01-result.jpg) | [![Better block](docs/img/02-paris2.jpg)](docs/img/02-paris2.jpg) |
+| [![Second-opinion agent](docs/img/03-launch1.jpg)](docs/img/03-launch1.jpg) | [![Launch plan](docs/img/04-launch2.jpg)](docs/img/04-launch2.jpg) |
+| [![With Qloo vs. without](docs/img/05-noq2.jpg)](docs/img/05-noq2.jpg) | [![Ask it anything](docs/img/06-chat2.jpg)](docs/img/06-chat2.jpg) |
+
+**Demo video (2:36):** https://youtu.be/k79EogpIQZ4
+
 ## Why it only works with Qloo
 
 The verdict is computed from Qloo signals. Without them, a language model guesses the neighbourhood and invents competitors (see the "Without Qloo" tab).
