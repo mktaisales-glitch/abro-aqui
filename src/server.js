@@ -6,7 +6,7 @@ import { llmEnabled, MODELS, withClient } from "./llm.js";
 import { scrubPII } from "./safe.js";
 import { launchPlan } from "./launch.js";
 import { explore } from "./explore.js";
-import { buildReportPdf, reportFileName } from "./report-pdf.js";
+import { buildReportPdf, reportFileName, mapTiles } from "./report-pdf.js";
 import { matchConcept, publicConcepts, CONCEPT_LIST } from "./concepts.js";
 import { suggestPlaces, resolveConcept } from "./tools.js";
 
@@ -219,7 +219,8 @@ app.get("/api/report.pdf", async (req, res) => {
   if (!s?.ctx) return res.status(404).json({ error: "This report has expired (analyses are kept for 2 hours). Run the analysis again and download it." });
   if (!allow(ipOf(req), "report")) return res.status(429).json({ error: "Daily report limit reached on this demo." });
   try {
-    const pdf = await buildReportPdf({ ctx: s.ctx, scout: s.scout, launch: s.launch, lang: req.query?.lang === "es" ? "es" : "en" });
+    const tiles = await mapTiles(s.ctx).catch(() => []);
+    const pdf = await buildReportPdf({ ctx: s.ctx, scout: s.scout, launch: s.launch, lang: req.query?.lang === "es" ? "es" : "en", tiles });
     res.set({ "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${reportFileName(s.ctx)}"`, "Cache-Control": "no-store" });
     res.send(pdf);
   } catch (e) {

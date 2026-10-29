@@ -1,6 +1,7 @@
 // Downloadable location report (spec 08): the analysis of one address as a PDF the owner can keep or forward.
 // Everything comes from the session: the analysis, and the agent's answer and the launch plan if they were run.
-// No external tiles or services: the map is drawn from the heat-map cells already in the analysis.
+// The map: OpenStreetMap streets underneath (fetched when the PDF is built, cached; a plain box if they do not answer),
+// and on top the heat-map cells already in the analysis.
 import PDFDocument from "pdfkit";
 import { plainVerdictDeep, plainVerdictWords, betterSpotWhy } from "./verdict.js";
 import { shortAddress } from "./tools.js";
@@ -67,14 +68,14 @@ const radiusLabel = (r, lang) => (r >= 1000 ? `${String(r / 1000).replace(".", l
 /** ASCII file name: open-here-<concept>-<street>.pdf */
 export function reportFileName(ctx) {
   const slug = (s) => String(s ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  const parts = String(ctx?.geo?.display_name ?? ctx?.address ?? "").split(",").map((p) => p.trim()).filter(Boolean);
-  const street = parts.slice(0, 2).join(" ");
+  const parts = shortAddress(String(ctx?.geo?.display_name ?? ctx?.address ?? "")).split(",").map((p) => p.trim()).filter(Boolean);
+  const street = parts.slice(0, 1).join(" ");
   const name = ["open-here", slug(ctx?.concept).slice(0, 30), slug(street).slice(0, 40)].filter(Boolean).join("-");
   return `${name || "open-here-report"}.pdf`;
 }
 
 /** Builds the PDF and resolves with a Buffer. */
-export function buildReportPdf({ ctx, scout = null, launch = null, lang = "en", date = new Date() }) {
+export function buildReportPdf({ ctx, scout = null, launch = null, lang = "en", date = new Date(), tiles = [] }) {
   const t = TXT[lang === "es" ? "es" : "en"];
   const L = lang === "es" ? "es" : "en";
   // model-written text never shows internal codes ("Amber", "RED"); older sessions may still carry them
@@ -142,7 +143,7 @@ export function buildReportPdf({ ctx, scout = null, launch = null, lang = "en", 
   if (best) { para(`${L === "es" ? `Mejor punto a ${best.distance_m} m` : `Better spot ${best.distance_m} m away`}: ${bestWhy(best, ctx, L).text}.`, { size: 9, color: C.grey }); doc.moveDown(0.3); }
 
   // --- map
-  drawMap(doc, ctx, t, F, X0, W);
+  drawMap(doc, ctx, t, F, X0, W, tiles);
 
   // --- competitors
   h2(t.comp);
@@ -204,11 +205,44 @@ export function buildReportPdf({ ctx, scout = null, launch = null, lang = "en", 
   return done;
 }
 
+// ---------- OpenStreetMap tiles under the PDF map (same box: MAP_W x MAP_H points) ----------
+const MAP_W = 300, MAP_H = 250, tileCache = new Map();
+const OSM_UA = { "User-Agent": "abro-aqui/0.1 (+https://github.com/mktaisales-glitch/abro-aqui)" };
+async function tile(z, x, y) {
+  const url = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+  if (tileCache.has(url)) return tileCache.get(url);
+  const ac = new AbortController(); const timer = setTimeout(() => ac.abort(), 4000);
+  try {
+    const r = await fetch(url, { headers: OSM_UA, signal: ac.signal });
+    if (!r.ok) return null;
+    const buf = Buffer.from(await r.arrayBuffer());
+    tileCache.set(url, buf); while (tileCache.size > 400) tileCache.delete(tileCache.keys().next().value);
+    return buf;
+  } catch { return null; } finally { clearTimeout(timer); }
+}
+/** The tiles that cover the PDF map box, placed in points relative to its top-left corner. Empty if they cannot be fetched. */
+export async function mapTiles(ctx) {
+  if (!ctx?.geo || process.env.OFFLINE) return [];
+  const { lat, lon } = ctx.geo, R = (ctx.radius ?? 1000) * 1.08, s = Math.min(MAP_W, MAP_H) / (2 * R); // points per metre
+  const mppAt = (z) => (156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** z;
+  let z = 12; while (z < 17 && mppAt(z + 1) * s > 0.38) z++;               // about 2.5 tile pixels per point
+  const k = mppAt(z) * s, n = 256 * 2 ** z;                                  // points per world pixel
+  const wx = ((lon + 180) / 360) * n, sl = Math.sin((lat * Math.PI) / 180), wy = (0.5 - Math.log((1 + sl) / (1 - sl)) / (4 * Math.PI)) * n;
+  const x0 = Math.floor((wx - MAP_W / 2 / k) / 256), x1 = Math.floor((wx + MAP_W / 2 / k) / 256);
+  const y0 = Math.floor((wy - MAP_H / 2 / k) / 256), y1 = Math.floor((wy + MAP_H / 2 / k) / 256);
+  if ((x1 - x0 + 1) * (y1 - y0 + 1) > 16) return [];
+  const jobs = [];
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++)
+    jobs.push(tile(z, x, y).then((buf) => buf && { buf, x: MAP_W / 2 + (x * 256 - wx) * k, y: MAP_H / 2 + (y * 256 - wy) * k, size: 256 * k }));
+  const out = (await Promise.all(jobs)).filter(Boolean);
+  return out.length === jobs.length ? out : []; // a map with holes reads worse than the plain box
+}
+
 /** Vector map from the heat-map cells: five classes by rank inside the circle, the address, rivals and the better spot. */
-function drawMap(doc, ctx, t, F, X0, W) {
+function drawMap(doc, ctx, t, F, X0, W, tiles = []) {
   const cells = (ctx.heatmap?.cells ?? []).filter((c) => c.affinity_rank != null);
   if (!ctx.geo || !cells.length) return;
-  const H = 250, MW = 300;
+  const H = MAP_H, MW = MAP_W;
   if (doc.y + H + 40 > doc.page.height - doc.page.margins.bottom) doc.addPage();
   doc.font(F.b).fontSize(12.5).fillColor(C.ink).text(t.map, X0, doc.y);
   doc.moveDown(0.3);
@@ -223,6 +257,9 @@ function drawMap(doc, ctx, t, F, X0, W) {
   doc.save();
   doc.rect(left, top, MW, H).fillColor("#f3f4f6").fill();
   doc.rect(left, top, MW, H).clip();
+  // streets underneath, faded so the taste cells read first
+  for (const tl of tiles) { try { doc.image(tl.buf, left + tl.x, top + tl.y, { width: tl.size, height: tl.size }); } catch {} }
+  if (tiles.length) doc.rect(left, top, MW, H).fillColor("#ffffff").fillOpacity(0.35).fill().fillOpacity(1);
   const sorted = cells.map((c) => c.affinity_rank).sort((a, b) => a - b);
   const q = (p) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
   const cuts = [q(0.8), q(0.6), q(0.4), q(0.2)];

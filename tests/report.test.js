@@ -30,7 +30,7 @@ test("Spanish labels and a report without optional sections still build", async 
 });
 
 test("file name is plain ASCII; characters the fonts lack fall back to plain letters", () => {
-  assert.equal(reportFileName({ concept: "Café & tapas", geo: { display_name: "40, Avinguda del Paral·lel, Barcelona" } }), "open-here-cafe-tapas-40-avinguda-del-paral-lel.pdf");
+  assert.equal(reportFileName({ concept: "Café & tapas", geo: { display_name: "40, Avinguda del Paral·lel, Barcelona" } }), "open-here-cafe-tapas-avinguda-del-paral-lel-40.pdf");
   assert.equal(safeText("Paral·lel, Gràcia, 12 €, 4.6 ★, Łódź"), "Paral·lel, Gràcia, 12 €, 4.6 *, ódz");
 });
 
@@ -44,4 +44,14 @@ test("short address drops a leading place name and puts the house number after t
   assert.equal(shortAddress("rico, 100, Rambla del Poblenou, el Poblenou, Sant Martí, Barcelona, Barcelonès, Barcelona, Catalunya, 08005, España"), "Rambla del Poblenou 100, el Poblenou, Barcelona");
   assert.equal(shortAddress("200, Schermerhorn Street, Brooklyn, Kings County, New York, 11201, United States"), "200 Schermerhorn Street, Brooklyn");
   assert.equal(shortAddress("41.37903, 2.15478 (Gran Via)"), "41.37903, 2.15478 (Gran Via)");
+});
+
+test("the PDF map draws street tiles under the cells when they are given, and the file name skips a shop's name", async () => {
+  const { PNG_1x1 } = { PNG_1x1: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64") };
+  const ctx = { concept: "sushi", address: "x", radius: 1000, geo: { lat: 41.39, lon: 2.16, display_name: "Farmàcia X, 50, Passeig de Gràcia, Barcelona" }, verdict: { level: "AMBER", offer: { c400: 1, c700: 8 } },
+    heatmap: { demand: 0.99, cells: [{ lat: 41.39, lon: 2.16, affinity_rank: 0.9 }] }, report: { headline: "h", why: [], actions: [], unknowns: [] }, competitors: [] };
+  const plain = await buildReportPdf({ ctx });
+  const withTiles = await buildReportPdf({ ctx, tiles: [{ buf: PNG_1x1, x: 0, y: 0, size: 100 }] });
+  assert.ok(withTiles.length > plain.length);
+  assert.equal(reportFileName(ctx), "open-here-sushi-passeig-de-gracia-50.pdf");
 });
