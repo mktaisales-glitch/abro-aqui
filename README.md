@@ -37,7 +37,7 @@ Built in October 2026 by [MarketingAiSales](https://marketingaisales.com).
 | [![Second-opinion agent](docs/img/03-launch1.jpg)](docs/img/03-launch1.jpg) | [![Launch plan](docs/img/04-launch2.jpg)](docs/img/04-launch2.jpg) |
 | [![With Qloo vs. without](docs/img/05-noq2.jpg)](docs/img/05-noq2.jpg) | [![Ask it anything](docs/img/06-chat2.jpg)](docs/img/06-chat2.jpg) |
 
-**Demo video (2:36):** https://youtu.be/P8UAG_s8MZY
+**Demo video (2:55):** https://youtu.be/P8UAG_s8MZY
 
 ## Why it only works with Qloo
 
