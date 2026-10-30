@@ -14,7 +14,7 @@ Type `seafood restaurant` and `Avinguda del Paral·lel 40, Barcelona`. You get:
 
 - **A verdict**: Not here, Hard, Promising, or No data. The exact rule that produced it is one click away.
 - **What the area says**: how much the area likes the concept (Qloo `affinity_rank` around the address) and how much of it is already there (real rivals within 400 and 700 m, and the share of popular places that already serve it), drawn on two gauges with the rule's thresholds.
-- **A taste heat map** of the concept around the address, block by block, with a **better spot nearby** when a busy block comes out better under the same rules (taste measured the same way, within 250 m): a better verdict, or the same verdict with clearly more taste and fewer rivals. The page says which, e.g. "same verdict (Hard), 1 rival within 700 m instead of 3, the area likes it more (0.82 vs 0.78)".
+- **A taste heat map** of the concept around the address, block by block, with a **better spot nearby** when a busy block comes out better under the same rules (taste measured the same way, within 250 m): a better verdict, or the same verdict with clearly more taste and fewer rivals. The page says which, e.g. "same verdict (Hard), 1 rival within 700 m instead of 3, the area likes it more (8.2/10 vs 7.8/10)".
 - **The real competitors** within 700 m, with rating, price level and distance.
 - **The gap**: parts of your idea nobody nearby offers, and parts Qloo cannot measure there (said as such, never passed off as a gap).
 - **The area**: among the 50 most popular places within 500 m, what they serve, who goes and when.
@@ -61,9 +61,9 @@ The verdict comes from deterministic code (`src/verdict.js`), specified in [`spe
 How we read Qloo's heat map: `affinity` and `popularity` are ranks **inside** the 1.5 km circle (evenly spread from 0 to 1), so they never decide on their own. Demand is `affinity_rank`, averaged over the blocks within 250 m. Offer is counted with real places.
 
 1. too few heat-map blocks for the area picked → **No data** (the minimum scales with the circle's area: 10 blocks for 500 m, 22 for 1 km, 50 for 1.5 km, 89 for 2 km; `minCoverageFor` in `src/agent.js`)
-2. demand < 0.75 → **Not here** (the area's taste leans elsewhere)
+2. demand < 7.5/10 → **Not here** (the area's taste leans elsewhere)
 3. well served (≥ 3 rivals within 400 m, ≥ 6 within 700 m, or ≥ 20 % of the popular places nearby already serve it) → **Hard**
-4. demand ≥ 0.85 and almost no offer (≤ 1 rival within 700 m) → **Promising**
+4. demand ≥ 8.5/10 and almost no offer (≤ 1 rival within 700 m) → **Promising**
 5. otherwise → **Hard**. Two rivals rated 4.5 or more within 400 m turn Promising into Hard.
 
 There is no automatic green, because Qloo measures taste and offer, not foot traffic, rent or income.
@@ -74,8 +74,8 @@ Both businesses below closed. We do not claim the tool would have predicted it: 
 
 | Case | What Qloo says | Verdict |
 | --- | --- | --- |
-| Seafood restaurant, Av. del Paral·lel 40 | the area **loves** seafood (demand 0.93), but it is **well served**: Puertecillo Paral·lel (4.4★) is 26 m away, 7 seafood restaurants within 700 m, and **13 of the 50** most popular places within 500 m already serve seafood. A busy block about 390 m away comes out with the same verdict but likes it more (0.97 vs 0.93) and has 3 rivals within 700 m instead of 7 | **Hard**, with a better spot nearby |
-| Waffles and ice cream, Gran Via 400 (corner of Entença) | demand for ice cream 0.85; **7 ice-cream shops** within 700 m (Gelatomania 4.8★ at 356 m). Waffles **cannot be measured**: Qloo has no waffle-tagged place within 5 km, and the report says so instead of calling it a gap | **Hard** |
+| Seafood restaurant, Av. del Paral·lel 40 | the area **loves** seafood (demand 9.3/10), but it is **well served**: Puertecillo Paral·lel (4.4★) is 26 m away, 7 seafood restaurants within 700 m, and **13 of the 50** most popular places within 500 m already serve seafood. A busy block about 390 m away comes out with the same verdict but likes it more (9.7/10 vs 9.3/10) and has 3 rivals within 700 m instead of 7 | **Hard**, with a better spot nearby |
+| Waffles and ice cream, Gran Via 400 (corner of Entença) | demand for ice cream 8.5/10; **7 ice-cream shops** within 700 m (Gelatomania 4.8★ at 356 m). Waffles **cannot be measured**: Qloo has no waffle-tagged place within 5 km, and the report says so instead of calling it a gap | **Hard** |
 
 ![Live (27-Oct, before the better-spot fix of 28-Oct): seafood at Avinguda del Paral·lel 40 comes out Hard, with a better spot nearby (green ring)](docs/live-hard-paralel.jpg)
 
@@ -83,8 +83,8 @@ Both businesses below closed. We do not claim the tool would have predicted it: 
 
 | Case | What Qloo says | Verdict |
 | --- | --- | --- |
-| Ramen, 200 Schermerhorn Street, Brooklyn (Boerum Hill) | taste rank 0.92, **one** rival within 700 m, 1 of 50 popular places serves it. The report: "People here really want ramen but almost no one serves it." | **Promising** (green only after foot traffic, rent and income are checked) |
-| Ramen, Carrer de Sants 100, Barcelona | taste rank 0.57, below the 0.75 line: the area's taste leans elsewhere | **Not here** |
+| Ramen, 200 Schermerhorn Street, Brooklyn (Boerum Hill) | taste 9.2/10, **one** rival within 700 m, 1 of 50 popular places serves it. The report: "People here really want ramen but almost no one serves it." | **Promising** (green only after foot traffic, rent and income are checked) |
+| Ramen, Carrer de Sants 100, Barcelona | taste 5.7/10, below the 7.5/10 line: the area's taste leans elsewhere | **Not here** |
 
 On the Paral·lel case, the language model alone (same Nemotron 3 Super, no Qloo) answered: *"Opening a seafood restaurant at Avinguda del Paral·lel 40 is promising due to high foot traffic and tourism density."* That is the gap Qloo closes.
 
